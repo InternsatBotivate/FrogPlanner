@@ -194,10 +194,6 @@ const Login = () => {
               </div>
 
               {/* Demo hint */}
-              <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 text-[11px] text-green-800 font-semibold flex items-center gap-1.5">
-                <BadgeCheck size={13} className="flex-shrink-0 text-green-600" />
-                Demo — ID: <strong>admin</strong> &nbsp;/&nbsp; Password: <strong>admin123</strong>
-              </div>
 
               {/* Sign In Button */}
               <button type="submit" disabled={submitting}
@@ -221,7 +217,6 @@ const Login = () => {
 
             {/* Footer links */}
             <div className="pt-3 border-t border-gray-100 space-y-2 mt-auto">
-              <Footer minimal />
               <button type="button" onClick={() => setShowAbout(true)}
                 className="w-full text-center text-[11px] font-bold text-green-700 hover:text-green-900 hover:underline flex items-center justify-center gap-1 select-none transition-colors">
                 <span>🐸</span> About Frog Planner

@@ -8,6 +8,14 @@ import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../store/authStore';
 import { fetchPlannerData, toggleCompletion, migrateLegacyData } from '../../lib/plannerService';
 
+// Format date helper
+const formatDateStr = (date) => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function AllTasks() {
   const { user } = useAuthStore();
   const [tasks, setTasks] = useState([]);
@@ -15,21 +23,23 @@ export default function AllTasks() {
   const [loading, setLoading] = useState(true);
 
   // Tabs & filters state
-  const [activeTab, setActiveTab] = useState('Pending'); // Pending, History
+  const [activeTab, setActiveTab] = useState('Pending'); // Pending, History, All
+  const [kpiFilter, setKpiFilter] = useState('Pending'); // Pending, Completed, Frog, Overdue, All
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDuration, setFilterDuration] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterFrog, setFilterFrog] = useState(''); // "" or "Frog"
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [showFrogModal, setShowFrogModal] = useState(false);
 
-  // Pagination states (showing 100 rows by default)
-  const [pendingPage, setPendingPage] = useState(1);
-  const [pendingItemsPerPage, setPendingItemsPerPage] = useState(100);
-
-  const [historyPage, setHistoryPage] = useState(1);
-  const [historyItemsPerPage, setHistoryItemsPerPage] = useState(100);
+  // Unified Pagination states (showing 100 rows by default)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
 
   // Base reference date (today)
   const today = useMemo(() => new Date(), []);
+  const todayStr = useMemo(() => formatDateStr(today), [today]);
 
   // Custom Categories & Durations
   const [customCategories] = useState(() => {
@@ -56,24 +66,25 @@ export default function AllTasks() {
     initData();
   }, [user]);
 
-  // Format date helper
-  const formatDateStr = (date) => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
 
-  // Get list of all date strings that have completions or represent today (overall data)
+
+  // Get list of all date strings that have completions, explicit task dates, or represent today (overall data)
   const dateStrings = useMemo(() => {
-    const keys = Object.keys(completions);
+    const keys = new Set(Object.keys(completions));
+    
+    // Include all explicit dates from user's tasks
+    tasks.forEach(t => {
+      if (t.date) {
+        keys.add(t.date);
+      }
+    });
+
     const todayStr = formatDateStr(today);
-    if (!keys.includes(todayStr)) {
-      keys.push(todayStr);
-    }
+    keys.add(todayStr);
+
     // Sort dates descending (newest first)
-    return keys.sort((a, b) => b.localeCompare(a));
-  }, [completions, today]);
+    return Array.from(keys).sort((a, b) => b.localeCompare(a));
+  }, [completions, tasks, today]);
 
   // Build the flat list of task instances for these dates
   const taskInstances = useMemo(() => {
@@ -82,7 +93,13 @@ export default function AllTasks() {
       const doneIds = completions[dStr] || [];
 
       // Filter master tasks that are either recurring template (no date) or explicitly for this date
-      const activeTasks = tasks.filter(t => !t.date || t.date === dStr);
+      // For recurring tasks, only activate them for today or in the past (not future dates)
+      const activeTasks = tasks.filter(t => {
+        if (!t.date) {
+          return dStr <= todayStr;
+        }
+        return t.date === dStr;
+      });
 
       activeTasks.forEach(t => {
         const isDone = doneIds.includes(t.id);
@@ -94,10 +111,9 @@ export default function AllTasks() {
       });
     });
     return list;
-  }, [tasks, completions, dateStrings]);
+  }, [tasks, completions, dateStrings, todayStr]);
 
   // Compute overall KPI metrics
-  const todayStr = useMemo(() => formatDateStr(today), [today]);
 
   const kpis = useMemo(() => {
     const activeInstances = taskInstances.filter(t => t.status === 'Completed' || t.selectValue !== 'Done');
@@ -141,28 +157,48 @@ export default function AllTasks() {
     }
   };
 
-  // Filter & Search pending tasks
-  const pendingTasks = useMemo(() => {
+  // Filter & Search tasks based on activeTab, kpiFilter, and other filters
+  const filteredTasks = useMemo(() => {
     return taskInstances
       .filter(item => {
-        if (item.status !== 'Pending') return false;
-        if (item.selectValue === 'Done') return false;
+        // 1. Filter by activeTab status
+        if (activeTab === 'Pending') {
+          if (item.status !== 'Pending') return false;
+          if (item.selectValue === 'Done') return false;
+        } else if (activeTab === 'History') {
+          if (item.status !== 'Completed') return false;
+        }
 
-        // Search filter
+        // 2. KPI Filter specific constraints
+        if (kpiFilter === 'Frog') {
+          if (item.priority !== 'Frog' || item.status !== 'Pending') return false;
+        } else if (kpiFilter === 'Overdue') {
+          if (item.status !== 'Pending' || item.dateInstance >= todayStr) return false;
+        } else if (kpiFilter === 'Completed') {
+          if (item.status !== 'Completed') return false;
+        } else if (kpiFilter === 'Pending') {
+          if (item.status !== 'Pending') return false;
+        }
+
+        // 3. Search filter
         if (searchQuery.trim().length > 0) {
           const q = searchQuery.toLowerCase();
           const match = item.description?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
           if (!match) return false;
         }
 
-        // Duration filter
+        // 4. Duration filter
         if (filterDuration && item.duration !== filterDuration) return false;
 
-        // Category filter
+        // 5. Category filter
         if (filterCategory && item.category !== filterCategory) return false;
 
-        // Frog filter
+        // 6. Frog filter toggle (from search panel)
         if (filterFrog === 'Frog' && item.priority !== 'Frog') return false;
+
+        // 7. Date range filter
+        if (fromDate && item.dateInstance < fromDate) return false;
+        if (toDate && item.dateInstance > toDate) return false;
 
         return true;
       })
@@ -174,62 +210,21 @@ export default function AllTasks() {
         if (a.priority !== 'Frog' && b.priority === 'Frog') return 1;
         return 0;
       });
-  }, [taskInstances, searchQuery, filterDuration, filterCategory, filterFrog]);
+  }, [taskInstances, activeTab, kpiFilter, searchQuery, filterDuration, filterCategory, filterFrog, todayStr, fromDate, toDate]);
 
-  // Filter & Search history (completed) tasks
-  const historyTasks = useMemo(() => {
-    return taskInstances
-      .filter(item => {
-        if (item.status !== 'Completed') return false;
-
-        // Search filter
-        if (searchQuery.trim().length > 0) {
-          const q = searchQuery.toLowerCase();
-          const match = item.description?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
-          if (!match) return false;
-        }
-
-        // Duration filter
-        if (filterDuration && item.duration !== filterDuration) return false;
-
-        // Category filter
-        if (filterCategory && item.category !== filterCategory) return false;
-
-        // Frog filter
-        if (filterFrog === 'Frog' && item.priority !== 'Frog') return false;
-
-        return true;
-      })
-      .sort((a, b) => {
-        if (a.dateInstance !== b.dateInstance) {
-          return b.dateInstance.localeCompare(a.dateInstance);
-        }
-        if (a.priority === 'Frog' && b.priority !== 'Frog') return -1;
-        if (a.priority !== 'Frog' && b.priority === 'Frog') return 1;
-        return 0;
-      });
-  }, [taskInstances, searchQuery, filterDuration, filterCategory, filterFrog]);
-
-  // Paginated lists
-  const paginatedPending = useMemo(() => {
-    const start = (pendingPage - 1) * pendingItemsPerPage;
-    return pendingTasks.slice(start, start + pendingItemsPerPage);
-  }, [pendingTasks, pendingPage, pendingItemsPerPage]);
-
-  const paginatedHistory = useMemo(() => {
-    const start = (historyPage - 1) * historyItemsPerPage;
-    return historyTasks.slice(start, start + historyItemsPerPage);
-  }, [historyTasks, historyPage, historyItemsPerPage]);
+  // Unified Paginated list
+  const paginatedTasks = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredTasks.slice(start, start + itemsPerPage);
+  }, [filteredTasks, currentPage, itemsPerPage]);
 
   // Total pages
-  const totalPendingPages = Math.ceil(pendingTasks.length / pendingItemsPerPage);
-  const totalHistoryPages = Math.ceil(historyTasks.length / historyItemsPerPage);
+  const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
 
   // Reset page when filters change
   useEffect(() => {
-    setPendingPage(1);
-    setHistoryPage(1);
-  }, [searchQuery, filterDuration, filterCategory, filterFrog]);
+    setCurrentPage(1);
+  }, [activeTab, kpiFilter, searchQuery, filterDuration, filterCategory, filterFrog, fromDate, toDate]);
 
   // Table Headers
   const tableHeaders = ['Action', 'Date', 'Task Description', 'Time', 'Category', 'Status'];
@@ -382,6 +377,16 @@ export default function AllTasks() {
     </div>
   );
 
+  const renderRow = (item) => {
+    if (item.status === 'Completed') return renderHistoryRow(item);
+    return renderPendingRow(item);
+  };
+
+  const renderCard = (item) => {
+    if (item.status === 'Completed') return renderHistoryCard(item);
+    return renderPendingCard(item);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
@@ -395,32 +400,93 @@ export default function AllTasks() {
     <div className="p-1.5 sm:p-3 lg:p-4 space-y-3 lg:space-y-4 text-left flex flex-col min-h-0 h-full overflow-y-auto md:overflow-hidden">
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {/* Total Card */}
-        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between text-left">
-          <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Total Tasks</span>
-          <span className="text-xl md:text-2xl font-black text-gray-800 mt-1">{kpis.total}</span>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setKpiFilter('All');
+            setActiveTab('All');
+          }}
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+            kpiFilter === 'All'
+              ? 'bg-slate-800 border-slate-900 text-white ring-2 ring-slate-400/30'
+              : 'bg-white border-gray-200 text-gray-500 hover:bg-slate-50'
+          }`}
+        >
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'All' ? 'text-slate-300' : 'text-gray-400'}`}>Total Tasks</span>
+          <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'All' ? 'text-white' : 'text-gray-800'}`}>{kpis.total}</span>
+        </button>
+
         {/* Completed Card */}
-        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between text-left border-l-4 border-l-emerald-500">
-          <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Completed</span>
-          <span className="text-xl md:text-2xl font-black text-emerald-600 mt-1">{kpis.completed}</span>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setKpiFilter('Completed');
+            setActiveTab('History');
+          }}
+          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+            kpiFilter === 'Completed'
+              ? 'bg-emerald-600 border-emerald-700 border-l-emerald-800 text-white ring-2 ring-emerald-400/30'
+              : 'bg-white border-gray-200 border-l-emerald-500 text-gray-500 hover:bg-emerald-50/50'
+          }`}
+        >
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Completed' ? 'text-emerald-100' : 'text-gray-400'}`}>Completed</span>
+          <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Completed' ? 'text-white' : 'text-emerald-600'}`}>{kpis.completed}</span>
+        </button>
+
         {/* Pending Card */}
-        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between text-left border-l-4 border-l-amber-500">
-          <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Pending</span>
-          <span className="text-xl md:text-2xl font-black text-amber-600 mt-1">{kpis.pending}</span>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setKpiFilter('Pending');
+            setActiveTab('Pending');
+          }}
+          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+            kpiFilter === 'Pending'
+              ? 'bg-amber-500 border-amber-600 border-l-amber-700 text-white ring-2 ring-amber-400/30'
+              : 'bg-white border-gray-200 border-l-amber-500 text-gray-500 hover:bg-amber-50/50'
+          }`}
+        >
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Pending' ? 'text-amber-100' : 'text-gray-400'}`}>Pending</span>
+          <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Pending' ? 'text-white' : 'text-amber-650'}`}>{kpis.pending}</span>
+        </button>
+
         {/* Pending Frogs Card */}
-        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between text-left border-l-4 border-l-emerald-600">
-          <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">🐸 Pending Frogs</span>
-          <span className="text-xl md:text-2xl font-black text-emerald-800 mt-1">{kpis.pendingFrog}</span>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setKpiFilter('Frog');
+            setActiveTab('Pending');
+          }}
+          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+            kpiFilter === 'Frog'
+              ? 'bg-green-700 border-green-800 border-l-green-900 text-white ring-2 ring-green-400/30'
+              : 'bg-white border-gray-200 border-l-emerald-600 text-gray-500 hover:bg-green-50/50'
+          }`}
+        >
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${kpiFilter === 'Frog' ? 'text-green-100' : 'text-gray-400'}`}>
+            <span>🐸 Frogs</span>
+          </span>
+          <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Frog' ? 'text-white' : 'text-emerald-800'}`}>{kpis.pendingFrog}</span>
+        </button>
+
         {/* Overdue Card */}
-        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between text-left border-l-4 border-l-rose-500 col-span-2 md:col-span-1">
-          <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">Overdue Tasks</span>
-          <span className="text-xl md:text-2xl font-black text-rose-600 mt-1">{kpis.overdue}</span>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setKpiFilter('Overdue');
+            setActiveTab('Pending');
+          }}
+          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer col-span-2 sm:col-span-1 ${
+            kpiFilter === 'Overdue'
+              ? 'bg-rose-600 border-rose-700 border-l-rose-800 text-white ring-2 ring-rose-400/30'
+              : 'bg-white border-gray-200 border-l-rose-500 text-gray-500 hover:bg-rose-50/50'
+          }`}
+        >
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Overdue' ? 'text-rose-100' : 'text-gray-400'}`}>Overdue</span>
+          <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Overdue' ? 'text-white' : 'text-rose-600'}`}>{kpis.overdue}</span>
+        </button>
       </div>
 
       {/* Category Pending Section */}
@@ -451,24 +517,43 @@ export default function AllTasks() {
           {/* Left Side: Tabs */}
           <div className="flex bg-gray-100 rounded-xl p-1 self-start xl:self-auto flex-shrink-0 w-full sm:w-auto">
             <button
-              onClick={() => setActiveTab('Pending')}
+              onClick={() => {
+                setActiveTab('Pending');
+                setKpiFilter('Pending');
+              }}
               className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-[11px] md:text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'Pending'
                   ? 'bg-white text-gray-800 shadow-sm'
                   : 'text-gray-500 hover:text-gray-800'
                 }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              <span>Pending ({pendingTasks.length})</span>
+              <span>Pending ({kpis.pending})</span>
             </button>
             <button
-              onClick={() => setActiveTab('History')}
+              onClick={() => {
+                setActiveTab('History');
+                setKpiFilter('Completed');
+              }}
               className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-[11px] md:text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'History'
                   ? 'bg-white text-gray-800 shadow-sm'
                   : 'text-gray-500 hover:text-gray-800'
                 }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>History ({historyTasks.length})</span>
+              <span>History ({kpis.completed})</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('All');
+                setKpiFilter('All');
+              }}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-[11px] md:text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'All'
+                  ? 'bg-white text-gray-800 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-800'
+                }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+              <span>All Tasks ({kpis.total})</span>
             </button>
           </div>
 
@@ -510,7 +595,27 @@ export default function AllTasks() {
               ))}
             </select>
 
-            {/* Frog filter toggle */}
+            {/* Date Filters */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <span className="text-[10px] font-bold text-gray-405 uppercase shrink-0">From</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="border border-gray-300 rounded-xl text-xs px-2.5 py-1 bg-white text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[32px] w-full sm:w-auto"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <span className="text-[10px] font-bold text-gray-405 uppercase shrink-0">To</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="border border-gray-300 rounded-xl text-xs px-2.5 py-1 bg-white text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[32px] w-full sm:w-auto"
+              />
+            </div>
+
             <button
               onClick={() => setFilterFrog(prev => prev === 'Frog' ? '' : 'Frog')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[32px] w-full sm:w-auto ${filterFrog === 'Frog'
@@ -522,14 +627,29 @@ export default function AllTasks() {
               {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
             </button>
 
+            {/* Frog Tasks Modal Button */}
+            <button
+              onClick={() => setShowFrogModal(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[32px] w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm active:scale-95"
+            >
+              <span>🐸 View Frog Tasks</span>
+              {kpis.pendingFrog > 0 && (
+                <span className="bg-white text-emerald-700 font-black text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">{kpis.pendingFrog}</span>
+              )}
+            </button>
+
             {/* Clear Button */}
-            {(searchQuery || filterDuration || filterCategory || filterFrog) && (
+            {(searchQuery || filterDuration || filterCategory || filterFrog || fromDate || toDate || kpiFilter !== 'Pending') && (
               <button
                 onClick={() => {
                   setSearchQuery('');
                   setFilterDuration('');
                   setFilterCategory('');
                   setFilterFrog('');
+                  setFromDate('');
+                  setToDate('');
+                  setKpiFilter('Pending');
+                  setActiveTab('Pending');
                 }}
                 className="text-xs text-red-500 hover:text-red-700 font-bold hover:underline py-1 px-2"
               >
@@ -542,38 +662,111 @@ export default function AllTasks() {
 
       {/* Main Table Area (Shows Active Tab Table) */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col justify-between flex-1 min-h-[450px] md:min-h-0 overflow-hidden">
-
-        {activeTab === 'Pending' ? (
-          <DataTable
-            headers={tableHeaders}
-            data={paginatedPending}
-            renderRow={renderPendingRow}
-            renderCard={renderPendingCard}
-            minWidth="900px"
-            currentPage={pendingPage}
-            totalPages={totalPendingPages}
-            itemsPerPage={pendingItemsPerPage}
-            totalResults={pendingTasks.length}
-            onPageChange={setPendingPage}
-            onItemsPerPageChange={(val) => { setPendingItemsPerPage(val); setPendingPage(1); }}
-          />
-        ) : (
-          <DataTable
-            headers={tableHeaders}
-            data={paginatedHistory}
-            renderRow={renderHistoryRow}
-            renderCard={renderHistoryCard}
-            minWidth="900px"
-            currentPage={historyPage}
-            totalPages={totalHistoryPages}
-            itemsPerPage={historyItemsPerPage}
-            totalResults={historyTasks.length}
-            onPageChange={setHistoryPage}
-            onItemsPerPageChange={(val) => { setHistoryItemsPerPage(val); setHistoryPage(1); }}
-          />
-        )}
-
+        <DataTable
+          headers={tableHeaders}
+          data={paginatedTasks}
+          renderRow={renderRow}
+          renderCard={renderCard}
+          minWidth="900px"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalResults={filteredTasks.length}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={(val) => { setItemsPerPage(val); setCurrentPage(1); }}
+        />
       </div>
+      {/* 🐸 Frog Tasks Modal */}
+      {showFrogModal && (() => {
+        const frogTasks = taskInstances.filter(t => t.priority === 'Frog' && t.status === 'Pending');
+        const frogDone = taskInstances.filter(t => t.priority === 'Frog' && t.status === 'Completed').length;
+        const frogTotal = frogTasks.length + frogDone;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowFrogModal(false); }}
+          >
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden" style={{ maxHeight: '85vh' }}>
+
+              {/* Modal Header */}
+              <div className="p-5 pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-white">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="text-4xl select-none leading-none">🐸</div>
+                    <div>
+                      <h2 className="text-base font-black text-gray-800 tracking-tight">Today's Frog Tasks</h2>
+                      <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">High priority tasks that must be accomplished first</p>
+                    </div>
+                  </div>
+                  {frogTotal > 0 && (
+                    <span className="shrink-0 text-[11px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-1">
+                      {frogDone} / {frogTotal} Done
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Task List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {frogTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                    <span className="text-5xl select-none">🎉</span>
+                    <p className="text-sm font-bold text-gray-700">All frogs eaten!</p>
+                    <p className="text-xs text-gray-400">No pending frog tasks remaining. Great work!</p>
+                  </div>
+                ) : (
+                  frogTasks.map(t => (
+                    <div
+                      key={`frog-modal-${t.id}-${t.dateInstance}`}
+                      className="bg-white border border-gray-100 rounded-2xl p-3.5 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      {/* Badges row */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        {t.duration && (
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 rounded text-[9px] font-bold uppercase tracking-wide">
+                            {t.duration}
+                          </span>
+                        )}
+                        {t.category && (
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-bold uppercase tracking-wide">
+                            {getCategoryEmoji(t.category)} {t.category}
+                          </span>
+                        )}
+                        {t.dateInstance && (
+                          <span className="ml-auto px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 rounded text-[9px] font-semibold">
+                            {t.dateInstance}
+                          </span>
+                        )}
+                      </div>
+                      {/* Description + action */}
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-gray-800 leading-snug flex-1">{t.description}</p>
+                        <button
+                          onClick={() => handleToggleStatus(t.id, t.dateInstance)}
+                          className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1"
+                        >
+                          🐸 Eat Frog
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 pt-3 border-t border-gray-100 bg-gray-50/60">
+                <button
+                  onClick={() => setShowFrogModal(false)}
+                  className="w-full py-2 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors rounded-xl hover:bg-gray-100"
+                >
+                  Close Dialog
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

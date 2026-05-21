@@ -28,7 +28,7 @@ export default function Planner() {
   const [completions, setCompletions] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [showFrogModal, setShowFrogModal] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('Total');
+  const [activeFilter, setActiveFilter] = useState('Pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDuration, setFilterDuration] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -63,7 +63,7 @@ export default function Planner() {
   useEffect(() => {
     setFormData({ date: selectedDate });
     setSelectedTaskIds([]); // Reset selection when date changes
-    setActiveFilter('Total'); // Reset filter when date changes
+    setActiveFilter('Pending'); // Reset filter when date changes
   }, [selectedDate]);
 
   // Reset page when filters change
@@ -148,7 +148,7 @@ export default function Planner() {
 
     if (activeFilter === 'Completed') {
       result = result.filter(t => t.status === 'Completed');
-    } else if (activeFilter === 'Pending') {
+    } else if (activeFilter === 'Pending' || activeFilter === 'Total') {
       result = result.filter(t => t.status !== 'Completed');
     } else if (activeFilter === 'PendingFrogs') {
       result = result.filter(t => t.status !== 'Completed' && t.priority === 'Frog');
@@ -624,7 +624,10 @@ export default function Planner() {
             type="checkbox"
             checked={item.status === 'Completed'}
             onChange={() => handleToggleStatus(item.id)}
-            className="w-[18px] h-[18px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
+            disabled={activeFilter === 'Completed'}
+            className={`w-[18px] h-[18px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
+              activeFilter === 'Completed' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+            }`}
           />
         </div>
       </td>
@@ -633,7 +636,10 @@ export default function Planner() {
         <select
           value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
           onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
+          disabled={activeFilter === 'Completed'}
+          className={`border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold ${
+            activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
+          }`}
         >
           <option value="Select">Select</option>
           <option value="Pending">Pending</option>
@@ -646,8 +652,11 @@ export default function Planner() {
           type="text"
           value={item.remarks || ''}
           onChange={(e) => handleUpdateTaskField(item.id, 'remarks', e.target.value)}
-          placeholder="Remarks..."
-          className="border border-gray-355 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full max-w-[150px] font-medium"
+          disabled={activeFilter === 'Completed'}
+          placeholder={activeFilter === 'Completed' ? 'No remarks' : 'Remarks...'}
+          className={`border border-gray-355 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full max-w-[150px] font-medium ${
+            activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
+          }`}
         />
       </td>
       {/* Time */}
@@ -699,7 +708,10 @@ export default function Planner() {
             type="checkbox"
             checked={item.status === 'Completed'}
             onChange={() => handleToggleStatus(item.id)}
-            className="w-5 h-5 text-emerald-650 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
+            disabled={activeFilter === 'Completed'}
+            className={`w-5 h-5 text-emerald-650 border-gray-300 rounded focus:ring-emerald-500 ${
+              activeFilter === 'Completed' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+            }`}
           />
         </div>
       </div>
@@ -716,7 +728,10 @@ export default function Planner() {
           <select
             value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
             onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
+            disabled={activeFilter === 'Completed'}
+            className={`border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold ${
+              activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
+            }`}
           >
             <option value="Select">Select</option>
             <option value="Pending">Pending</option>
@@ -729,8 +744,11 @@ export default function Planner() {
             type="text"
             value={item.remarks || ''}
             onChange={(e) => handleUpdateTaskField(item.id, 'remarks', e.target.value)}
-            placeholder="Enter remarks..."
-            className="border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full font-medium"
+            disabled={activeFilter === 'Completed'}
+            placeholder={activeFilter === 'Completed' ? 'No remarks' : 'Enter remarks...'}
+            className={`border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full font-medium ${
+              activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
+            }`}
           />
         </div>
       </div>
@@ -766,7 +784,7 @@ export default function Planner() {
 
         {/* Completed Card */}
         <button
-          onClick={() => setActiveFilter(prev => prev === 'Completed' ? 'Total' : 'Completed')}
+          onClick={() => setActiveFilter(prev => prev === 'Completed' ? 'Pending' : 'Completed')}
           className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
             activeFilter === 'Completed'
               ? 'bg-emerald-600 border-emerald-700 text-white border-l-emerald-800 scale-[1.02] shadow-md'
@@ -792,7 +810,7 @@ export default function Planner() {
 
         {/* Pending Frogs Card */}
         <button
-          onClick={() => setActiveFilter(prev => prev === 'PendingFrogs' ? 'Total' : 'PendingFrogs')}
+          onClick={() => setActiveFilter(prev => prev === 'PendingFrogs' ? 'Pending' : 'PendingFrogs')}
           className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
             activeFilter === 'PendingFrogs'
               ? 'bg-emerald-700 border-emerald-800 text-white border-l-emerald-900 scale-[1.02] shadow-md'
@@ -805,7 +823,7 @@ export default function Planner() {
 
         {/* Overdue Card */}
         <button
-          onClick={() => setActiveFilter(prev => prev === 'Overdue' ? 'Total' : 'Overdue')}
+          onClick={() => setActiveFilter(prev => prev === 'Overdue' ? 'Pending' : 'Overdue')}
           className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 col-span-2 sm:col-span-1 ${
             activeFilter === 'Overdue'
               ? 'bg-rose-600 border-rose-700 text-white border-l-rose-800 scale-[1.02] shadow-md'
@@ -1020,7 +1038,7 @@ export default function Planner() {
       >
         <div className="space-y-4 text-left">
           
-          <div className="bg-green-50/50 border border-green-200/60 p-3 rounded-xl space-y-2 text-left animate-in fade-in duration-200">
+          {/* <div className="bg-green-50/50 border border-green-200/60 p-3 rounded-xl space-y-2 text-left animate-in fade-in duration-200">
             <div className="flex items-center gap-1.5 text-xs font-bold text-green-700">
               <ClipboardPaste size={14} />
               <span>📋 Quick Bulk Paste (Optional)</span>
@@ -1042,7 +1060,7 @@ export default function Planner() {
             >
               Import List
             </button>
-          </div>
+          </div> */}
 
           {/* Select the date */}
           <div className="space-y-1">
