@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, ClipboardPaste } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 import ModalForm from '../../components/ModalForm';
 import ModalAlert from '../../components/ModalAlert';
 import { getCategoryEmoji } from '../../utils/helpers';
 import { useAuthStore } from '../../store/authStore';
 import { fetchPlannerData, addPlannerTasks, updateTaskField, toggleCompletion, migrateLegacyData } from '../../lib/plannerService';
+import { supabase } from '../../lib/supabaseClient';
+import toast from 'react-hot-toast';
 
 const formatDateLocal = (date) => {
   const yyyy = date.getFullYear();
@@ -32,6 +34,11 @@ export default function Planner() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterFrog, setFilterFrog] = useState('');
   const [alertConfig, setAlertConfig] = useState({ isOpen: false, type: 'success', title: '', message: '', onConfirm: () => {} });
+  
+  // Selection and Bulk Import states
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
+  const [bulkPasteText, setBulkPasteText] = useState('');
+  const [dirtyTasks, setDirtyTasks] = useState({});
 
   // Custom categories list loaded from localStorage if it exists
   const [customCategories, setCustomCategories] = useState(() => {
@@ -55,11 +62,14 @@ export default function Planner() {
   // Keep date sync when active date selector changes
   useEffect(() => {
     setFormData({ date: selectedDate });
+    setSelectedTaskIds([]); // Reset selection when date changes
+    setActiveFilter('Total'); // Reset filter when date changes
   }, [selectedDate]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedTaskIds([]); // Reset selection when filters change
   }, [searchQuery, filterDuration, filterCategory, filterFrog, activeFilter, selectedDate]);
 
   // Load tasks and completions from Supabase with legacy migration on mount
@@ -79,15 +89,7 @@ export default function Planner() {
     initData();
   }, [user]);
 
-  const [committedDoneTaskIds, setCommittedDoneTaskIds] = useState([]);
 
-  // Hide already Done tasks on load or date change
-  useEffect(() => {
-    const doneIds = masterTasks
-      .filter(t => t.date === selectedDate && t.selectValue === 'Done')
-      .map(t => t.id);
-    setCommittedDoneTaskIds(doneIds);
-  }, [selectedDate, masterTasks]);
 
   // Generate current week dates
   const weekDates = useMemo(() => {
@@ -105,42 +107,51 @@ export default function Planner() {
     return dates;
   }, [weekOffset]);
 
-  const headers = ['Action', 'Status', 'Remarks', 'Time', 'Task Description', 'Category'];
+
 
   // Map master tasks to include date-specific completion status & priority
   const filteredTasks = useMemo(() => {
-    const dateCompletions = completions[selectedDate] || [];
-    const mapped = masterTasks
-      .filter(task => task.date === selectedDate) // Show ONLY tasks scheduled for this specific date
-      .map(task => {
-        const isDone = dateCompletions.includes(task.id);
-        let calculatedStatus = 'Pending';
-        if (isDone) {
-          calculatedStatus = 'Completed';
-        } else if (task.category === 'Review' || task.category === 'Call') {
-          calculatedStatus = 'Delayed';
-        } else if (task.duration === 'Morning' || task.duration === 'Afternoon') {
-          calculatedStatus = 'Progress';
-        }
-        return {
-          ...task,
-          time: task.duration,
-          status: calculatedStatus
-        };
+    const todayStr = formatDateLocal(new Date());
+    let tasksToMap = [];
+
+    if (activeFilter === 'Overdue') {
+      // Find all tasks whose date is in the past AND not completed
+      tasksToMap = masterTasks.filter(task => {
+        if (!task.date || task.date >= todayStr) return false;
+        const dateCompletions = completions[task.date] || [];
+        const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
+        return !isDone;
       });
+    } else {
+      tasksToMap = masterTasks.filter(task => task.date === selectedDate);
+    }
 
-    let result = mapped.filter(t => !committedDoneTaskIds.includes(t.id));
+    const mapped = tasksToMap.map(task => {
+      const dateCompletions = completions[task.date] || [];
+      const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
+      let calculatedStatus = 'Pending';
+      if (isDone) {
+        calculatedStatus = 'Completed';
+      } else if (task.category === 'Review' || task.category === 'Call') {
+        calculatedStatus = 'Delayed';
+      } else if (task.duration === 'Morning' || task.duration === 'Afternoon') {
+        calculatedStatus = 'Progress';
+      }
+      return {
+        ...task,
+        time: task.duration,
+        status: calculatedStatus
+      };
+    });
 
-    if (activeFilter === 'Active') {
-      result = result.filter(t => t.status !== 'Completed');
-    } else if (activeFilter === 'Completed') {
+    let result = mapped;
+
+    if (activeFilter === 'Completed') {
       result = result.filter(t => t.status === 'Completed');
     } else if (activeFilter === 'Pending') {
-      result = result.filter(t => t.status === 'Pending');
-    } else if (activeFilter === 'Progress') {
-      result = result.filter(t => t.status === 'Progress');
-    } else if (activeFilter === 'Delayed') {
-      result = result.filter(t => t.status === 'Delayed');
+      result = result.filter(t => t.status !== 'Completed');
+    } else if (activeFilter === 'PendingFrogs') {
+      result = result.filter(t => t.status !== 'Completed' && t.priority === 'Frog');
     }
 
     // Search query filter
@@ -165,42 +176,40 @@ export default function Planner() {
     }
 
     return result;
-  }, [masterTasks, completions, selectedDate, activeFilter, searchQuery, filterDuration, filterCategory, filterFrog, committedDoneTaskIds]);
+  }, [masterTasks, completions, selectedDate, activeFilter, searchQuery, filterDuration, filterCategory, filterFrog]);
 
   // Compute stats for current day's KPI filter cards
   const stats = useMemo(() => {
+    const todayStr = formatDateLocal(new Date());
     const dateCompletions = completions[selectedDate] || [];
     const dayTasks = masterTasks.filter(task => task.date === selectedDate);
     
-    let total = dayTasks.length;
     let completed = 0;
-    let active = 0;
     let pending = 0;
-    let progress = 0;
-    let delayed = 0;
+    let pendingFrogs = 0;
 
     dayTasks.forEach(task => {
-      const isDone = dateCompletions.includes(task.id);
+      const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
       if (isDone) {
         completed++;
       } else {
-        if (committedDoneTaskIds.includes(task.id)) {
-          total--;
-          return;
-        }
-        active++;
-        if (task.category === 'Review' || task.category === 'Call') {
-          delayed++;
-        } else if (task.duration === 'Morning' || task.duration === 'Afternoon') {
-          progress++;
-        } else {
-          pending++;
+        pending++;
+        if (task.priority === 'Frog') {
+          pendingFrogs++;
         }
       }
     });
 
-    return { total, active, completed, pending, progress, delayed };
-  }, [masterTasks, completions, selectedDate, committedDoneTaskIds]);
+    const overdue = masterTasks.filter(t => {
+      if (!t.date || t.date >= todayStr) return false;
+      const doneIds = completions[t.date] || [];
+      const isCompleted = doneIds.includes(t.id) || t.selectValue === 'Done';
+      return !isCompleted;
+    }).length;
+
+    const total = completed + pending;
+    return { total, completed, pending, pendingFrogs, overdue };
+  }, [masterTasks, completions, selectedDate]);
 
   // Get all Frog Tasks for selected date
   const allTodayFrogTasks = useMemo(() => {
@@ -217,6 +226,8 @@ export default function Planner() {
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
   const paginatedTasks = filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const headers = ['Action', 'Status', 'Remarks', 'Time', 'Task Description', 'Category'];
+
   const getDayName = (date) => {
     return date.toLocaleDateString('en-US', { weekday: 'short' });
   };
@@ -232,52 +243,255 @@ export default function Planner() {
       date.getFullYear() === today.getFullYear();
   };
 
-  // Toggle completion status for specific date
-  const handleToggleStatus = async (taskId) => {
+  // Handle status change from dropdown to ensure 100% synchronization with completion state
+  const handleStatusDropdownChange = (taskId, value) => {
     if (!user?.id) return;
-    const currentCompleted = completions[selectedDate] || [];
-    const isAdding = !currentCompleted.includes(taskId);
     
-    // Optimistic UI update
-    let newCompleted;
-    if (!isAdding) {
-      newCompleted = currentCompleted.filter(id => id !== taskId);
-    } else {
-      newCompleted = [...currentCompleted, taskId];
+    const task = masterTasks.find(t => t.id === taskId);
+    const taskDate = task ? task.date : selectedDate;
+    if (!task) return;
+    
+    const isAdding = (value === 'Done');
+    const currentCompleted = completions[taskDate] || [];
+    const hasCompleted = currentCompleted.includes(taskId);
+    
+    // 1. Update completion state locally if the done state actually changed
+    if (isAdding !== hasCompleted) {
+      let newCompleted;
+      if (!isAdding) {
+        newCompleted = currentCompleted.filter(id => id !== taskId);
+      } else {
+        newCompleted = [...currentCompleted, taskId];
+      }
+      setCompletions(prev => ({
+        ...prev,
+        [taskDate]: newCompleted
+      }));
     }
-    const updatedCompletions = {
-      ...completions,
-      [selectedDate]: newCompleted
-    };
-    setCompletions(updatedCompletions);
-
-    // Call Supabase service
-    const success = await toggleCompletion(user.id, taskId, selectedDate, isAdding);
-    if (success) {
-      // Also update selectValue field
-      const newSelectVal = isAdding ? 'Done' : 'Select';
-      await updateTaskField(taskId, 'selectValue', newSelectVal);
-      // Update masterTasks state
-      setMasterTasks(prev => prev.map(t => t.id === taskId ? { ...t, selectValue: newSelectVal } : t));
-    } else {
-      // Revert state if failed
-      setCompletions(completions);
-      showAlert('error', 'Sync Error', 'Failed to update completion status. Please try again.');
-    }
+    
+    // 2. Update selectValue field in the local state
+    setMasterTasks(prev => prev.map(t => t.id === taskId ? { ...t, selectValue: value } : t));
+    
+    // 3. Mark the task as dirty
+    setDirtyTasks(prev => {
+      const existing = prev[taskId] || {
+        id: taskId,
+        date: taskDate,
+        selectValue: task.selectValue,
+        remarks: task.remarks,
+        originalDone: hasCompleted
+      };
+      return {
+        ...prev,
+        [taskId]: {
+          ...existing,
+          selectValue: value
+        }
+      };
+    });
   };
 
-  const handleSaveAll = () => {
-    const doneIds = masterTasks
-      .filter(t => (!t.date || t.date === selectedDate) && t.selectValue === 'Done')
-      .map(t => t.id);
-    setCommittedDoneTaskIds(prev => {
-      const merged = new Set([...prev, ...doneIds]);
-      return Array.from(merged);
+  // Toggle completion status for specific date (called by checkbox)
+  const handleToggleStatus = (taskId) => {
+    const task = masterTasks.find(t => t.id === taskId);
+    const taskDate = task ? task.date : selectedDate;
+    const currentCompleted = completions[taskDate] || [];
+    const isAdding = !currentCompleted.includes(taskId);
+    const newSelectVal = isAdding ? 'Done' : 'Select';
+    handleStatusDropdownChange(taskId, newSelectVal);
+  };
+
+  // Bulk Actions
+  const handleBulkComplete = () => {
+    if (!user?.id || selectedTaskIds.length === 0) return;
+    
+    const tasksToComplete = masterTasks.filter(t => selectedTaskIds.includes(t.id));
+    
+    // 1. Update completions locally
+    setCompletions(prev => {
+      const completionsUpdates = { ...prev };
+      tasksToComplete.forEach(task => {
+        const taskDate = task.date || selectedDate;
+        const dateCompletions = completionsUpdates[taskDate] || [];
+        if (!dateCompletions.includes(task.id)) {
+          completionsUpdates[taskDate] = [...dateCompletions, task.id];
+        }
+      });
+      return completionsUpdates;
     });
-    showAlert('success', 'Saved Successfully!', 'All task updates and selections have been committed.');
+    
+    // 2. Update selectValue locally
+    setMasterTasks(prev => prev.map(t => selectedTaskIds.includes(t.id) ? { ...t, selectValue: 'Done' } : t));
+    
+    // 3. Track in dirtyTasks state
+    setDirtyTasks(prev => {
+      const updatedDirty = { ...prev };
+      tasksToComplete.forEach(task => {
+        const taskDate = task.date || selectedDate;
+        const currentCompleted = completions[taskDate] || [];
+        const hasCompleted = currentCompleted.includes(task.id);
+        
+        updatedDirty[task.id] = {
+          ...(updatedDirty[task.id] || {
+            id: task.id,
+            date: taskDate,
+            selectValue: task.selectValue,
+            remarks: task.remarks,
+            originalDone: hasCompleted
+          }),
+          selectValue: 'Done'
+        };
+      });
+      return updatedDirty;
+    });
+    
+    toast.success(`Locally marked ${selectedTaskIds.length} task(s) as completed. Click Submit to save!`);
+    setSelectedTaskIds([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!user?.id || selectedTaskIds.length === 0) return;
+    
+    setAlertConfig({
+      isOpen: true,
+      type: 'warning',
+      title: 'Confirm Delete',
+      message: `Are you sure you want to permanently delete the ${selectedTaskIds.length} selected task(s)?`,
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const { error } = await supabase
+            .from('tasks')
+            .delete()
+            .in('id', selectedTaskIds);
+            
+          if (error) throw error;
+          
+          setMasterTasks(prev => prev.filter(t => !selectedTaskIds.includes(t.id)));
+          setSelectedTaskIds([]);
+          toast.success('Selected task(s) deleted successfully.');
+        } catch (error) {
+          console.error('[Bulk Delete]', error);
+          toast.error('Failed to delete selected tasks.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
+
+  const handleBulkImport = () => {
+    const lines = bulkPasteText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) {
+      toast.error('Please enter at least one task line.');
+      return;
+    }
+
+    const imported = lines.map(line => {
+      let isFrog = false;
+      let cleanDesc = line;
+      if (line.includes('🐸')) {
+        isFrog = true;
+        cleanDesc = line.replace(/🐸/g, '').trim();
+      }
+      return {
+        description: cleanDesc,
+        duration: 'Morning',
+        category: customCategories[0] || 'Work',
+        priority: isFrog ? 'Frog' : ''
+      };
+    });
+
+    if (tasksList.length === 1 && !tasksList[0].description.trim()) {
+      setTasksList(imported);
+    } else {
+      setTasksList([...tasksList, ...imported]);
+    }
+
+    setBulkPasteText('');
+    toast.success(`Successfully imported ${imported.length} task(s)!`);
+  };
+
+  const handleSaveAll = async () => {
+    if (!user?.id) return;
+    const dirtyList = Object.values(dirtyTasks);
+    if (dirtyList.length === 0) {
+      toast.success('No changes to submit.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Prepare updates for tasks table
+      const taskPromises = dirtyList.map(item => {
+        const dbFieldVal = item.selectValue || 'Select';
+        return supabase
+          .from('tasks')
+          .update({
+            select_value: dbFieldVal,
+            remarks: item.remarks || ''
+          })
+          .eq('id', item.id);
+      });
+
+      // 2. Prepare task_completions insertions and deletions
+      const completionsToInsert = [];
+      const completionsToDelete = [];
+
+      dirtyList.forEach(item => {
+        const isCurrentlyDone = (item.selectValue === 'Done');
+        if (isCurrentlyDone && !item.originalDone) {
+          completionsToInsert.push({
+            user_id: user.id,
+            task_id: item.id,
+            completion_date: item.date
+          });
+        } else if (!isCurrentlyDone && item.originalDone) {
+          completionsToDelete.push(item.id);
+        }
+      });
+
+      // Execute all task updates in parallel
+      const taskResults = await Promise.all(taskPromises);
+      for (const res of taskResults) {
+        if (res.error) throw res.error;
+      }
+
+      // Execute insertions if any
+      if (completionsToInsert.length > 0) {
+        const { error: insertErr } = await supabase
+          .from('task_completions')
+          .insert(completionsToInsert);
+        if (insertErr && insertErr.code !== '23505') throw insertErr;
+      }
+
+      // Execute deletions if any
+      if (completionsToDelete.length > 0) {
+        const { error: deleteErr } = await supabase
+          .from('task_completions')
+          .delete()
+          .eq('user_id', user.id)
+          .in('task_id', completionsToDelete);
+        if (deleteErr) throw deleteErr;
+      }
+
+      // Success! Clear dirty state
+      setDirtyTasks({});
+      toast.success(`Successfully submitted ${dirtyList.length} change(s) to database!`);
+    } catch (error) {
+      console.error('[Planner Submit Error]', error);
+      toast.error('Failed to submit changes to the database. Reverting to server state...');
+      // Revert states by refetching
+      const { tasks: dbTasks, completions: dbComps } = await fetchPlannerData(user.id);
+      setMasterTasks(dbTasks);
+      setCompletions(dbComps);
+      setDirtyTasks({});
+    } finally {
+      setLoading(false);
+    }
   };
   
-  const handleUpdateTaskField = async (taskId, field, value) => {
+  const handleUpdateTaskField = (taskId, field, value) => {
     if (!user?.id) return;
     
     // 1. Update state immediately (optimistic)
@@ -288,15 +502,29 @@ export default function Planner() {
       return t;
     }));
 
-    // 2. Call Supabase update
-    const success = await updateTaskField(taskId, field, value);
-    if (!success) {
-      showAlert('error', 'Sync Error', 'Failed to update task. Reverting changes.');
-      // Refetch planner data to revert
-      const { tasks: dbTasks, completions: dbComps } = await fetchPlannerData(user.id);
-      setMasterTasks(dbTasks);
-      setCompletions(dbComps);
-    }
+    // 2. Track in dirtyTasks state
+    const task = masterTasks.find(t => t.id === taskId);
+    if (!task) return;
+    const taskDate = task.date || selectedDate;
+    const currentCompleted = completions[taskDate] || [];
+    const hasCompleted = currentCompleted.includes(taskId);
+
+    setDirtyTasks(prev => {
+      const existing = prev[taskId] || {
+        id: taskId,
+        date: taskDate,
+        selectValue: task.selectValue,
+        remarks: task.remarks,
+        originalDone: hasCompleted
+      };
+      return {
+        ...prev,
+        [taskId]: {
+          ...existing,
+          [field]: value
+        }
+      };
+    });
   };
 
   const handleAddTaskClick = () => {
@@ -388,8 +616,8 @@ export default function Planner() {
   };
 
   const renderRow = (item) => (
-    <tr key={item.id} className="hover:bg-gray-50 transition-colors text-center text-sm border-b border-gray-100">
-      {/* 1. Action Checkbox */}
+    <tr key={item.id} className="hover:bg-gray-50/80 transition-colors text-center text-sm border-b border-gray-100">
+      {/* Action Checkbox */}
       <td className="px-2 py-2 w-[60px] whitespace-nowrap">
         <div className="flex items-center justify-center">
           <input
@@ -400,11 +628,11 @@ export default function Planner() {
           />
         </div>
       </td>
-      {/* 2. Status Column (Dropdown Done/Pending/Select) */}
+      {/* Status Column (Dropdown Done/Pending/Select) */}
       <td className="px-2 py-2 w-[110px] whitespace-nowrap text-center">
         <select
           value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
-          onChange={(e) => handleUpdateTaskField(item.id, 'selectValue', e.target.value)}
+          onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
           className="border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
         >
           <option value="Select">Select</option>
@@ -412,7 +640,7 @@ export default function Planner() {
           <option value="Done">Done</option>
         </select>
       </td>
-      {/* 3. Remarks Column (Input text box) */}
+      {/* Remarks Column (Input text box) */}
       <td className="px-2 py-2 w-[180px] whitespace-nowrap text-center">
         <input
           type="text"
@@ -422,13 +650,13 @@ export default function Planner() {
           className="border border-gray-355 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full max-w-[150px] font-medium"
         />
       </td>
-      {/* 4. Time */}
+      {/* Time */}
       <td className="px-2 py-2 w-[110px] text-gray-900 font-bold whitespace-nowrap text-xs md:text-sm">
         <div className="flex items-center justify-center gap-1.5">
           <Clock size={14} className="text-gray-400" /> {item.time}
         </div>
       </td>
-      {/* 5. Task Description */}
+      {/* Task Description */}
       <td className="px-4 py-2 text-gray-800 text-xs md:text-sm text-center font-medium">
         <div className="flex items-center justify-center gap-2">
           {item.priority === 'Frog' && (
@@ -437,7 +665,7 @@ export default function Planner() {
           <span>{item.description}</span>
         </div>
       </td>
-      {/* 6. Category */}
+      {/* Category */}
       <td className="px-2 py-2 w-[140px] text-gray-700 whitespace-nowrap text-xs md:text-sm text-center">
         <span className="font-extrabold uppercase text-[11px] text-gray-650 tracking-wider flex items-center justify-center gap-1.5 select-none">
           <span>{getCategoryEmoji(item.category)}</span>
@@ -448,21 +676,23 @@ export default function Planner() {
   );
 
   const renderCard = (item) => (
-    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3.5">
+    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3.5 transition-all duration-200">
       <div className="flex justify-between items-start border-b border-gray-100 pb-2.5">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 uppercase tracking-widest">
-              {getCategoryEmoji(item.category)} {item.category}
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest ${item.status === 'Completed' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>{item.status}</span>
+        <div className="flex items-start gap-2.5 mr-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 uppercase tracking-widest">
+                {getCategoryEmoji(item.category)} {item.category}
+              </span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest ${item.status === 'Completed' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>{item.status}</span>
+            </div>
+            <h3 className="text-sm md:text-base font-bold text-gray-800 leading-tight text-left flex items-start gap-1.5">
+              {item.priority === 'Frog' && (
+                <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+              )}
+              <span>{item.description}</span>
+            </h3>
           </div>
-          <h3 className="text-sm md:text-base font-bold text-gray-800 leading-tight text-left flex items-start gap-1.5">
-            {item.priority === 'Frog' && (
-              <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
-            )}
-            <span>{item.description}</span>
-          </h3>
         </div>
         <div className="flex ml-2 items-center">
           <input
@@ -485,7 +715,7 @@ export default function Planner() {
           <span className="font-bold text-gray-500">Status:</span>
           <select
             value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
-            onChange={(e) => handleUpdateTaskField(item.id, 'selectValue', e.target.value)}
+            onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
             className="border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
           >
             <option value="Select">Select</option>
@@ -517,86 +747,73 @@ export default function Planner() {
   }
 
   return (
-    <div className="p-0 sm:p-2 md:p-4 space-y-2 md:space-y-3 flex flex-col h-full min-h-0">
+    <div className="p-1.5 sm:p-3 lg:p-4 space-y-3 lg:space-y-4 flex flex-col h-full min-h-0 overflow-hidden text-left relative">
       {/* Status Filter KPI Cards Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 shrink-0">
         
         {/* Total Card */}
         <button
           onClick={() => setActiveFilter('Total')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center h-[54px] shadow-sm ${
+          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
             activeFilter === 'Total'
-              ? 'bg-slate-700 border-slate-800 text-white font-extrabold shadow'
-              : 'bg-slate-50 border-slate-100 text-slate-700 font-bold hover:bg-slate-100'
+              ? 'bg-slate-700 border-slate-800 text-white border-l-slate-900 scale-[1.02] shadow-md'
+              : 'bg-slate-50/70 border-slate-100 text-slate-700 border-l-slate-400 hover:bg-slate-100/50'
           }`}
         >
-          <span className="text-sm md:text-base leading-none">{stats.total}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-80">Total</span>
-        </button>
-
-        {/* Active Card */}
-        <button
-          onClick={() => setActiveFilter('Active')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center h-[54px] shadow-sm ${
-            activeFilter === 'Active'
-              ? 'bg-blue-600 border-blue-700 text-white font-extrabold shadow'
-              : 'bg-blue-50/70 border-blue-100 text-blue-700 font-bold hover:bg-blue-100'
-          }`}
-        >
-          <span className="text-sm md:text-base leading-none">{stats.active}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-85">Active</span>
+          <span className="text-base md:text-lg leading-none">{stats.total}</span>
+          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Total</span>
         </button>
 
         {/* Completed Card */}
         <button
-          onClick={() => setActiveFilter('Completed')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center h-[54px] shadow-sm ${
+          onClick={() => setActiveFilter(prev => prev === 'Completed' ? 'Total' : 'Completed')}
+          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
             activeFilter === 'Completed'
-              ? 'bg-emerald-600 border-emerald-700 text-white font-extrabold shadow'
-              : 'bg-emerald-50/70 border-emerald-100 text-emerald-700 font-bold hover:bg-emerald-100'
+              ? 'bg-emerald-600 border-emerald-700 text-white border-l-emerald-800 scale-[1.02] shadow-md'
+              : 'bg-emerald-50/70 border-emerald-100 text-emerald-700 border-l-emerald-500 hover:bg-emerald-100/50'
           }`}
         >
-          <span className="text-sm md:text-base leading-none">{stats.completed}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-85">Completed</span>
+          <span className="text-base md:text-lg leading-none">{stats.completed}</span>
+          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Completed</span>
         </button>
 
         {/* Pending Card */}
         <button
-          onClick={() => setActiveFilter('Pending')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center h-[54px] shadow-sm ${
+          onClick={() => setActiveFilter(prev => prev === 'Pending' ? 'Total' : 'Pending')}
+          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
             activeFilter === 'Pending'
-              ? 'bg-amber-600 border-amber-700 text-white font-extrabold shadow'
-              : 'bg-amber-50/70 border-amber-100 text-amber-700 font-bold hover:bg-amber-100'
+              ? 'bg-amber-600 border-amber-700 text-white border-l-amber-800 scale-[1.02] shadow-md'
+              : 'bg-amber-50/70 border-amber-100 text-amber-700 border-l-amber-500 hover:bg-amber-100/50'
           }`}
         >
-          <span className="text-sm md:text-base leading-none">{stats.pending}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-85">Pending</span>
+          <span className="text-base md:text-lg leading-none">{stats.pending}</span>
+          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Pending</span>
         </button>
 
-        {/* Progress Card */}
+        {/* Pending Frogs Card */}
         <button
-          onClick={() => setActiveFilter('Progress')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center h-[54px] shadow-sm ${
-            activeFilter === 'Progress'
-              ? 'bg-indigo-600 border-indigo-700 text-white font-extrabold shadow'
-              : 'bg-indigo-50/70 border-indigo-100 text-indigo-750 font-bold hover:bg-indigo-100'
+          onClick={() => setActiveFilter(prev => prev === 'PendingFrogs' ? 'Total' : 'PendingFrogs')}
+          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
+            activeFilter === 'PendingFrogs'
+              ? 'bg-emerald-700 border-emerald-800 text-white border-l-emerald-900 scale-[1.02] shadow-md'
+              : 'bg-green-50 border-green-150 text-green-800 border-l-emerald-600 hover:bg-green-100/50'
           }`}
         >
-          <span className="text-sm md:text-base leading-none">{stats.progress}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-85">Progress</span>
+          <span className="text-base md:text-lg leading-none flex items-center gap-1">🐸 {stats.pendingFrogs}</span>
+          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Pending Frogs</span>
         </button>
 
-        {/* Delayed Card */}
+        {/* Overdue Card */}
         <button
-          onClick={() => setActiveFilter('Delayed')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all flex flex-col justify-center items-center h-[54px] shadow-sm ${
-            activeFilter === 'Delayed'
-              ? 'bg-rose-600 border-rose-700 text-white font-extrabold shadow'
-              : 'bg-rose-50/70 border-rose-100 text-rose-700 font-bold hover:bg-rose-100'
+          onClick={() => setActiveFilter(prev => prev === 'Overdue' ? 'Total' : 'Overdue')}
+          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 col-span-2 sm:col-span-1 ${
+            activeFilter === 'Overdue'
+              ? 'bg-rose-600 border-rose-700 text-white border-l-rose-800 scale-[1.02] shadow-md'
+              : 'bg-rose-50/70 border-rose-100 text-rose-700 border-l-rose-500 hover:bg-rose-100/50'
           }`}
         >
-          <span className="text-sm md:text-base leading-none">{stats.delayed}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-85">Delayed</span>
+          <span className="text-base md:text-lg leading-none">{stats.overdue}</span>
+          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Overdue Tasks</span>
         </button>
 
       </div>
@@ -672,7 +889,9 @@ export default function Planner() {
         <div className="p-3 sm:p-4 border-b border-gray-100 flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 bg-white">
           {/* 1. Title */}
           <h2 className="text-sm font-extrabold text-gray-850 shrink-0">
-            Tasks for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            {activeFilter === 'Overdue'
+              ? 'Overdue Tasks'
+              : `Tasks for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
           </h2>
 
           {/* 2. Filters */}
@@ -755,9 +974,14 @@ export default function Planner() {
 
             <button 
               onClick={handleSaveAll}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center px-3.5 py-1 text-xs font-bold shadow-sm transition active:scale-95 h-[28px]"
+              disabled={Object.keys(dirtyTasks).length === 0}
+              className={`rounded-lg flex items-center justify-center px-3.5 py-1 text-xs font-extrabold shadow-sm transition-all duration-150 active:scale-95 h-[28px] ${
+                Object.keys(dirtyTasks).length > 0 
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-400 ring-offset-1 animate-pulse' 
+                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+              }`}
             >
-              Save
+              Submit {Object.keys(dirtyTasks).length > 0 ? `(${Object.keys(dirtyTasks).length})` : ''}
             </button>
 
             <button 
@@ -796,6 +1020,30 @@ export default function Planner() {
       >
         <div className="space-y-4 text-left">
           
+          <div className="bg-green-50/50 border border-green-200/60 p-3 rounded-xl space-y-2 text-left animate-in fade-in duration-200">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-green-700">
+              <ClipboardPaste size={14} />
+              <span>📋 Quick Bulk Paste (Optional)</span>
+            </div>
+            <p className="text-[10px] text-green-650 leading-relaxed">
+              Paste a list of tasks (one per line). Lines containing 🐸 will be marked as high priority (Frog).
+            </p>
+            <textarea
+              value={bulkPasteText}
+              onChange={(e) => setBulkPasteText(e.target.value)}
+              placeholder="Example:&#10;🐸 Complete proposal draft&#10;Schedule meeting with client&#10;🐸 Update Q3 report"
+              rows={3}
+              className="w-full border border-green-200 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500 h-[70px] bg-white font-medium placeholder-gray-400 shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={handleBulkImport}
+              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition active:scale-95 shadow-sm"
+            >
+              Import List
+            </button>
+          </div>
+
           {/* Select the date */}
           <div className="space-y-1">
             <label className="block text-[10px] md:text-[11px] text-gray-650 font-bold uppercase tracking-wider">Select the date *</label>
@@ -956,9 +1204,8 @@ export default function Planner() {
         onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })} 
       />
 
-      {/* FROG TASK DETAILS DIALOG MODAL */}
       {showFrogModal && (
-        <div className="fixed inset-0 lg:left-56 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-gray-150 animate-in zoom-in-95 duration-200" style={{ maxHeight: '80vh' }}>
             
             {/* Header */}

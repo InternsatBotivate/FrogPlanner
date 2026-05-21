@@ -32,6 +32,42 @@ const ProgressCircle = ({ value, size = 90, strokeWidth = 7, color, label }) => 
   );
 };
 
+const ProductivityChart = React.memo(({ data }) => (
+  <div className="h-44">
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data}>
+        <defs>
+          <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#6366F1" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280', fontWeight: 'bold' }} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280', fontWeight: 'bold' }} domain={[0, 100]} />
+        <Tooltip
+          contentStyle={{
+            background: 'white',
+            border: '1px solid #E5E7EB',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            fontSize: '11px',
+          }}
+        />
+        <Area
+          type="monotone"
+          dataKey="score"
+          stroke="#6366F1"
+          strokeWidth={3}
+          fill="url(#scoreColor)"
+          dot={{ r: 4, fill: '#6366F1', strokeWidth: 0 }}
+          isAnimationActive={false}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  </div>
+));
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -326,7 +362,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-0 sm:p-2 md:p-6 space-y-6 flex flex-col h-full min-h-0 overflow-y-auto">
+    <div className="p-1.5 sm:p-3 lg:p-4 space-y-3 lg:space-y-4 flex flex-col h-full min-h-0 overflow-y-auto text-left">
 
       {/* ── Time-Based Greeting Banner ── */}
       <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 shadow-md flex-shrink-0">
@@ -652,38 +688,7 @@ export default function Dashboard() {
                 Avg: {avgScore}%
               </span>
             </div>
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyChartData}>
-                  <defs>
-                    <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280', fontWeight: 'bold' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280', fontWeight: 'bold' }} domain={[0, 100]} />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'white',
-                      border: '1px solid #E5E7EB',
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                      fontSize: '11px',
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#6366F1"
-                    strokeWidth={3}
-                    fill="url(#scoreColor)"
-                    dot={{ r: 4, fill: '#6366F1', strokeWidth: 0 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <ProductivityChart data={weeklyChartData} />
           </div>
 
           {/* Today's Tasks list */}
@@ -755,7 +760,7 @@ export default function Dashboard() {
                   <button
                     key={meal.key}
                     onClick={() => toggleMeal(meal.key)}
-                    className={`p-2.5 rounded-xl border text-center transition-all ${
+                    className={`p-2.5 rounded-xl border text-center transition-all duration-100 active:scale-95 ${
                       isChecked 
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
                         : 'bg-gray-50 border-gray-150 text-gray-550 hover:bg-gray-100'
@@ -792,7 +797,7 @@ export default function Dashboard() {
                   <button
                     key={i}
                     onClick={addWater}
-                    className={`flex-1 h-4 rounded-sm transition-all border ${
+                    className={`flex-1 h-4 rounded-sm transition-all duration-100 active:scale-95 border ${
                       i < currentHealth.water 
                         ? 'bg-cyan-500 border-cyan-600 shadow-sm' 
                         : 'bg-cyan-100 border-cyan-200 hover:bg-cyan-200'
@@ -814,7 +819,7 @@ export default function Dashboard() {
                   <button
                     key={mood}
                     onClick={() => setMood(mood)}
-                    className={`flex-1 py-1 text-[10px] font-bold rounded transition-all ${
+                    className={`flex-1 py-1 text-[10px] font-bold rounded transition-all duration-100 active:scale-95 ${
                       currentHealth.mood === mood 
                         ? 'bg-white text-amber-600 shadow-sm border border-amber-100' 
                         : 'text-gray-500 hover:text-gray-800'

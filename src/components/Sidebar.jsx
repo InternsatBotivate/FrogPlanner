@@ -31,7 +31,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
   const adminMenuItems = [
     { path: '/dashboard', icon: BarChart2, label: 'Dashboard' },
     { path: '/planner', icon: Calendar, label: 'Today' },
-    { path: '/upcoming-planner', icon: CalendarRange, label: 'Upcoming Planner' },
+    { path: '/next-day-planner', icon: CalendarRange, label: 'Next Day Planner' },
     { path: '/all-tasks', icon: ListTodo, label: 'All Tasks' },
     { path: '/my-projects', icon: FolderClosed, label: 'My Projects' },
     { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
@@ -43,8 +43,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
 
   const employeeMenuItems = [
     { path: '/dashboard', icon: BarChart2, label: 'Dashboard' },
-    { path: '/planner', icon: Calendar, label: 'Planner' },
-    { path: '/upcoming-planner', icon: CalendarRange, label: 'Upcoming Planner' },
+    { path: '/planner', icon: Calendar, label: 'Today' },
+    { path: '/next-day-planner', icon: CalendarRange, label: 'Next Day Planner' },
     { path: '/all-tasks', icon: ListTodo, label: 'All Tasks' },
     { path: '/my-projects', icon: FolderClosed, label: 'My Projects' },
     { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
@@ -66,11 +66,9 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full bg-white border-r border-green-100 z-50 transform transition-all duration-300 ease-in-out lg:translate-x-0 ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      } ${
-        isCollapsed ? 'w-64 sm:w-72 lg:w-16' : 'w-64 sm:w-72 lg:w-56 2xl:w-60'
-      }`}>
+      <aside className={`fixed top-0 left-0 h-full bg-white border-r border-green-100 z-50 transform transition-all duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${isCollapsed ? 'w-64 sm:w-72 lg:w-16' : 'w-64 sm:w-72 lg:w-56 2xl:w-60'
+        }`}>
         <div className="flex flex-col h-full">
           {/* Logo Section */}
           <div className={`p-4 border-b border-green-100 flex ${isCollapsed ? 'lg:flex-col lg:items-center' : 'items-center justify-between'} gap-3`}>
@@ -84,7 +82,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
                 </span>
               )}
             </div>
-            
+
             <div className="flex items-center gap-2">
               {/* Desktop Collapse Button */}
               <button
@@ -113,8 +111,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
                 className={({ isActive }) => `
                   flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'} px-4 py-3 rounded-lg transition-all duration-200 group
                   ${isActive
-                    ? 'bg-green-100/60 text-green-700 border-l-4 border-green-600'
-                    : 'text-gray-700 hover:bg-green-50/60 hover:text-green-700 border-l-4 border-transparent'}
+                    ? 'bg-green-50 text-emerald-700 border-l-4 border-emerald-600'
+                    : 'text-gray-700 hover:bg-green-50/60 hover:text-emerald-700 border-l-4 border-transparent'}
                 `}
                 title={isCollapsed ? item.label : undefined}
               >
@@ -140,15 +138,14 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
           <div className={`p-4 border-t border-green-100 bg-green-50/30 space-y-3.5 flex flex-col ${isCollapsed ? 'lg:items-center' : ''}`}>
             <button
               onClick={handleLogout}
-              className={`flex items-center justify-center gap-2 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white transition-all font-semibold shadow-sm ${
-                isCollapsed ? 'lg:w-10 lg:h-10 lg:p-0' : 'w-full px-4 py-2.5'
-              }`}
+              className={`flex items-center justify-center gap-2 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white transition-all font-semibold shadow-sm ${isCollapsed ? 'lg:w-10 lg:h-10 lg:p-0' : 'w-full px-4 py-2.5'
+                }`}
               title={isCollapsed ? "Sign Out" : undefined}
             >
               <LogOutIcon size={18} />
               {!isCollapsed && <span className="animate-in fade-in duration-200">Sign Out</span>}
             </button>
-            
+
             {!isCollapsed && (
               <div className="text-center w-full animate-in fade-in duration-200">
                 <p className="text-[10px] md:text-[11px] font-bold text-green-700">

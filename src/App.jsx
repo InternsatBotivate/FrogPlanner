@@ -44,7 +44,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="index" element={<Index />} />
             <Route path="planner" element={<Planner />} />
-            <Route path="upcoming-planner" element={<UpcomingPlanner />} />
+            <Route path="next-day-planner" element={<UpcomingPlanner />} />
             <Route path="all-tasks" element={<AllTasks />} />
             <Route path="calendar" element={<Calendar />} />
             <Route path="ai-assistant" element={<AIAssistant />} />

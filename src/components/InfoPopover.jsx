@@ -44,7 +44,7 @@ const InfoPopover = ({ children, items, title }) => {
       {show && items && items.length > 0 && (
         <>
           {isMobile ? (
-            <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-[1px] p-4 animate-in fade-in duration-200 overflow-hidden lg:left-64">
+            <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-[1px] p-4 animate-in fade-in duration-200 overflow-hidden">
               <div
                 className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200"
                 style={{ maxHeight: '80vh' }}

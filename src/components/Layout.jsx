@@ -12,6 +12,12 @@ const Layout = () => {
   const handleToggleCollapse = (collapsed) => {
     setIsCollapsed(collapsed);
     localStorage.setItem('sidebar_collapsed', collapsed ? 'true' : 'false');
+    // Dispatch resize event immediately to start transition adjustments
+    window.dispatchEvent(new Event('resize'));
+    // Dispatch resize event again after transition ends to finalize layout size
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 320);
   };
 
   const userString = localStorage.getItem('user');

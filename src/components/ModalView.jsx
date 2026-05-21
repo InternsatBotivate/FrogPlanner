@@ -11,7 +11,7 @@ const ModalView = ({
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 lg:left-64 2xl:left-72 bg-black/60 backdrop-blur-[1px] flex items-center justify-center ${zIndex} p-3 animate-in fade-in duration-200 overflow-hidden`}>
+    <div className={`fixed inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center ${zIndex} p-3 animate-in fade-in duration-200 overflow-hidden`}>
       <div
         className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} h-[450px] max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200`}
         onClick={(e) => e.stopPropagation()}
