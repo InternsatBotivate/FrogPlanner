@@ -29,7 +29,7 @@ const Header = ({ onMenuClick, user }) => {
           <div className="flex items-center gap-2.5 pl-1 group cursor-pointer">
             <div className="hidden md:block text-right">
               <p className="text-sm font-semibold text-gray-800 group-hover:text-green-700 transition-colors leading-tight">
-                {user?.name || 'User'}
+                {user?.full_name || user?.username || 'User'}
               </p>
             </div>
             {/* Frog avatar with yellow ring for accent */}

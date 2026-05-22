@@ -130,12 +130,12 @@ export default function Planner() {
     let tasksToMap = [];
 
     if (activeFilter === 'Overdue') {
-      // Find all tasks whose date is in the past AND not completed
+      // Find all tasks whose date is in the past AND not completed in DB (saved)
       tasksToMap = masterTasks.filter(task => {
         if (task.isRecurring || !task.date || task.date >= todayStr) return false;
-        const dateCompletions = completions[task.date] || [];
-        const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
-        return !isDone;
+        const savedCompletions = storeCompletions[task.date] || [];
+        const isSavedDone = savedCompletions.includes(task.id);
+        return !isSavedDone;
       });
     } else {
       tasksToMap = masterTasks.filter(task => task.date === selectedDate);
@@ -164,10 +164,21 @@ export default function Planner() {
 
     if (activeFilter === 'Completed') {
       result = result.filter(t => t.status === 'Completed');
-    } else if (activeFilter === 'Pending' || activeFilter === 'Total') {
-      result = result.filter(t => t.status !== 'Completed');
+    } else if (activeFilter === 'Pending') {
+      // Filter out tasks that are already saved as completed in the database
+      result = result.filter(t => {
+        const tDate = t.date || selectedDate;
+        const savedCompletions = storeCompletions[tDate] || [];
+        const isSavedDone = savedCompletions.includes(t.id);
+        return !isSavedDone;
+      });
     } else if (activeFilter === 'PendingFrogs') {
-      result = result.filter(t => t.status !== 'Completed' && t.priority === 'Frog');
+      result = result.filter(t => {
+        const tDate = t.date || selectedDate;
+        const savedCompletions = storeCompletions[tDate] || [];
+        const isSavedDone = savedCompletions.includes(t.id);
+        return !isSavedDone && t.priority === 'Frog';
+      });
     }
 
     // Search query filter
@@ -192,7 +203,7 @@ export default function Planner() {
     }
 
     return result;
-  }, [masterTasks, completions, selectedDate, activeFilter, searchQuery, filterDuration, filterCategory, filterFrog]);
+  }, [masterTasks, completions, storeCompletions, selectedDate, activeFilter, searchQuery, filterDuration, filterCategory, filterFrog]);
 
   // Compute stats for current day's KPI filter cards
   const stats = useMemo(() => {

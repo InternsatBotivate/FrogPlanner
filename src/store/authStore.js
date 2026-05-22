@@ -45,6 +45,11 @@ const useAuthStore = create((set) => ({
    */
   logout: async () => {
     await signOut();
+    // Clear Google Calendar session tokens so the next login always starts
+    // fresh. The Supabase connection record (google_email) is preserved so
+    // the useGoogleCalendar hook can silently re-auth on next sign-in.
+    sessionStorage.removeItem('gc_token');
+    sessionStorage.removeItem('gc_events');
     set({ user: null, isAuthenticated: false });
   },
 

@@ -249,8 +249,12 @@ export const migrateLegacyData = async (userId) => {
       }
     }
 
-    // 5. Success - Set migration flag
+    // 5. Success - Set migration flag and clear legacy localStorage data
+    // Clearing prevents these tasks from being picked up by NEW user accounts
+    // created on the same browser in the future.
     localStorage.setItem(migrationKey, 'true');
+    localStorage.removeItem('pcb_tasks_v3');
+    localStorage.removeItem('pcb_planner_completions_v1');
     console.log('[Migration] Planner migration successfully completed!');
     return true;
   } catch (error) {

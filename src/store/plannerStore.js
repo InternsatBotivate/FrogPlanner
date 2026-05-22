@@ -12,11 +12,15 @@ import {
   migrateUpcomingTasksLegacyData 
 } from '../lib/upcomingPlannerService';
 
+let plannerFetchPromise = null;
+let plannerFetchUserId = null;
+
 const usePlannerStore = create((set, get) => ({
   tasks: [],
   completions: {},
   loading: false,
   hasLoaded: false,
+  loadedUserId: null,
   error: null,
 
   /**
@@ -27,34 +31,57 @@ const usePlannerStore = create((set, get) => ({
   fetchPlannerData: async (userId, force = false) => {
     if (!userId) return;
     
-    if (get().hasLoaded && !force) {
+    if (get().hasLoaded && get().loadedUserId === userId && !force) {
       return;
+    }
+
+    if (plannerFetchPromise && plannerFetchUserId === userId && !force) {
+      return plannerFetchPromise;
     }
 
     set({ loading: true, error: null });
 
-    try {
-      // 1. Run legacy migrations in sequence
-      await migrateLegacyData(userId);
-      await migrateUpcomingTasksLegacyData(userId);
+    const runFetch = async () => {
+      try {
+        const skipLegacyMigrationKey = `fp_skip_legacy_migration_${userId}`;
+        const shouldSkipLegacyMigration = localStorage.getItem(skipLegacyMigrationKey) === 'true';
 
-      // 2. Fetch standard datasets from Supabase
-      const { tasks, completions, error } = await fetchDbPlannerData(userId);
+        if (shouldSkipLegacyMigration) {
+          localStorage.setItem(`pcb_migrated_${userId}`, 'true');
+          localStorage.setItem(`upcoming_tasks_migrated_${userId}`, 'true');
+          localStorage.removeItem(skipLegacyMigrationKey);
+        } else {
+          // 1. Run legacy migrations in sequence
+          await migrateLegacyData(userId);
+          await migrateUpcomingTasksLegacyData(userId);
+        }
 
-      if (error) {
-        set({ error, loading: false });
-      } else {
-        set({ 
-          tasks: tasks || [], 
-          completions: completions || {}, 
-          loading: false, 
-          hasLoaded: true 
-        });
+        // 2. Fetch standard datasets from Supabase
+        const { tasks, completions, error } = await fetchDbPlannerData(userId);
+
+        if (error) {
+          set({ error, loading: false });
+        } else {
+          set({ 
+            tasks: tasks || [], 
+            completions: completions || {}, 
+            loading: false, 
+            hasLoaded: true,
+            loadedUserId: userId
+          });
+        }
+      } catch (err) {
+        console.error('[PlannerStore] fetchPlannerData failed:', err);
+        set({ error: err, loading: false });
+      } finally {
+        plannerFetchPromise = null;
+        plannerFetchUserId = null;
       }
-    } catch (err) {
-      console.error('[PlannerStore] fetchPlannerData failed:', err);
-      set({ error: err, loading: false });
-    }
+    };
+
+    plannerFetchUserId = userId;
+    plannerFetchPromise = runFetch();
+    return plannerFetchPromise;
   },
 
   /**
@@ -214,6 +241,7 @@ const usePlannerStore = create((set, get) => ({
       completions: {},
       loading: false,
       hasLoaded: false,
+      loadedUserId: null,
       error: null
     });
   }

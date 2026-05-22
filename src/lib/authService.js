@@ -15,6 +15,7 @@
 import { supabase } from './supabaseClient';
 
 const SESSION_KEY = 'fp_session_token';
+const SIGNUP_SKIP_MIGRATION_KEY_PREFIX = 'fp_skip_legacy_migration_';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,9 @@ export const signUp = async ({
       .single();
 
     if (error) return { user: null, error };
+
+    // Brand-new accounts should start empty instead of inheriting shared browser legacy data.
+    localStorage.setItem(`${SIGNUP_SKIP_MIGRATION_KEY_PREFIX}${user.id}`, 'true');
 
     // Automatically open a session for the new user
     const token = await createSession(user.id);

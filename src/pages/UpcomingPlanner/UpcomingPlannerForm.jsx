@@ -4,6 +4,8 @@ import ModalForm from '../../components/ModalForm';
 
 const STORAGE_KEY = 'upcoming_planner_tasks';
 
+// NOTE: Legacy helper — only kept to support existing localStorage data cleanup.
+// New tasks are saved directly to Supabase via onSaved callback, NOT to localStorage.
 const getTasks = () => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -11,9 +13,6 @@ const getTasks = () => {
   } catch { return []; }
 };
 
-const saveTasks = (tasks) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-};
 
 /**
  * UpcomingPlannerForm
@@ -104,9 +103,8 @@ export default function UpcomingPlannerForm({ isOpen, onClose, onSaved }) {
       selectValue: 'Select',
       timestamp: new Date().toISOString()
     }));
-    const existing = getTasks();
-    const updated = [...existing, ...newTasks];
-    saveTasks(updated);
+    // Do NOT persist to localStorage — tasks go directly to Supabase via onSaved callback.
+    // This prevents new-user migration from picking up tasks created by other sessions.
     if (onSaved) onSaved(newTasks);
     resetForm();
     onClose();

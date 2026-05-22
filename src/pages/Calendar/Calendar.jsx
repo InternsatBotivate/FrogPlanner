@@ -1,277 +1,67 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, LogIn, LogOut, RefreshCw, Calendar as CalendarIcon, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogIn, LogOut, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Daily from './Daily';
 import Weekly from './Weekly';
 import Monthly from './Monthly';
 import { useAuthStore } from '../../store/authStore';
 import { usePlannerStore } from '../../store/plannerStore';
+import useGoogleCalendar from '../../hooks/useGoogleCalendar';
 import toast from 'react-hot-toast';
-
-// ─────────────────────────────────────────────────────────
-// ⚙️ GOOGLE CALENDAR CONFIG
-// Replace this with your own Google Cloud OAuth 2.0 Client ID
-// Steps: console.cloud.google.com → New Project → Enable Calendar API
-//        → Credentials → OAuth Client ID → Web Application
-//        → Authorised JS origins: http://localhost:3001
-// ─────────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-
-// Load Google Identity Services script once
-let gisLoaded = false;
-const loadGIS = () =>
-  new Promise((resolve) => {
-    if (gisLoaded || window.google?.accounts) { gisLoaded = true; resolve(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.onload = () => { gisLoaded = true; resolve(); };
-    document.head.appendChild(s);
-  });
 
 export default function Calendar() {
   const { user } = useAuthStore();
   const [view, setView] = useState('Monthly');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showGcSetup, setShowGcSetup] = useState(false);
 
   // Central tasks & completions from Zustand store
   const { tasks, completions, loading, fetchPlannerData, toggleCompletion } = usePlannerStore();
 
-  // Google Calendar state
-  const [gcToken, setGcToken] = useState(() => sessionStorage.getItem('gc_token') || null);
-  const [gcEvents, setGcEvents] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem('gc_events') || '[]'); } catch { return []; }
-  });
-  const [gcLoading, setGcLoading] = useState(false);
-  const [gcError, setGcError] = useState('');
-  const [tokenClient, setTokenClient] = useState(null);
-  const [showGcSetup, setShowGcSetup] = useState(false);
+  // ── Google Calendar — all logic delegated to the custom hook ──────
+  // The hook handles: silent reconnect on mount, token refresh, event
+  // fetching, task syncing, connect, and disconnect.
+  const {
+    gcToken,
+    gcEvents,
+    gcLoading,
+    gcError,
+    isConnected,
+    connect,
+    disconnect,
+    syncTasks,
+    fetchEvents,
+    hasClientId,
+  } = useGoogleCalendar(user?.id);
 
+  // ── Fetch planner data on login ───────────────────────────────────
   useEffect(() => {
-    if (user?.id) {
-      fetchPlannerData(user.id);
-    }
+    if (user?.id) fetchPlannerData(user.id);
   }, [user, fetchPlannerData]);
 
-  // ── Init Google Identity Services token client ──────────────
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
-    loadGIS().then(() => {
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: SCOPES,
-        callback: (resp) => {
-          if (resp.error) { setGcError('Authorization failed: ' + resp.error); return; }
-          setGcToken(resp.access_token);
-          sessionStorage.setItem('gc_token', resp.access_token);
-          setGcError('');
-          toast.success('Google Calendar connected! 🗓️');
-        },
-      });
-      setTokenClient(client);
-    });
-  }, []);
-
-  // ── Fetch Google Calendar events ───────────────────────────
-  const fetchGoogleEvents = useCallback(async (token) => {
-    if (!token) return;
-    setGcLoading(true);
-    setGcError('');
-    try {
-      const now = new Date();
-      const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-      const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
-
-      const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=200`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (res.status === 401) {
-        setGcToken(null);
-        sessionStorage.removeItem('gc_token');
-        sessionStorage.removeItem('gc_events');
-        setGcError('Session expired. Please reconnect Google Calendar.');
-        setGcLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      const events = (data.items || []).map((ev) => {
-        // Extract task ID from private extended properties or fallback to parsing the description
-        let taskId = ev.extendedProperties?.private?.taskId || null;
-        if (!taskId && ev.description) {
-          const match = ev.description.match(/\[FrogPlanner ID:\s*([a-f0-9-]+)\]/i);
-          if (match) taskId = match[1];
-        }
-
-        return {
-          id: `gc_${ev.id}`,
-          title: ev.summary || '(No Title)',
-          dateStr: (ev.start?.date || ev.start?.dateTime || '').substring(0, 10),
-          time: ev.start?.dateTime
-            ? new Date(ev.start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-            : 'All Day',
-          type: 'Google Cal',
-          priority: '',
-          isCompleted: false,
-          isGoogle: true,
-          color: ev.colorId || '1',
-          htmlLink: ev.htmlLink,
-          taskId: taskId,
-        };
-      });
-
-      setGcEvents(events);
-      sessionStorage.setItem('gc_events', JSON.stringify(events));
-      toast.success(`Synced ${events.length} events from Google Calendar`);
-    } catch (err) {
-      setGcError('Failed to fetch Google Calendar events.');
-    } finally {
-      setGcLoading(false);
-    }
-  }, []);
-
-  // ── Sync local tasks to Google Calendar ────────────────────
-  const syncLocalTasksToGoogle = useCallback(async (token, currentTasks, existingEvents) => {
-    if (!token || !currentTasks || currentTasks.length === 0) return;
-
-    // Identify already synced tasks
-    const syncedTaskIds = new Set();
-    
-    // 1. Check loaded calendar events
-    existingEvents.forEach((ev) => {
-      if (ev.taskId) {
-        syncedTaskIds.add(ev.taskId);
-      }
-    });
-
-    // 2. Check local sync cache for double-safety
-    const localSyncCache = JSON.parse(localStorage.getItem(`gc_synced_${user?.id}`) || '{}');
-    Object.keys(localSyncCache).forEach((id) => syncedTaskIds.add(id));
-
-    // Filter tasks that need to be synced (must have a valid date and not already synced)
-    const tasksToSync = currentTasks.filter((task) => {
-      const taskDate = task.date || task.task_date;
-      return taskDate && !syncedTaskIds.has(task.id);
-    });
-
-    if (tasksToSync.length === 0) return;
-
-    setGcLoading(true);
-    let successCount = 0;
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-
-    for (const task of tasksToSync) {
-      try {
-        const taskDate = task.date || task.task_date;
-        
-        // Determine start and end time based on the task time slot/duration
-        let start, end;
-        if (task.duration === 'Morning') {
-          start = { dateTime: `${taskDate}T09:00:00`, timeZone };
-          end = { dateTime: `${taskDate}T12:00:00`, timeZone };
-        } else if (task.duration === 'Afternoon') {
-          start = { dateTime: `${taskDate}T13:00:00`, timeZone };
-          end = { dateTime: `${taskDate}T17:00:00`, timeZone };
-        } else if (task.duration === 'Evening') {
-          start = { dateTime: `${taskDate}T18:00:00`, timeZone };
-          end = { dateTime: `${taskDate}T21:00:00`, timeZone };
-        } else {
-          // All Day Event
-          // Note: All-day end date in Google Calendar is exclusive (next day)
-          const startDateObj = new Date(taskDate);
-          const endDateObj = new Date(startDateObj);
-          endDateObj.setDate(startDateObj.getDate() + 1);
-          const endDateStr = endDateObj.toISOString().split('T')[0];
-          
-          start = { date: taskDate };
-          end = { date: endDateStr };
-        }
-
-        const eventPayload = {
-          summary: task.description || 'FrogPlanner Task',
-          description: `Category: ${task.category || 'General'}\nPriority: ${task.priority || 'Normal'}\nTime Slot: ${task.duration || 'All Day'}\nRemarks: ${task.remarks || ''}\n\n[FrogPlanner ID: ${task.id}]`,
-          start,
-          end,
-          extendedProperties: {
-            private: {
-              taskId: task.id,
-            },
-          },
-        };
-
-        const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(eventPayload),
-        });
-
-        if (res.status === 401) {
-          setGcToken(null);
-          sessionStorage.removeItem('gc_token');
-          setGcError('Google Calendar session expired. Please reconnect.');
-          break;
-        }
-
-        if (res.ok) {
-          const createdEvent = await res.json();
-          if (createdEvent) {
-            localSyncCache[task.id] = createdEvent.id;
-            localStorage.setItem(`gc_synced_${user?.id}`, JSON.stringify(localSyncCache));
-            successCount++;
-          }
-        } else {
-          const errorData = await res.json();
-          console.error('[Calendar Sync] Failed to sync task:', task.id, errorData);
-        }
-      } catch (err) {
-        console.error('[Calendar Sync] Error syncing task to Google Calendar:', err);
-      }
-    }
-
-    setGcLoading(false);
-    if (successCount > 0) {
-      toast.success(`Successfully synced ${successCount} task(s) to Google Calendar! 🗓️`);
-      // Refresh to pull new events
-      fetchGoogleEvents(token);
-    }
-  }, [user, fetchGoogleEvents]);
-
-  // Auto-fetch when token changes
-  useEffect(() => { if (gcToken) fetchGoogleEvents(gcToken); }, [gcToken, fetchGoogleEvents]);
-
-  // Auto-sync local tasks when connected and loaded
+  // ── Auto-sync new/unsynced tasks whenever tasks or token change ───
+  // Runs when: token arrives (initial connect or silent re-auth),
+  //            or when new tasks are added to the store.
   useEffect(() => {
     if (gcToken && tasks.length > 0 && !loading && !gcLoading) {
-      syncLocalTasksToGoogle(gcToken, tasks, gcEvents);
+      syncTasks(gcToken, tasks, gcEvents);
     }
-  }, [gcToken, tasks, loading, gcEvents, gcLoading, syncLocalTasksToGoogle]);
+  }, [gcToken, tasks, loading]); // intentionally excludes gcEvents/gcLoading to avoid loop
 
-  const handleGcConnect = () => {
-    if (!GOOGLE_CLIENT_ID) { setShowGcSetup(true); return; }
-    if (tokenClient) tokenClient.requestAccessToken();
-  };
+  // ── UI handlers ───────────────────────────────────────────────────
+  const handleGcConnect = useCallback(async () => {
+    if (!hasClientId) { setShowGcSetup(true); return; }
+    await connect();
+  }, [hasClientId, connect]);
 
-  const handleGcDisconnect = () => {
-    if (gcToken && window.google?.accounts?.oauth2) {
-      window.google.accounts.oauth2.revoke(gcToken);
-    }
-    setGcToken(null);
-    setGcEvents([]);
-    sessionStorage.removeItem('gc_token');
-    sessionStorage.removeItem('gc_events');
-    toast('Google Calendar disconnected.', { icon: '🔌' });
-  };
+  const handleGcDisconnect = useCallback(async () => {
+    await disconnect();
+  }, [disconnect]);
 
-  // ── Toggle task completion (Supabase sync) ──────────────
+  // ── Toggle task completion (Supabase sync) ────────────────────────
   const handleToggleStatus = async (taskId, dateStr) => {
     if (!user?.id) return;
     const currentCompleted = completions[dateStr] || [];
     const isCompleted = !currentCompleted.includes(taskId);
-    
     const success = await toggleCompletion(user.id, taskId, dateStr, isCompleted);
     if (success) {
       toast.success(isCompleted ? 'Task completed! 🎉' : 'Task marked pending. ⏳');
@@ -287,7 +77,7 @@ export default function Calendar() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  // ── Build merged event list (local + Google) ───────────────
+  // ── Build merged event list (local tasks + Google Calendar events) ─
   const events = useMemo(() => {
     const list = [];
     const year = currentDate.getFullYear();
@@ -306,7 +96,7 @@ export default function Calendar() {
             isCompleted: false, isGoogle: false,
           });
         });
-        // Merge Google events for this date
+        // Merge Google Calendar events for this date
         gcEvents.filter(e => e.dateStr === dateStr).forEach(e => {
           list.push({ ...e, date: dateObj.getDate() });
         });
@@ -315,24 +105,21 @@ export default function Calendar() {
 
     if (view === 'Monthly') {
       const days = new Date(year, month + 1, 0).getDate();
-      const dates = Array.from({ length: days }, (_, i) => {
+      buildRange(Array.from({ length: days }, (_, i) => {
         const dateObj = new Date(year, month, i + 1);
         return { dateObj, dateStr: formatDateStr(dateObj) };
-      });
-      buildRange(dates);
+      }));
     } else if (view === 'Weekly') {
       const startOfWeek = new Date(currentDate);
       const dayVal = startOfWeek.getDay();
       startOfWeek.setDate(startOfWeek.getDate() - dayVal + (dayVal === 0 ? -6 : 1));
-      const dates = Array.from({ length: 7 }, (_, i) => {
+      buildRange(Array.from({ length: 7 }, (_, i) => {
         const dateObj = new Date(startOfWeek);
         dateObj.setDate(startOfWeek.getDate() + i);
         return { dateObj, dateStr: formatDateStr(dateObj) };
-      });
-      buildRange(dates);
+      }));
     } else {
-      const dateStr = formatDateStr(currentDate);
-      buildRange([{ dateObj: currentDate, dateStr }]);
+      buildRange([{ dateObj: currentDate, dateStr: formatDateStr(currentDate) }]);
     }
 
     return list;
@@ -370,17 +157,17 @@ export default function Calendar() {
 
       {/* ── Google Calendar Banner ── */}
       <div className={`rounded-2xl border px-4 py-3 flex flex-wrap items-center justify-between gap-3 flex-shrink-0 ${
-        gcToken
+        isConnected
           ? 'bg-green-50 border-green-200'
           : 'bg-white border-gray-200 shadow-sm'
       }`}>
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-base ${gcToken ? 'bg-green-100' : 'bg-gray-100'}`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-base ${isConnected ? 'bg-green-100' : 'bg-gray-100'}`}>
             🗓️
           </div>
           <div>
             <p className="text-xs font-extrabold text-gray-800">
-              {gcToken ? (
+              {isConnected ? (
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 size={13} className="text-green-600" />
                   Google Calendar Connected
@@ -389,7 +176,7 @@ export default function Calendar() {
               ) : 'Connect Google Calendar'}
             </p>
             <p className="text-[10px] text-gray-400 font-medium">
-              {gcToken
+              {isConnected
                 ? 'Your Google events are merged with Frog Planner tasks below.'
                 : 'Sync your real Google events alongside your planner tasks.'}
             </p>
@@ -402,9 +189,9 @@ export default function Calendar() {
               <AlertCircle size={11} /> {gcError}
             </span>
           )}
-          {gcToken ? (
+          {isConnected ? (
             <>
-              <button onClick={() => fetchGoogleEvents(gcToken)} disabled={gcLoading}
+              <button onClick={() => fetchEvents(gcToken)} disabled={gcLoading}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-white border border-green-300 text-green-700 rounded-xl hover:bg-green-50 transition shadow-sm disabled:opacity-60">
                 <RefreshCw size={12} className={gcLoading ? 'animate-spin' : ''} />
                 {gcLoading ? 'Syncing...' : 'Sync Now'}
@@ -423,15 +210,15 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* ── Setup Instructions (shown when no Client ID configured) ── */}
+      {/* ── Setup Instructions (shown when no Client ID is configured) ── */}
       {showGcSetup && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs space-y-2 flex-shrink-0">
           <p className="font-extrabold text-amber-800 flex items-center gap-2">⚙️ Google Calendar Setup Required</p>
           <ol className="space-y-1 text-amber-700 font-medium list-decimal list-inside leading-relaxed">
             <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="underline font-bold">console.cloud.google.com</a> → Create a new project</li>
-            <li>Enable <strong>Google Calendar API</strong> under APIs & Services</li>
+            <li>Enable <strong>Google Calendar API</strong> under APIs &amp; Services</li>
             <li>Go to <strong>Credentials</strong> → Create OAuth 2.0 Client ID → Web Application</li>
-            <li>Add <code className="bg-amber-100 px-1 rounded">http://localhost:3001</code> to Authorised JavaScript Origins</li>
+            <li>Add <code className="bg-amber-100 px-1 rounded">http://localhost:3000</code> to Authorised JavaScript Origins</li>
             <li>Copy the <strong>Client ID</strong></li>
             <li>Create a <code className="bg-amber-100 px-1 rounded">.env</code> file in project root:<br/>
               <code className="bg-amber-100 px-2 py-0.5 rounded block mt-1">VITE_GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com</code>
@@ -477,7 +264,7 @@ export default function Calendar() {
       </div>
 
       {/* ── Google Events Legend (when connected) ── */}
-      {gcToken && gcEventCount > 0 && (
+      {isConnected && gcEventCount > 0 && (
         <div className="flex items-center gap-3 text-[10px] font-semibold text-gray-500 flex-shrink-0">
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Frog Planner Tasks</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Google Calendar Events</span>

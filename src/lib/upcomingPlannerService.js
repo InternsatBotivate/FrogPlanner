@@ -226,6 +226,9 @@ export const migrateUpcomingTasksLegacyData = async (userId) => {
     }
 
     localStorage.setItem(migrationKey, 'true');
+    // Clear the legacy localStorage key so new user accounts on the same browser
+    // do not inherit these tasks during their first-time migration.
+    localStorage.removeItem('upcoming_planner_tasks');
     console.log('[Migration] Upcoming tasks migration completed successfully!');
     return true;
   } catch (error) {
