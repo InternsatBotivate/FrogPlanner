@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   CheckCircle2, Clock, Calendar, CheckSquare, Search, AlertCircle,
-  Trash2, Edit, ListTodo, ChevronLeft, ChevronRight, Zap
+  Trash2, Edit, ListTodo, ChevronLeft, ChevronRight, Zap, SlidersHorizontal
 } from 'lucide-react';
 import { getCategoryEmoji } from '../../utils/helpers';
 import DataTable from '../../components/DataTable';
@@ -14,6 +14,31 @@ const formatDateStr = (date) => {
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+};
+
+// Category custom soft border and text styles
+const getCategoryColorClass = (cat) => {
+  switch (cat?.toLowerCase()) {
+    case 'work': return 'bg-blue-50 text-blue-700 border-blue-150';
+    case 'meeting': return 'bg-purple-50 text-purple-700 border-purple-150';
+    case 'call': return 'bg-cyan-50 text-cyan-750 border-cyan-150';
+    case 'personal': return 'bg-emerald-50 text-emerald-700 border-emerald-150';
+    case 'review': return 'bg-amber-50 text-amber-705 border-amber-150';
+    case 'break': return 'bg-slate-50 text-slate-700 border-slate-200';
+    case 'health': return 'bg-rose-50 text-rose-700 border-rose-150';
+    default: return 'bg-gray-50 text-gray-700 border-gray-200';
+  }
+};
+
+// Duration specific sun/moon emojis helper
+const getDurationEmoji = (dur) => {
+  switch (dur?.toLowerCase()) {
+    case 'morning': return '🌅';
+    case 'afternoon': return '☀️';
+    case 'evening': return '🌇';
+    case 'night': return '🌃';
+    default: return '⏰';
+  }
 };
 
 export default function AllTasks() {
@@ -30,6 +55,7 @@ export default function AllTasks() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [showFrogModal, setShowFrogModal] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Unified Pagination states (showing 100 rows by default)
   const [currentPage, setCurrentPage] = useState(1);
@@ -247,33 +273,44 @@ export default function AllTasks() {
 
   // Card Renderer for Pending (Mobile)
   const renderPendingCard = (item) => (
-    <div key={`pending-card-${item.id}-${item.dateInstance}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3 text-left">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-gray-500">{item.dateInstance}</span>
+    <div key={`pending-card-${item.id}-${item.dateInstance}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3.5 text-left transition-all duration-150 hover:shadow-md">
+      {/* Top Badges Row */}
+      <div className="flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-1.5">
-          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-bold uppercase">
-            {getCategoryEmoji(item.category)} {item.category}
+          <span className="text-[10px] font-bold text-gray-500 border border-gray-200 bg-gray-50/55 px-2 py-0.5 rounded-lg select-none">
+            {item.dateInstance}
           </span>
-          <span className="px-2 py-0.5 bg-amber-50 text-amber-650 border border-amber-100 rounded text-[9px] font-bold uppercase">Pending</span>
+          <span className={`px-2 py-0.5 border rounded-lg text-[10px] font-bold uppercase flex items-center gap-1 select-none ${getCategoryColorClass(item.category)}`}>
+            <span>{getCategoryEmoji(item.category)}</span>
+            <span>{item.category}</span>
+          </span>
         </div>
-      </div>
-      <p className="text-sm font-extrabold text-gray-800 tracking-tight flex items-start gap-1.5">
-        {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
-        <span>{item.description}</span>
-      </p>
-      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-        <span className="text-[10px] font-bold text-gray-550 flex items-center gap-1.5">
-          <Clock size={12} /> {item.duration}
+        <span className="px-2 py-0.5 bg-amber-50/30 text-amber-600 border border-amber-300 rounded-lg text-[9px] font-black uppercase tracking-wider select-none">
+          Pending
         </span>
+      </div>
+
+      {/* Description & Check Toggle Row */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-extrabold text-gray-800 tracking-tight leading-snug flex items-start gap-1.5">
+          {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
+          <span>{item.description}</span>
+        </p>
         <button
           onClick={() => handleToggleStatus(item.id, item.dateInstance)}
-          className={`px-3 py-1 text-[11px] font-bold rounded-lg border shadow-sm transition-all ${item.priority === 'Frog'
-              ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
-              : 'bg-emerald-50 text-emerald-605 border-emerald-200 hover:bg-emerald-550 hover:text-white'
-            }`}
+          className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-350 bg-white text-transparent hover:border-emerald-500 hover:bg-emerald-50/50 focus:outline-none transition-all shrink-0 active:scale-90 shadow-sm"
+          title="Mark Complete"
         >
-          {item.priority === 'Frog' ? '🐸 Eat Frog' : 'Done'}
+          <CheckCircle2 size={16} className="text-gray-350 hover:text-emerald-500 transition-colors" strokeWidth={2.5} />
         </button>
+      </div>
+
+      {/* Duration Badge Row */}
+      <div className="flex items-center">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg text-[10px] font-extrabold text-gray-550 select-none">
+          <span>{getDurationEmoji(item.duration)}</span>
+          <span>{item.duration || 'Flexible'}</span>
+        </span>
       </div>
     </div>
   );
@@ -321,30 +358,44 @@ export default function AllTasks() {
 
   // Card Renderer for History (Mobile)
   const renderHistoryCard = (item) => (
-    <div key={`history-card-${item.id}-${item.dateInstance}`} className="bg-white p-4 rounded-xl border border-gray-250 shadow-sm flex flex-col gap-3 text-left opacity-75 animate-in fade-in duration-100">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-gray-500">{item.dateInstance}</span>
+    <div key={`history-card-${item.id}-${item.dateInstance}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3.5 text-left opacity-80 transition-all duration-150 hover:shadow-md">
+      {/* Top Badges Row */}
+      <div className="flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-1.5">
-          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 rounded text-[9px] font-bold uppercase">
-            {getCategoryEmoji(item.category)} {item.category}
+          <span className="text-[10px] font-bold text-gray-400 border border-gray-200 bg-gray-50/55 px-2 py-0.5 rounded-lg select-none">
+            {item.dateInstance}
           </span>
-          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[9px] font-bold uppercase">Completed</span>
+          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 rounded-lg text-[10px] font-bold uppercase flex items-center gap-1 select-none">
+            <span>{getCategoryEmoji(item.category)}</span>
+            <span>{item.category}</span>
+          </span>
         </div>
-      </div>
-      <p className="text-sm font-extrabold text-gray-400 tracking-tight line-through flex items-start gap-1.5">
-        {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
-        <span>{item.description}</span>
-      </p>
-      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-        <span className="text-[10px] font-bold text-gray-550 flex items-center gap-1.5">
-          <Clock size={12} /> {item.duration}
+        <span className="px-2 py-0.5 bg-emerald-50/30 text-emerald-600 border border-emerald-300 rounded-lg text-[9px] font-black uppercase tracking-wider select-none">
+          Completed
         </span>
+      </div>
+
+      {/* Description & Check Toggle Row */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-extrabold text-gray-400 tracking-tight leading-snug line-through flex items-start gap-1.5">
+          {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
+          <span>{item.description}</span>
+        </p>
         <button
           onClick={() => handleToggleStatus(item.id, item.dateInstance)}
-          className="px-3 py-1 text-[11px] font-bold rounded-lg border border-amber-250 bg-amber-50 text-amber-705 hover:bg-amber-500 hover:text-white transition-all shadow-sm"
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm border border-emerald-700 focus:outline-none hover:bg-emerald-700 transition-all shrink-0 active:scale-90"
+          title="Mark Incomplete"
         >
-          Undo
+          <CheckCircle2 size={16} strokeWidth={2.5} />
         </button>
+      </div>
+
+      {/* Duration Badge Row */}
+      <div className="flex items-center">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg text-[10px] font-extrabold text-gray-400 select-none">
+          <span>{getDurationEmoji(item.duration)}</span>
+          <span>{item.duration || 'Flexible'}</span>
+        </span>
       </div>
     </div>
   );
@@ -372,7 +423,7 @@ export default function AllTasks() {
     <div className="p-1.5 sm:p-3 lg:p-4 space-y-3 lg:space-y-4 text-left flex flex-col min-h-0 h-full overflow-y-auto md:overflow-hidden">
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="flex gap-2 pb-2 overflow-x-auto scrollbar-hide flex-nowrap md:grid md:grid-cols-5 shrink-0">
         {/* Total Card */}
         <button
           type="button"
@@ -380,10 +431,10 @@ export default function AllTasks() {
             setKpiFilter('All');
             setActiveTab('All');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
             kpiFilter === 'All'
               ? 'bg-slate-800 border-slate-900 text-white ring-2 ring-slate-400/30'
-              : 'bg-white border-gray-200 text-gray-500 hover:bg-slate-50'
+              : 'bg-white border-gray-200 text-gray-550 hover:bg-slate-50'
           }`}
         >
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'All' ? 'text-slate-300' : 'text-gray-400'}`}>Total Tasks</span>
@@ -397,13 +448,13 @@ export default function AllTasks() {
             setKpiFilter('Completed');
             setActiveTab('History');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
             kpiFilter === 'Completed'
-              ? 'bg-emerald-600 border-emerald-700 border-l-emerald-800 text-white ring-2 ring-emerald-400/30'
-              : 'bg-white border-gray-200 border-l-emerald-500 text-gray-500 hover:bg-emerald-50/50'
+              ? 'bg-emerald-600 border-emerald-700 text-white ring-2 ring-emerald-400/30'
+              : 'bg-white border-emerald-500/25 text-gray-500 hover:bg-emerald-50/50'
           }`}
         >
-          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Completed' ? 'text-emerald-100' : 'text-gray-400'}`}>Completed</span>
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Completed' ? 'text-emerald-100' : 'text-emerald-600'}`}>Completed</span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Completed' ? 'text-white' : 'text-emerald-600'}`}>{kpis.completed}</span>
         </button>
 
@@ -414,13 +465,13 @@ export default function AllTasks() {
             setKpiFilter('Pending');
             setActiveTab('Pending');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
             kpiFilter === 'Pending'
-              ? 'bg-amber-500 border-amber-600 border-l-amber-700 text-white ring-2 ring-amber-400/30'
-              : 'bg-white border-gray-200 border-l-amber-500 text-gray-500 hover:bg-amber-50/50'
+              ? 'bg-amber-500 border-amber-600 text-white ring-2 ring-amber-400/30'
+              : 'bg-white border-amber-500/25 text-gray-500 hover:bg-amber-50/50'
           }`}
         >
-          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Pending' ? 'text-amber-100' : 'text-gray-400'}`}>Pending</span>
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Pending' ? 'text-amber-100' : 'text-amber-600'}`}>Pending</span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Pending' ? 'text-white' : 'text-amber-650'}`}>{kpis.pending}</span>
         </button>
 
@@ -431,13 +482,13 @@ export default function AllTasks() {
             setKpiFilter('Frog');
             setActiveTab('Pending');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer ${
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
             kpiFilter === 'Frog'
-              ? 'bg-green-700 border-green-800 border-l-green-900 text-white ring-2 ring-green-400/30'
-              : 'bg-white border-gray-200 border-l-emerald-600 text-gray-500 hover:bg-green-50/50'
+              ? 'bg-green-700 border-green-800 text-white ring-2 ring-green-400/30'
+              : 'bg-white border-green-600/25 text-gray-500 hover:bg-green-50/50'
           }`}
         >
-          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${kpiFilter === 'Frog' ? 'text-green-100' : 'text-gray-400'}`}>
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${kpiFilter === 'Frog' ? 'text-green-100' : 'text-green-650'}`}>
             <span>🐸 Frogs</span>
           </span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Frog' ? 'text-white' : 'text-emerald-800'}`}>{kpis.pendingFrog}</span>
@@ -450,13 +501,13 @@ export default function AllTasks() {
             setKpiFilter('Overdue');
             setActiveTab('Pending');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border border-l-4 transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer col-span-2 sm:col-span-1 ${
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
             kpiFilter === 'Overdue'
-              ? 'bg-rose-600 border-rose-700 border-l-rose-800 text-white ring-2 ring-rose-400/30'
-              : 'bg-white border-gray-200 border-l-rose-500 text-gray-500 hover:bg-rose-50/50'
+              ? 'bg-rose-600 border-rose-700 text-white ring-2 ring-rose-400/30'
+              : 'bg-white border-rose-500/25 text-gray-500 hover:bg-rose-50/50'
           }`}
         >
-          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Overdue' ? 'text-rose-100' : 'text-gray-400'}`}>Overdue</span>
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Overdue' ? 'text-rose-100' : 'text-rose-600'}`}>Overdue</span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Overdue' ? 'text-white' : 'text-rose-600'}`}>{kpis.overdue}</span>
         </button>
       </div>
@@ -482,8 +533,142 @@ export default function AllTasks() {
         </div>
       </div>
 
-      {/* Combined Controls Row (Tabs switcher + Filters combined) */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+      {/* Mobile Search & Filter Toggle Row (visible only on mobile/tablet) */}
+      <div className="md:hidden space-y-2">
+        <div className="bg-white border border-gray-200 rounded-2xl p-3 shadow-sm flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs h-[36px] bg-white font-semibold"
+            />
+          </div>
+          <button
+            onClick={() => setShowMobileFilters(prev => !prev)}
+            className={`p-2 rounded-xl border flex items-center justify-center h-[36px] w-[36px] shadow-sm transition-all ${
+              showMobileFilters
+                ? 'bg-emerald-50 border-emerald-250 text-emerald-700'
+                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+        </div>
+
+        {/* Collapsible Mobile/Tablet Advanced Filters */}
+        {showMobileFilters && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm space-y-3.5 animate-in slide-in-from-top-2 duration-150">
+            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Advanced Filters</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Time select */}
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-gray-500">Time of Day</span>
+                <select
+                  value={filterDuration}
+                  onChange={(e) => setFilterDuration(e.target.value)}
+                  className="border border-gray-300 rounded-xl text-xs px-2.5 py-1.5 bg-white text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 h-[36px] w-full"
+                >
+                  <option value="">All Times</option>
+                  {durationOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Category select */}
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-gray-500">Category</span>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="border border-gray-300 rounded-xl text-xs px-2.5 py-1.5 bg-white text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 h-[36px] w-full"
+                >
+                  <option value="">All Categories</option>
+                  {customCategories.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {/* From Date */}
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-gray-500">From Date</span>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="border border-gray-300 rounded-xl text-xs px-2.5 py-1 bg-white text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 h-[36px] w-full"
+                />
+              </div>
+
+              {/* To Date */}
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-gray-500">To Date</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="border border-gray-300 rounded-xl text-xs px-2.5 py-1 bg-white text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 h-[36px] w-full"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+              {/* Frog Tasks filter button */}
+              <button
+                onClick={() => setFilterFrog(prev => prev === 'Frog' ? '' : 'Frog')}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[38px] w-full ${
+                  filterFrog === 'Frog'
+                    ? 'bg-emerald-50 border-emerald-250 text-emerald-700 shadow-sm'
+                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <span>🐸 Filter Frog Tasks</span>
+                {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
+              </button>
+
+              {/* View Frog Tasks modal button */}
+              <button
+                onClick={() => {
+                  setShowFrogModal(true);
+                  setShowMobileFilters(false);
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[38px] w-full bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm active:scale-95"
+              >
+                <span>🐸 View Frog Tasks Dialog</span>
+                {kpis.pendingFrog > 0 && (
+                  <span className="bg-white text-emerald-700 font-black text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">{kpis.pendingFrog}</span>
+                )}
+              </button>
+
+              {/* Clear button */}
+              {(searchQuery || filterDuration || filterCategory || filterFrog || fromDate || toDate) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterDuration('');
+                    setFilterCategory('');
+                    setFilterFrog('');
+                    setFromDate('');
+                    setToDate('');
+                  }}
+                  className="text-xs text-red-500 hover:text-red-750 font-black text-center py-2 hover:underline w-full mt-1 border border-dashed border-red-200 rounded-xl bg-red-50/30"
+                >
+                  Clear All Filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Combined Controls Row (Tabs switcher + Filters combined) - hidden on mobile */}
+      <div className="hidden md:block bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
 
           {/* Left Side: Tabs */}
@@ -623,7 +808,7 @@ export default function AllTasks() {
                   setKpiFilter('Pending');
                   setActiveTab('Pending');
                 }}
-                className="text-xs text-red-500 hover:text-red-700 font-bold hover:underline py-1 px-2"
+                className="text-xs text-red-500 hover:text-red-750 font-bold hover:underline py-1 px-2"
               >
                 Clear
               </button>

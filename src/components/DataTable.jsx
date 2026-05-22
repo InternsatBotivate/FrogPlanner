@@ -78,7 +78,7 @@ const DataTable = ({
               <option key={val} value={val}>{val}</option>
             ))}
           </select>
-          <span className="text-[10px] md:text-sm text-gray-500 whitespace-nowrap font-medium hidden sm:inline">
+          <span className="text-[11px] md:text-sm text-gray-500 whitespace-nowrap font-semibold ml-1 sm:ml-2 inline-block">
             {totalResults > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0}-{Math.min(currentPage * itemsPerPage, totalResults)} of {totalResults}
           </span>
         </div>

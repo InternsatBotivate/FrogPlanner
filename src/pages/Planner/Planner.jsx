@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, ClipboardPaste } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, SlidersHorizontal, Save } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 import ModalForm from '../../components/ModalForm';
 import ModalAlert from '../../components/ModalAlert';
@@ -15,6 +15,26 @@ const formatDateLocal = (date) => {
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+};
+
+const getDurationEmoji = (duration) => {
+  switch (duration) {
+    case 'Morning': return '🌅';
+    case 'Afternoon': return '☀️';
+    case 'Evening': return '🌇';
+    case 'Night': return '🌙';
+    default: return '⏰';
+  }
+};
+
+const getCategoryColorClass = (cat) => {
+  const c = String(cat).toLowerCase();
+  if (c.includes('work') || c.includes('job')) return 'bg-blue-50 text-blue-700 border-blue-150';
+  if (c.includes('meet') || c.includes('call')) return 'bg-purple-50 text-purple-700 border-purple-150';
+  if (c.includes('person') || c.includes('home')) return 'bg-pink-50 text-pink-700 border-pink-150';
+  if (c.includes('health') || c.includes('fit')) return 'bg-emerald-50 text-emerald-700 border-emerald-150';
+  if (c.includes('review') || c.includes('test')) return 'bg-amber-50 text-amber-700 border-amber-150';
+  return 'bg-sky-50 text-sky-700 border-sky-150';
 };
 
 export default function Planner() {
@@ -57,10 +77,10 @@ export default function Planner() {
   const [filterFrog, setFilterFrog] = useState('');
   const [alertConfig, setAlertConfig] = useState({ isOpen: false, type: 'success', title: '', message: '', onConfirm: () => {} });
   
-  // Selection and Bulk Import states
+  // Selection states
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
-  const [bulkPasteText, setBulkPasteText] = useState('');
   const [dirtyTasks, setDirtyTasks] = useState({});
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Custom categories list loaded from localStorage if it exists
   const [customCategories, setCustomCategories] = useState(() => {
@@ -408,38 +428,6 @@ export default function Planner() {
     });
   };
 
-  const handleBulkImport = () => {
-    const lines = bulkPasteText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    if (lines.length === 0) {
-      toast.error('Please enter at least one task line.');
-      return;
-    }
-
-    const imported = lines.map(line => {
-      let isFrog = false;
-      let cleanDesc = line;
-      if (line.includes('🐸')) {
-        isFrog = true;
-        cleanDesc = line.replace(/🐸/g, '').trim();
-      }
-      return {
-        description: cleanDesc,
-        duration: 'Morning',
-        category: customCategories[0] || 'Work',
-        priority: isFrog ? 'Frog' : ''
-      };
-    });
-
-    if (tasksList.length === 1 && !tasksList[0].description.trim()) {
-      setTasksList(imported);
-    } else {
-      setTasksList([...tasksList, ...imported]);
-    }
-
-    setBulkPasteText('');
-    toast.success(`Successfully imported ${imported.length} task(s)!`);
-  };
-
   const handleSaveAll = async () => {
     if (!user?.id) return;
     const dirtyList = Object.values(dirtyTasks);
@@ -641,122 +629,134 @@ export default function Planner() {
     setShowModal(false);
   };
 
-  const renderRow = (item) => (
-    <tr key={item.id} className="hover:bg-gray-50/80 transition-colors text-center text-sm border-b border-gray-100">
-      {/* Action Checkbox */}
-      <td className="px-2 py-2 w-[60px] whitespace-nowrap">
-        <div className="flex items-center justify-center">
+  const renderRow = (item) => {
+    const isSavedDone = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
+    const isDisabled = activeFilter === 'Completed' || isSavedDone;
+    return (
+      <tr key={item.id} className="hover:bg-gray-50/80 transition-colors text-center text-sm border-b border-gray-100">
+        {/* Action Checkbox */}
+        <td className="px-2 py-2 w-[60px] whitespace-nowrap">
+          <div className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={item.status === 'Completed'}
+              onChange={() => handleToggleStatus(item.id)}
+              disabled={isDisabled}
+              className={`w-[18px] h-[18px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
+                isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+              }`}
+            />
+          </div>
+        </td>
+        {/* Status Column (Dropdown Done/Pending/Select) */}
+        <td className="px-2 py-2 w-[110px] whitespace-nowrap text-center">
+          <select
+            value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
+            onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
+            disabled={isDisabled}
+            className={`border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold ${
+              isDisabled ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
+            }`}
+          >
+            <option value="Select">Select</option>
+            <option value="Pending">Pending</option>
+            <option value="Done">Done</option>
+          </select>
+        </td>
+        {/* Remarks Column (Input text box) */}
+        <td className="px-2 py-2 w-[180px] whitespace-nowrap text-center">
           <input
-            type="checkbox"
-            checked={item.status === 'Completed'}
-            onChange={() => handleToggleStatus(item.id)}
-            disabled={activeFilter === 'Completed'}
-            className={`w-[18px] h-[18px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
-              activeFilter === 'Completed' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+            type="text"
+            value={item.remarks || ''}
+            onChange={(e) => handleUpdateTaskField(item.id, 'remarks', e.target.value)}
+            disabled={isDisabled}
+            placeholder={isDisabled ? 'No remarks' : 'Remarks...'}
+            className={`border border-gray-355 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full max-w-[150px] font-medium ${
+              isDisabled ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
             }`}
           />
+        </td>
+        {/* Time */}
+        <td className="px-2 py-2 w-[110px] text-gray-900 font-bold whitespace-nowrap text-xs md:text-sm">
+          <div className="flex items-center justify-center gap-1.5">
+            <Clock size={14} className="text-gray-400" /> {item.time}
+          </div>
+        </td>
+        {/* Task Description */}
+        <td className="px-4 py-2 text-gray-800 text-xs md:text-sm text-center font-medium">
+          <div className="flex items-center justify-center gap-2">
+            {item.priority === 'Frog' && (
+              <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+            )}
+            <span>{item.description}</span>
+          </div>
+        </td>
+        {/* Category */}
+        <td className="px-2 py-2 w-[140px] text-gray-700 whitespace-nowrap text-xs md:text-sm text-center">
+          <span className="font-extrabold uppercase text-[11px] text-gray-650 tracking-wider flex items-center justify-center gap-1.5 select-none">
+            <span>{getCategoryEmoji(item.category)}</span>
+            <span>{item.category}</span>
+          </span>
+        </td>
+      </tr>
+    );
+  };
+
+  const renderCard = (item) => {
+    const isSavedDone = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
+    const isDisabled = activeFilter === 'Completed' || isSavedDone;
+    return (
+      <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-150 shadow-sm space-y-3 transition-all duration-200 hover:shadow-md">
+        {/* Header Row: Category Badge + Large Checkbox */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${getCategoryColorClass(item.category)}`}>
+              {getCategoryEmoji(item.category)} {item.category}
+            </span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wider ${
+              item.status === 'Completed' 
+                ? 'bg-emerald-50 border-emerald-100 text-emerald-600' 
+                : 'bg-amber-50 border-amber-100 text-amber-600'
+            }`}>
+              {item.status}
+            </span>
+          </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={item.status === 'Completed'}
+              onChange={() => handleToggleStatus(item.id)}
+              disabled={isDisabled}
+              className={`w-[22px] h-[22px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
+                isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+              }`}
+            />
+          </div>
         </div>
-      </td>
-      {/* Status Column (Dropdown Done/Pending/Select) */}
-      <td className="px-2 py-2 w-[110px] whitespace-nowrap text-center">
-        <select
-          value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
-          onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
-          disabled={activeFilter === 'Completed'}
-          className={`border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold ${
-            activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
-          }`}
-        >
-          <option value="Select">Select</option>
-          <option value="Pending">Pending</option>
-          <option value="Done">Done</option>
-        </select>
-      </td>
-      {/* Remarks Column (Input text box) */}
-      <td className="px-2 py-2 w-[180px] whitespace-nowrap text-center">
-        <input
-          type="text"
-          value={item.remarks || ''}
-          onChange={(e) => handleUpdateTaskField(item.id, 'remarks', e.target.value)}
-          disabled={activeFilter === 'Completed'}
-          placeholder={activeFilter === 'Completed' ? 'No remarks' : 'Remarks...'}
-          className={`border border-gray-355 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full max-w-[150px] font-medium ${
-            activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
-          }`}
-        />
-      </td>
-      {/* Time */}
-      <td className="px-2 py-2 w-[110px] text-gray-900 font-bold whitespace-nowrap text-xs md:text-sm">
-        <div className="flex items-center justify-center gap-1.5">
-          <Clock size={14} className="text-gray-400" /> {item.time}
-        </div>
-      </td>
-      {/* Task Description */}
-      <td className="px-4 py-2 text-gray-800 text-xs md:text-sm text-center font-medium">
-        <div className="flex items-center justify-center gap-2">
+
+        {/* Task Description */}
+        <h3 className="text-sm font-bold text-gray-800 leading-snug text-left flex items-start gap-1.5 pt-1">
           {item.priority === 'Frog' && (
             <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
           )}
           <span>{item.description}</span>
-        </div>
-      </td>
-      {/* Category */}
-      <td className="px-2 py-2 w-[140px] text-gray-700 whitespace-nowrap text-xs md:text-sm text-center">
-        <span className="font-extrabold uppercase text-[11px] text-gray-650 tracking-wider flex items-center justify-center gap-1.5 select-none">
-          <span>{getCategoryEmoji(item.category)}</span>
-          <span>{item.category}</span>
-        </span>
-      </td>
-    </tr>
-  );
+        </h3>
 
-  const renderCard = (item) => (
-    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3.5 transition-all duration-200">
-      <div className="flex justify-between items-start border-b border-gray-100 pb-2.5">
-        <div className="flex items-start gap-2.5 mr-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 uppercase tracking-widest">
-                {getCategoryEmoji(item.category)} {item.category}
-              </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest ${item.status === 'Completed' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>{item.status}</span>
-            </div>
-            <h3 className="text-sm md:text-base font-bold text-gray-800 leading-tight text-left flex items-start gap-1.5">
-              {item.priority === 'Frog' && (
-                <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
-              )}
-              <span>{item.description}</span>
-            </h3>
-          </div>
-        </div>
-        <div className="flex ml-2 items-center">
-          <input
-            type="checkbox"
-            checked={item.status === 'Completed'}
-            onChange={() => handleToggleStatus(item.id)}
-            disabled={activeFilter === 'Completed'}
-            className={`w-5 h-5 text-emerald-650 border-gray-300 rounded focus:ring-emerald-500 ${
-              activeFilter === 'Completed' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-            }`}
-          />
-        </div>
-      </div>
-      <div className="pt-1 flex items-center justify-between text-gray-500">
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <Clock size={13} />
+        {/* Time duration with emoji */}
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 pt-0.5">
+          <span className="text-sm select-none">{getDurationEmoji(item.time)}</span>
           <span>{item.time}</span>
         </div>
-      </div>
-      {/* Mobile Card inputs for Status & Remarks */}
-      <div className="pt-2.5 border-t border-gray-100 flex flex-col gap-2.5">
-        <div className="flex items-center justify-between text-xs md:text-sm">
+
+        {/* Status Dropdown Selection */}
+        <div className="flex items-center justify-between text-xs pt-1.5">
           <span className="font-bold text-gray-500">Status:</span>
           <select
             value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
             onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
-            disabled={activeFilter === 'Completed'}
-            className={`border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold ${
-              activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
+            disabled={isDisabled}
+            className={`border border-gray-250 rounded-lg px-2.5 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold ${
+              isDisabled ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
             }`}
           >
             <option value="Select">Select</option>
@@ -764,22 +764,24 @@ export default function Planner() {
             <option value="Done">Done</option>
           </select>
         </div>
-        <div className="flex flex-col gap-1 text-xs md:text-sm text-left">
-          <span className="font-bold text-gray-500">Remarks:</span>
+
+        {/* Remarks Box underneath status */}
+        <div className="flex flex-col gap-1 text-xs pt-1">
+          <span className="font-bold text-gray-500 text-left">Remarks:</span>
           <input
             type="text"
             value={item.remarks || ''}
             onChange={(e) => handleUpdateTaskField(item.id, 'remarks', e.target.value)}
-            disabled={activeFilter === 'Completed'}
-            placeholder={activeFilter === 'Completed' ? 'No remarks' : 'Enter remarks...'}
-            className={`border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full font-medium ${
-              activeFilter === 'Completed' ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
+            disabled={isDisabled}
+            placeholder={isDisabled ? 'No remarks' : 'Enter remarks...'}
+            className={`border border-gray-250 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full font-medium ${
+              isDisabled ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
             }`}
           />
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -793,71 +795,71 @@ export default function Planner() {
   return (
     <div className="p-1.5 sm:p-3 lg:p-4 space-y-3 lg:space-y-4 flex flex-col h-full min-h-0 overflow-hidden text-left relative">
       {/* Status Filter KPI Cards Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 shrink-0">
+      <div className="grid grid-cols-5 gap-1 md:gap-2.5 shrink-0">
         
         {/* Total Card */}
         <button
           onClick={() => setActiveFilter('Total')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
+          className={`py-1.5 px-1 sm:px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[54px] sm:h-[58px] shadow-sm font-bold active:scale-95 ${
             activeFilter === 'Total'
-              ? 'bg-slate-700 border-slate-800 text-white border-l-slate-900 scale-[1.02] shadow-md'
-              : 'bg-slate-50/70 border-slate-100 text-slate-700 border-l-slate-400 hover:bg-slate-100/50'
+              ? 'bg-slate-800 border-slate-900 text-white scale-[1.02] shadow-md'
+              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/50'
           }`}
         >
-          <span className="text-base md:text-lg leading-none">{stats.total}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Total</span>
+          <span className="text-sm sm:text-base md:text-lg leading-none font-extrabold">{stats.total}</span>
+          <span className="text-[8px] sm:text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Total</span>
         </button>
 
         {/* Completed Card */}
         <button
           onClick={() => setActiveFilter(prev => prev === 'Completed' ? 'Pending' : 'Completed')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
+          className={`py-1.5 px-1 sm:px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[54px] sm:h-[58px] shadow-sm font-bold active:scale-95 ${
             activeFilter === 'Completed'
-              ? 'bg-emerald-600 border-emerald-700 text-white border-l-emerald-800 scale-[1.02] shadow-md'
-              : 'bg-emerald-50/70 border-emerald-100 text-emerald-700 border-l-emerald-500 hover:bg-emerald-100/50'
+              ? 'bg-emerald-600 border-emerald-700 text-white scale-[1.02] shadow-md'
+              : 'bg-emerald-50/80 border-emerald-100 text-emerald-700 hover:bg-emerald-100/50'
           }`}
         >
-          <span className="text-base md:text-lg leading-none">{stats.completed}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Completed</span>
+          <span className="text-sm sm:text-base md:text-lg leading-none font-extrabold">{stats.completed}</span>
+          <span className="text-[8px] sm:text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Done</span>
         </button>
 
         {/* Pending Card */}
         <button
           onClick={() => setActiveFilter(prev => prev === 'Pending' ? 'Total' : 'Pending')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
+          className={`py-1.5 px-1 sm:px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[54px] sm:h-[58px] shadow-sm font-bold active:scale-95 ${
             activeFilter === 'Pending'
-              ? 'bg-amber-600 border-amber-700 text-white border-l-amber-800 scale-[1.02] shadow-md'
-              : 'bg-amber-50/70 border-amber-100 text-amber-700 border-l-amber-500 hover:bg-amber-100/50'
+              ? 'bg-amber-600 border-amber-700 text-white scale-[1.02] shadow-md'
+              : 'bg-amber-50/80 border-amber-100 text-amber-700 hover:bg-amber-100/50'
           }`}
         >
-          <span className="text-base md:text-lg leading-none">{stats.pending}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Pending</span>
+          <span className="text-sm sm:text-base md:text-lg leading-none font-extrabold">{stats.pending}</span>
+          <span className="text-[8px] sm:text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Pending</span>
         </button>
 
         {/* Pending Frogs Card */}
         <button
           onClick={() => setActiveFilter(prev => prev === 'PendingFrogs' ? 'Pending' : 'PendingFrogs')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 ${
+          className={`py-1.5 px-1 sm:px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[54px] sm:h-[58px] shadow-sm font-bold active:scale-95 ${
             activeFilter === 'PendingFrogs'
-              ? 'bg-emerald-700 border-emerald-800 text-white border-l-emerald-900 scale-[1.02] shadow-md'
-              : 'bg-green-50 border-green-150 text-green-800 border-l-emerald-600 hover:bg-green-100/50'
+              ? 'bg-emerald-750 border-emerald-800 text-white scale-[1.02] shadow-md'
+              : 'bg-green-50 border-green-150 text-green-800 hover:bg-green-100/50'
           }`}
         >
-          <span className="text-base md:text-lg leading-none flex items-center gap-1">🐸 {stats.pendingFrogs}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Pending Frogs</span>
+          <span className="text-sm sm:text-base md:text-lg leading-none font-extrabold flex items-center gap-0.5">🐸{stats.pendingFrogs}</span>
+          <span className="text-[8px] sm:text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Frogs</span>
         </button>
 
         {/* Overdue Card */}
         <button
           onClick={() => setActiveFilter(prev => prev === 'Overdue' ? 'Pending' : 'Overdue')}
-          className={`py-2 px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[58px] shadow-sm font-bold border-l-4 active:scale-95 col-span-2 sm:col-span-1 ${
+          className={`py-1.5 px-1 sm:px-3 rounded-xl border text-center transition-all duration-155 flex flex-col justify-center items-center h-[54px] sm:h-[58px] shadow-sm font-bold active:scale-95 ${
             activeFilter === 'Overdue'
-              ? 'bg-rose-600 border-rose-700 text-white border-l-rose-800 scale-[1.02] shadow-md'
-              : 'bg-rose-50/70 border-rose-100 text-rose-700 border-l-rose-500 hover:bg-rose-100/50'
+              ? 'bg-rose-600 border-rose-700 text-white scale-[1.02] shadow-md'
+              : 'bg-rose-50 border-rose-100 text-rose-700 hover:bg-rose-100/50'
           }`}
         >
-          <span className="text-base md:text-lg leading-none">{stats.overdue}</span>
-          <span className="text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Overdue Tasks</span>
+          <span className="text-sm sm:text-base md:text-lg leading-none font-extrabold">{stats.overdue}</span>
+          <span className="text-[8px] sm:text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Overdue</span>
         </button>
 
       </div>
@@ -867,53 +869,44 @@ export default function Planner() {
         <div className="flex items-center gap-1 sm:gap-2">
           <button 
             onClick={() => setWeekOffset(prev => prev - 1)}
-            className="p-1 sm:px-1.5 rounded-md md:rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 transition-colors flex-shrink-0 h-[38px] md:h-[44px] flex items-center justify-center shadow-sm"
+            className="p-1 sm:px-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 transition-colors flex-shrink-0 h-[38px] md:h-[44px] flex items-center justify-center shadow-sm"
           >
             <ChevronLeft size={16} />
           </button>
           
-          <div className="flex-1 flex overflow-x-auto hide-scrollbar gap-1.5 py-1 items-center">
+          <div className="flex-1 flex overflow-x-auto scrollbar-hide gap-1.5 py-1 items-center">
             {weekDates.map((date, idx) => {
               const dateStr = formatDateLocal(date);
               const isSelected = selectedDate === dateStr;
-              const isTodayDate = isToday(date);
               
               let btnClass = '';
               let textDayNameClass = '';
               let textDayNumberClass = '';
 
-              if (isTodayDate) {
-                // Today's date in solid blue (highlighted)
-                btnClass = isSelected
-                  ? 'bg-blue-600 border-blue-700 text-white shadow-md shadow-blue-200 scale-105'
-                  : 'bg-blue-500 border-blue-500 text-white shadow-sm hover:bg-blue-600';
-                textDayNameClass = 'text-blue-100 font-semibold';
+              if (isSelected) {
+                // Selected date (vibrant solid green)
+                btnClass = 'bg-emerald-600 border-emerald-700 text-white shadow-md shadow-emerald-100 scale-105 font-bold';
+                textDayNameClass = 'text-emerald-100 font-semibold';
                 textDayNumberClass = 'text-white';
-              } else if (isSelected) {
-                // Selected date (faded blue, active)
-                btnClass = 'bg-sky-100 border-sky-300 text-sky-700 font-bold';
-                textDayNameClass = 'text-sky-650';
-                textDayNumberClass = 'text-sky-900';
               } else {
-                // Other dates (faded blue, inactive)
-                btnClass = 'bg-sky-50/40 border-sky-100 text-sky-500 hover:bg-sky-100/30 hover:border-sky-200';
-                textDayNameClass = 'text-sky-400 font-medium';
+                // Other dates (soft blue/cyan background, text-sky-500)
+                btnClass = 'bg-sky-50/20 border-sky-100/50 text-sky-500 hover:bg-sky-100/30';
+                textDayNameClass = 'text-sky-400 font-semibold';
                 textDayNumberClass = 'text-sky-700 font-bold';
               }
               
               return (
                 <button
-                  key={idx}
-                  onClick={() => setSelectedDate(dateStr)}
-                  className={`flex flex-col items-center justify-center flex-1 min-w-[42px] md:min-w-[56px] py-1 rounded-md md:rounded-lg border transition-all ${btnClass}`}
+                   key={idx}
+                   onClick={() => setSelectedDate(dateStr)}
+                   className={`flex flex-col items-center justify-center flex-1 min-w-[42px] md:min-w-[56px] py-1 rounded-xl border transition-all ${btnClass}`}
                 >
                   <span className={`text-[8px] md:text-[9px] uppercase tracking-wider ${textDayNameClass}`}>
                     {getDayName(date)}
                   </span>
-                  <span className={`text-sm md:text-base leading-none mt-0.5 ${textDayNumberClass}`}>
+                  <span className={`text-xs sm:text-sm md:text-base leading-none mt-0.5 ${textDayNumberClass}`}>
                     {getDayNumber(date)}
                   </span>
-                  {isTodayDate && !isSelected && <span className="w-1 h-1 rounded-full bg-white mt-0.5 animate-pulse"></span>}
                 </button>
               );
             })}
@@ -921,7 +914,7 @@ export default function Planner() {
 
           <button 
             onClick={() => setWeekOffset(prev => prev + 1)}
-            className="p-1 sm:px-1.5 rounded-md md:rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 transition-colors flex-shrink-0 h-[38px] md:h-[44px] flex items-center justify-center shadow-sm"
+            className="p-1 sm:px-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 transition-colors flex-shrink-0 h-[38px] md:h-[44px] flex items-center justify-center shadow-sm"
           >
             <ChevronRight size={16} />
           </button>
@@ -930,7 +923,9 @@ export default function Planner() {
 
       {/* Main Content Area */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden mt-0">
-        <div className="p-3 sm:p-4 border-b border-gray-100 flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 bg-white">
+        
+        {/* DESKTOP HEADER (Hidden on Mobile/Tablet) */}
+        <div className="hidden lg:flex items-center justify-between gap-3 p-3 sm:p-4 border-b border-gray-100 bg-white">
           {/* 1. Title */}
           <h2 className="text-sm font-extrabold text-gray-850 shrink-0">
             {activeFilter === 'Overdue'
@@ -939,7 +934,7 @@ export default function Planner() {
           </h2>
 
           {/* 2. Filters */}
-          <div className="flex flex-wrap items-center gap-2 flex-1 justify-center lg:justify-start lg:ml-4">
+          <div className="flex items-center gap-2 flex-1 ml-4">
             {/* Search Input */}
             <div className="relative w-44 md:w-52">
               <Search className="absolute left-2.5 top-1.5 w-3.5 h-3.5 text-gray-400" />
@@ -956,7 +951,7 @@ export default function Planner() {
             <select
               value={filterDuration}
               onChange={(e) => setFilterDuration(e.target.value)}
-              className="border border-gray-300 rounded-lg text-xs px-2 py-0.5 bg-white text-gray-750 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[28px]"
+              className="border border-gray-300 rounded-lg text-xs px-2 py-0.5 bg-white text-gray-755 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[28px]"
             >
               <option value="">All Times</option>
               {durationOptions.map(opt => (
@@ -968,7 +963,7 @@ export default function Planner() {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="border border-gray-300 rounded-lg text-xs px-2 py-0.5 bg-white text-gray-750 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[28px]"
+              className="border border-gray-300 rounded-lg text-xs px-2 py-0.5 bg-white text-gray-755 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[28px]"
             >
               <option value="">All Categories</option>
               {customCategories.map(opt => (
@@ -1040,6 +1035,134 @@ export default function Planner() {
             </button>
           </div>
         </div>
+
+        {/* MOBILE/TABLET HEADER (Visible on Mobile/Tablet) */}
+        <div className="flex lg:hidden flex-col gap-2.5 p-3 border-b border-gray-100 bg-white">
+          <div className="flex items-center gap-2 w-full">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search tasks..."
+                className="w-full pl-8 pr-2.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[34px] font-medium"
+              />
+            </div>
+
+            {/* Sliders / Filters Toggle */}
+            <button
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className={`p-2 border rounded-lg flex items-center justify-center transition-all h-[34px] w-[34px] ${
+                showMobileFilters 
+                  ? 'bg-sky-50 border-sky-300 text-sky-600' 
+                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 shadow-sm'
+              }`}
+            >
+              <SlidersHorizontal size={16} />
+            </button>
+
+            {/* Save/Submit Button */}
+            <button 
+              onClick={handleSaveAll}
+              disabled={Object.keys(dirtyTasks).length === 0}
+              className={`rounded-lg flex items-center justify-center h-[34px] w-[34px] transition-all duration-150 active:scale-95 ${
+                Object.keys(dirtyTasks).length > 0 
+                  ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 ring-offset-1 animate-pulse border border-emerald-700 shadow-sm' 
+                  : 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+              }`}
+            >
+              <Save size={16} />
+            </button>
+
+            {/* Add Task Button */}
+            <button 
+              onClick={handleAddTaskClick}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center h-[34px] w-[34px] transition active:scale-95 shadow-sm border border-emerald-700"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+
+          {/* Collapsible mobile/tablet filters panel */}
+          {showMobileFilters && (
+            <div className="flex flex-col gap-2 p-3 bg-slate-50/70 border border-slate-100 rounded-xl animate-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-2 gap-2">
+                {/* Time Drop-down */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-left">Time</span>
+                  <select
+                    value={filterDuration}
+                    onChange={(e) => setFilterDuration(e.target.value)}
+                    className="border border-gray-300 rounded-lg text-xs px-2 py-1.5 bg-white text-gray-750 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[34px]"
+                  >
+                    <option value="">All Times</option>
+                    {durationOptions.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Category Drop-down */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-left">Category</span>
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="border border-gray-300 rounded-lg text-xs px-2 py-1.5 bg-white text-gray-750 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[34px]"
+                  >
+                    <option value="">All Categories</option>
+                    {customCategories.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between gap-2 mt-1 pt-1.5 border-t border-slate-150">
+                {/* Frog Tasks Toggle */}
+                <button
+                  onClick={() => setFilterFrog(prev => prev === 'Frog' ? '' : 'Frog')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1.5 h-[32px] ${
+                    filterFrog === 'Frog'
+                      ? 'bg-emerald-50 border-emerald-250 text-emerald-700 shadow-sm'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>🐸 Frog Tasks Only</span>
+                  {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
+                </button>
+                
+                {/* View Frog Tasks Dialog Toggle */}
+                <button
+                  onClick={() => {
+                    setShowFrogModal(true);
+                    setShowMobileFilters(false);
+                  }}
+                  className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg flex items-center justify-center gap-1.5 h-[32px] text-xs font-bold border border-emerald-200 transition"
+                >
+                  <span>🐸 Today's Frogs ({allTodayFrogTasks.filter(t => !t.isCompleted).length})</span>
+                </button>
+              </div>
+
+              {/* Reset/Clear button */}
+              {(searchQuery || filterDuration || filterCategory || filterFrog) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterDuration('');
+                    setFilterCategory('');
+                    setFilterFrog('');
+                  }}
+                  className="w-full mt-1.5 text-center text-xs text-rose-500 hover:text-rose-700 font-bold hover:underline py-1.5 bg-rose-50/50 rounded-lg border border-rose-100/50"
+                >
+                  Clear All Filters
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         
         <div className="flex-1 overflow-hidden flex flex-col min-h-0 pt-1">
           <DataTable 
@@ -1068,30 +1191,6 @@ export default function Planner() {
       >
         <div className="space-y-4 text-left">
           
-          {/* <div className="bg-green-50/50 border border-green-200/60 p-3 rounded-xl space-y-2 text-left animate-in fade-in duration-200">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-green-700">
-              <ClipboardPaste size={14} />
-              <span>📋 Quick Bulk Paste (Optional)</span>
-            </div>
-            <p className="text-[10px] text-green-650 leading-relaxed">
-              Paste a list of tasks (one per line). Lines containing 🐸 will be marked as high priority (Frog).
-            </p>
-            <textarea
-              value={bulkPasteText}
-              onChange={(e) => setBulkPasteText(e.target.value)}
-              placeholder="Example:&#10;🐸 Complete proposal draft&#10;Schedule meeting with client&#10;🐸 Update Q3 report"
-              rows={3}
-              className="w-full border border-green-200 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500 h-[70px] bg-white font-medium placeholder-gray-400 shadow-sm"
-            />
-            <button
-              type="button"
-              onClick={handleBulkImport}
-              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition active:scale-95 shadow-sm"
-            >
-              Import List
-            </button>
-          </div> */}
-
           {/* Select the date */}
           <div className="space-y-1">
             <label className="block text-[10px] md:text-[11px] text-gray-650 font-bold uppercase tracking-wider">Select the date *</label>
