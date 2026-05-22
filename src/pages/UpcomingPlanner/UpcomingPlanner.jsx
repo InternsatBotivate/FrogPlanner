@@ -7,19 +7,14 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
-import { fetchPlannerData } from '../../lib/plannerService';
-import {
-  fetchUpcomingTasks,
-  createUpcomingTasks,
-  deleteUpcomingTask,
-  updateUpcomingTaskField,
-  migrateUpcomingTasksLegacyData
-} from '../../lib/upcomingPlannerService';
+import { usePlannerStore } from '../../store/plannerStore';
 import { getCategoryEmoji } from '../../utils/helpers';
 import ModalAlert from '../../components/ModalAlert';
 
 export default function UpcomingPlanner() {
   const { user } = useAuthStore();
+  const storeTasks = usePlannerStore(state => state.tasks);
+  const storeLoading = usePlannerStore(state => state.loading);
   
   // Loading & Alerts
   const [loading, setLoading] = useState(true);
@@ -47,6 +42,27 @@ export default function UpcomingPlanner() {
 
   // Derived: has the user already planned tomorrow?
   const isAlreadyPlanned = alreadyPlannedTasks.length > 0;
+
+  // Sync tasks from store
+  useEffect(() => {
+    const recTasks = (storeTasks || []).filter(t => t.isRecurring);
+    const planned = (storeTasks || []).filter(t => t.date === planningDate && !t.isRecurring)
+      .map(t => ({
+        ...t,
+        status: t.selectValue === 'Done' ? 'Completed' : 'Pending'
+      }));
+    setRecurringTasks(recTasks);
+    setAlreadyPlannedTasks(planned);
+  }, [storeTasks, planningDate]);
+
+  // Sync loading state
+  useEffect(() => {
+    if (!usePlannerStore.getState().hasLoaded) {
+      setLoading(storeLoading);
+    } else {
+      setLoading(false);
+    }
+  }, [storeLoading]);
   
   // Custom Categories
   const [customCategories, setCustomCategories] = useState(() => {
@@ -70,50 +86,14 @@ export default function UpcomingPlanner() {
   
   const durationOptions = ['Morning', 'Afternoon', 'Evening', 'Night'];
 
-  // 1. Initial Load & Legacy Migration
+  // Initial Load (triggers preloader once in store)
   useEffect(() => {
     const initPlanner = async () => {
-      if (!user?.id) return;
-      setLoading(true);
-      try {
-        // Run migration first
-        await migrateUpcomingTasksLegacyData(user.id);
-        
-        // Fetch recurring templates from standard tasks table (where date is null)
-        const { tasks: dbTasks } = await fetchPlannerData(user.id);
-        const recurringTemplates = dbTasks.filter(t => !t.date);
-        setRecurringTasks(recurringTemplates);
-        
-        // Fetch manual tasks already saved for the selected date
-        await loadSavedTasksForDate(planningDate);
-      } catch (error) {
-        console.error('[UpcomingPlanner] Init failed:', error);
-        toast.error('Failed to load planned tasks data.');
-      } finally {
-        setLoading(false);
+      if (user?.id) {
+        await usePlannerStore.getState().fetchPlannerData(user.id);
       }
     };
     initPlanner();
-  }, [user?.id]);
-
-  // Load saved manual tasks for target date
-  const loadSavedTasksForDate = async (targetDate) => {
-    if (!user?.id) return;
-    try {
-      const allUpcoming = await fetchUpcomingTasks(user.id);
-      // Filter tasks matching target date
-      const filtered = allUpcoming.filter(t => t.date === targetDate);
-      setAlreadyPlannedTasks(filtered);
-    } catch (err) {
-      console.error('[UpcomingPlanner] Failed to load saved tasks:', err);
-    }
-  };
-
-  // Reload already planned tasks on init only (date is always tomorrow)
-  useEffect(() => {
-    if (user?.id && !loading) {
-      loadSavedTasksForDate(planningDate);
-    }
   }, [user?.id]);
 
   // Alert Modal helper
@@ -259,14 +239,9 @@ export default function UpcomingPlanner() {
       return;
     }
 
-    // Optimistic UI update for saved task
-    setAlreadyPlannedTasks(prev =>
-      prev.map(t => t.id === item.id ? { ...t, status: newStatus } : t)
-    );
-    const success = await updateUpcomingTaskField(item.id, 'status', newStatus);
+    const success = await usePlannerStore.getState().updateTaskField(item.id, 'selectValue', newStatus === 'Completed' ? 'Done' : 'Pending');
     if (!success) {
       toast.error('Failed to update status.');
-      loadSavedTasksForDate(planningDate);
     } else {
       toast.success(newStatus === 'Completed' ? 'Task completed!' : 'Task set to pending.');
     }
@@ -282,9 +257,8 @@ export default function UpcomingPlanner() {
 
     showAlert('confirm', 'Remove Task?', 'Are you sure you want to delete this task from the database?', async () => {
       setLoading(true);
-      const success = await deleteUpcomingTask(taskId);
+      const success = await usePlannerStore.getState().deleteTask(taskId);
       if (success) {
-        setAlreadyPlannedTasks(prev => prev.filter(t => t.id !== taskId));
         toast.success('Task removed from planner.');
       } else {
         toast.error('Failed to delete task.');
@@ -298,12 +272,13 @@ export default function UpcomingPlanner() {
     if (unsavedTasks.length === 0) return;
     setSubmitting(true);
     try {
-      // Only save non-recurring custom tasks
+      // Only save non-recurring custom tasks, mapping status to selectValue and formatting for addPlannerTasks
       const payload = unsavedTasks
         .filter(t => !t.isRecurring)
-        .map(({ id, ...rest }) => ({
+        .map(({ id, status, ...rest }) => ({
           ...rest,
-          user_id: user.id
+          selectValue: status === 'Completed' ? 'Done' : 'Pending',
+          isRecurring: false
         }));
 
       if (payload.length === 0) {
@@ -312,7 +287,7 @@ export default function UpcomingPlanner() {
         return;
       }
 
-      const created = await createUpcomingTasks(user.id, payload);
+      const created = await usePlannerStore.getState().addPlannerTasks(user.id, payload);
       if (created && created.length > 0) {
         // Reset draft state
         setUnsavedTasks([]);
@@ -327,8 +302,6 @@ export default function UpcomingPlanner() {
         setShowBulkPaste(false);
         setBulkPasteText('');
         setActiveFilter('Recurring');
-        // Reload — this will set alreadyPlannedTasks and trigger the locked view
-        await loadSavedTasksForDate(planningDate);
         toast.success('Tasks added for your next day successfully! 🐸', {
           duration: 4000,
           style: {
@@ -570,25 +543,31 @@ export default function UpcomingPlanner() {
         )}
 
         <div className="p-4 sm:p-5 overflow-x-auto min-h-[250px]">
-          {recurringTasks.length === 0 && alreadyPlannedTasks.length === 0 && unsavedTasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
-              <span className="text-3xl select-none mb-2">💤</span>
-              <p className="text-xs font-semibold">No tasks found for this date.</p>
-              <p className="text-[10px] text-gray-405 mt-0.5">Use the inline task row below to add custom tasks.</p>
-            </div>
-          ) : (
-            <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px] max-w-5xl">
-              <thead>
-                <tr className="border-b border-gray-200 text-gray-400 font-bold uppercase tracking-wider text-[10px] sm:text-[11px]">
-                  <th className="pb-3 text-left font-bold w-2/5 align-middle">Task Description</th>
-                  <th className="pb-3 text-left font-bold w-1/5 align-middle">Time</th>
-                  <th className="pb-3 text-left font-bold w-1/5 align-middle">Category</th>
-                  <th className="pb-3 text-left font-bold w-[12%] align-middle">Source</th>
-                  <th className="pb-3 text-center font-bold w-[10%] align-middle">Actions</th>
+          <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px] max-w-5xl">
+            <thead>
+              <tr className="border-b border-gray-200 text-gray-400 font-bold uppercase tracking-wider text-[10px] sm:text-[11px]">
+                <th className="pb-3 text-left font-bold w-2/5 align-middle">Task Description</th>
+                <th className="pb-3 text-left font-bold w-1/5 align-middle">Time</th>
+                <th className="pb-3 text-left font-bold w-1/5 align-middle">Category</th>
+                <th className="pb-3 text-left font-bold w-[12%] align-middle">Source</th>
+                <th className="pb-3 text-center font-bold w-[10%] align-middle">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {/* Empty state placeholder inside the table if no tasks exist */}
+              {recurringTasks.length === 0 && unsavedTasks.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-gray-400">
+                    <div className="flex flex-col items-center justify-center py-4 text-center">
+                      <span className="text-2xl select-none mb-1">💤</span>
+                      <p className="text-xs font-semibold">No tasks found for this date.</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Use the inline task row below to add custom tasks.</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {/* 1. Recurring Tasks — always shown */}
+              )}
+
+              {/* 1. Recurring Tasks — always shown */}
                 {recurringTasks.map((task) => (
                   <tr key={`rec-${task.id}`} className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-3.5 text-left font-bold text-slate-800 align-middle">
@@ -777,7 +756,6 @@ export default function UpcomingPlanner() {
                   </tr>
                 </tbody>
             </table>
-          )}
         </div>
       </div>
 

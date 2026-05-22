@@ -6,7 +6,7 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 import { create } from 'zustand';
-import { signIn, signUp, signOut, getSessionUser } from '../lib/authService';
+import { signIn, signUp, signOut, getSessionUser, updateUserProfile } from '../lib/authService';
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -61,6 +61,21 @@ const useAuthStore = create((set) => ({
       isAuthenticated: !!user,
       loading: false,
     });
+  },
+
+  /**
+   * updateProfile
+   * Updates the authenticated user's profile in Supabase and the local store state.
+   */
+  updateProfile: async (updatedData) => {
+    const state = useAuthStore.getState();
+    if (!state.user?.id) return { error: new Error('Not authenticated') };
+    
+    const { user, error } = await updateUserProfile(state.user.id, updatedData);
+    if (user) {
+      set({ user });
+    }
+    return { error };
   },
 }));
 

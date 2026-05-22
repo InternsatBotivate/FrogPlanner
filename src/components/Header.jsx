@@ -31,9 +31,6 @@ const Header = ({ onMenuClick, user }) => {
               <p className="text-sm font-semibold text-gray-800 group-hover:text-green-700 transition-colors leading-tight">
                 {user?.name || 'User'}
               </p>
-              <p className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">
-                {user?.role === 'ADMIN' ? 'Administrator' : 'Employee'}
-              </p>
             </div>
             {/* Frog avatar with yellow ring for accent */}
             <div className="w-9 h-9 rounded-full bg-yellow-50 border-2 border-yellow-300 flex items-center justify-center group-hover:border-green-400 transition-all overflow-hidden shadow-sm text-lg select-none">

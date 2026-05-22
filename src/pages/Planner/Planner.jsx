@@ -5,7 +5,8 @@ import ModalForm from '../../components/ModalForm';
 import ModalAlert from '../../components/ModalAlert';
 import { getCategoryEmoji } from '../../utils/helpers';
 import { useAuthStore } from '../../store/authStore';
-import { fetchPlannerData, addPlannerTasks, updateTaskField, toggleCompletion, migrateLegacyData } from '../../lib/plannerService';
+import { usePlannerStore } from '../../store/plannerStore';
+import { migrateLegacyData } from '../../lib/plannerService';
 import { supabase } from '../../lib/supabaseClient';
 import toast from 'react-hot-toast';
 
@@ -18,6 +19,10 @@ const formatDateLocal = (date) => {
 
 export default function Planner() {
   const { user } = useAuthStore();
+  const storeTasks = usePlannerStore(state => state.tasks);
+  const storeCompletions = usePlannerStore(state => state.completions);
+  const storeLoading = usePlannerStore(state => state.loading);
+
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(formatDateLocal(new Date()));
   const [currentPage, setCurrentPage] = useState(1);
@@ -26,6 +31,23 @@ export default function Planner() {
   
   const [masterTasks, setMasterTasks] = useState([]);
   const [completions, setCompletions] = useState({});
+
+  // Synchronize store data to local state
+  useEffect(() => {
+    setMasterTasks(storeTasks || []);
+    setCompletions(storeCompletions || {});
+  }, [storeTasks, storeCompletions]);
+
+  useEffect(() => {
+    // Only show loading spinner on initial load, not background updates
+    if (!usePlannerStore.getState().hasLoaded) {
+      setLoading(storeLoading);
+    } else {
+      setLoading(false);
+    }
+  }, [storeLoading]);
+
+  // Sync date selection
   const [showModal, setShowModal] = useState(false);
   const [showFrogModal, setShowFrogModal] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Pending');
@@ -76,14 +98,7 @@ export default function Planner() {
   useEffect(() => {
     const initData = async () => {
       if (user?.id) {
-        setLoading(true);
-        // Step 1: Migrate legacy data first
-        await migrateLegacyData(user.id);
-        // Step 2: Fetch database data
-        const { tasks: dbTasks, completions: dbCompletions } = await fetchPlannerData(user.id);
-        setMasterTasks(dbTasks);
-        setCompletions(dbCompletions);
-        setLoading(false);
+        await usePlannerStore.getState().fetchPlannerData(user.id);
       }
     };
     initData();
@@ -117,7 +132,7 @@ export default function Planner() {
     if (activeFilter === 'Overdue') {
       // Find all tasks whose date is in the past AND not completed
       tasksToMap = masterTasks.filter(task => {
-        if (!task.date || task.date >= todayStr) return false;
+        if (task.isRecurring || !task.date || task.date >= todayStr) return false;
         const dateCompletions = completions[task.date] || [];
         const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
         return !isDone;
@@ -127,7 +142,8 @@ export default function Planner() {
     }
 
     const mapped = tasksToMap.map(task => {
-      const dateCompletions = completions[task.date] || [];
+      const taskDate = task.date || selectedDate;
+      const dateCompletions = completions[taskDate] || [];
       const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
       let calculatedStatus = 'Pending';
       if (isDone) {
@@ -189,6 +205,7 @@ export default function Planner() {
     let pendingFrogs = 0;
 
     dayTasks.forEach(task => {
+      const taskDate = task.date || selectedDate;
       const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
       if (isDone) {
         completed++;
@@ -201,7 +218,7 @@ export default function Planner() {
     });
 
     const overdue = masterTasks.filter(t => {
-      if (!t.date || t.date >= todayStr) return false;
+      if (t.isRecurring || !t.date || t.date >= todayStr) return false;
       const doneIds = completions[t.date] || [];
       const isCompleted = doneIds.includes(t.id) || t.selectValue === 'Done';
       return !isCompleted;
@@ -248,7 +265,7 @@ export default function Planner() {
     if (!user?.id) return;
     
     const task = masterTasks.find(t => t.id === taskId);
-    const taskDate = task ? task.date : selectedDate;
+    const taskDate = task ? (task.date || selectedDate) : selectedDate;
     if (!task) return;
     
     const isAdding = (value === 'Done');
@@ -294,7 +311,7 @@ export default function Planner() {
   // Toggle completion status for specific date (called by checkbox)
   const handleToggleStatus = (taskId) => {
     const task = masterTasks.find(t => t.id === taskId);
-    const taskDate = task ? task.date : selectedDate;
+    const taskDate = task ? (task.date || selectedDate) : selectedDate;
     const currentCompleted = completions[taskDate] || [];
     const isAdding = !currentCompleted.includes(taskId);
     const newSelectVal = isAdding ? 'Done' : 'Select';
@@ -367,7 +384,7 @@ export default function Planner() {
             
           if (error) throw error;
           
-          setMasterTasks(prev => prev.filter(t => !selectedTaskIds.includes(t.id)));
+          await usePlannerStore.getState().fetchPlannerData(user.id, true);
           setSelectedTaskIds([]);
           toast.success('Selected task(s) deleted successfully.');
         } catch (error) {
@@ -478,13 +495,12 @@ export default function Planner() {
       // Success! Clear dirty state
       setDirtyTasks({});
       toast.success(`Successfully submitted ${dirtyList.length} change(s) to database!`);
+      await usePlannerStore.getState().fetchPlannerData(user.id, true);
     } catch (error) {
       console.error('[Planner Submit Error]', error);
       toast.error('Failed to submit changes to the database. Reverting to server state...');
-      // Revert states by refetching
-      const { tasks: dbTasks, completions: dbComps } = await fetchPlannerData(user.id);
-      setMasterTasks(dbTasks);
-      setCompletions(dbComps);
+      // Revert states by refetching through central store
+      await usePlannerStore.getState().fetchPlannerData(user.id, true);
       setDirtyTasks({});
     } finally {
       setLoading(false);
@@ -604,9 +620,8 @@ export default function Planner() {
       remarks: ''
     }));
 
-    const createdTasks = await addPlannerTasks(user.id, tasksToCreate);
+    const createdTasks = await usePlannerStore.getState().addPlannerTasks(user.id, tasksToCreate);
     if (createdTasks && createdTasks.length > 0) {
-      setMasterTasks(prev => [...prev, ...createdTasks]);
       showAlert('success', 'Created!', `${createdTasks.length} task(s) added successfully.`);
     } else {
       showAlert('error', 'Database Error', 'Failed to save tasks to Supabase.');
@@ -981,14 +996,18 @@ export default function Planner() {
 
           {/* 3. Actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {allTodayFrogTasks.length > 0 && (
-              <button
-                onClick={() => setShowFrogModal(true)}
-                className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-705 rounded-lg flex items-center justify-center px-2.5 py-1 text-[11px] font-bold shadow-sm transition active:scale-95 gap-1 h-[28px]"
-              >
-                <span>🐸 Frog Info ({allTodayFrogTasks.filter(t => t.isCompleted).length}/{allTodayFrogTasks.length})</span>
-              </button>
-            )}
+            {/* Frog Tasks Modal Button */}
+            <button
+              onClick={() => setShowFrogModal(true)}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-1.5 h-[28px] text-[11px] font-bold shadow-sm transition active:scale-95 border border-emerald-700"
+            >
+              <span>🐸 View Frog Tasks</span>
+              {allTodayFrogTasks.filter(t => !t.isCompleted).length > 0 && (
+                <span className="bg-white text-emerald-700 font-black text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  {allTodayFrogTasks.filter(t => !t.isCompleted).length}
+                </span>
+              )}
+            </button>
 
             <button 
               onClick={handleSaveAll}
@@ -1222,82 +1241,96 @@ export default function Planner() {
         onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })} 
       />
 
-      {showFrogModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-gray-150 animate-in zoom-in-95 duration-200" style={{ maxHeight: '80vh' }}>
-            
-            {/* Header */}
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-emerald-50 text-emerald-800">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🐸</span>
-                <div>
-                  <h2 className="text-sm font-extrabold tracking-tight">Today's Frog Tasks</h2>
-                  <p className="text-[10px] text-emerald-600 font-medium">High priority tasks that must be accomplished first</p>
+      {showFrogModal && (() => {
+        const frogTasks = allTodayFrogTasks.filter(t => !t.isCompleted);
+        const frogDone = allTodayFrogTasks.filter(t => t.isCompleted).length;
+        const frogTotal = allTodayFrogTasks.length;
+        return (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowFrogModal(false); }}
+          >
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" style={{ maxHeight: '85vh' }}>
+
+              {/* Modal Header */}
+              <div className="p-5 pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-white">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="text-4xl select-none leading-none">🐸</div>
+                    <div>
+                      <h2 className="text-base font-black text-gray-800 tracking-tight">Today's Frog Tasks</h2>
+                      <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">High priority tasks that must be accomplished first</p>
+                    </div>
+                  </div>
+                  {frogTotal > 0 && (
+                    <span className="shrink-0 text-[11px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-1">
+                      {frogDone} / {frogTotal} Done
+                    </span>
+                  )}
                 </div>
               </div>
-              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-250 text-[10px] font-black rounded-full">
-                {allTodayFrogTasks.filter(t => t.isCompleted).length} / {allTodayFrogTasks.length} Done
-              </span>
-            </div>
 
-            {/* Scrollable list of Frog Tasks */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-              {allTodayFrogTasks.length > 0 ? (
-                allTodayFrogTasks.map((task) => (
-                  <div 
-                    key={task.id} 
-                    className={`p-3 border rounded-xl flex items-center justify-between gap-3 transition-all ${
-                      task.isCompleted 
-                        ? 'bg-gray-50 border-gray-205 opacity-70' 
-                        : 'bg-white border-emerald-150 hover:border-emerald-250 shadow-sm'
-                    }`}
-                  >
-                    <div className="space-y-1 text-left min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded uppercase">
-                          {task.duration}
-                        </span>
-                        <span className="text-[10px] font-bold text-indigo-650 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase">
-                          {task.category}
-                        </span>
-                      </div>
-                      <p className={`text-xs font-bold text-gray-800 break-words ${task.isCompleted ? 'line-through text-gray-405 font-semibold' : ''}`}>
-                        {task.description}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => handleToggleStatus(task.id)}
-                      className={`px-3 py-1.5 text-[10px] font-extrabold rounded-lg border shadow-sm transition-all flex-shrink-0 ${
-                        task.isCompleted
-                          ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-500 hover:text-white'
-                          : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
-                      }`}
-                    >
-                      {task.isCompleted ? 'Undo' : '🐸 Eat Frog'}
-                    </button>
+              {/* Task List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {frogTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                    <span className="text-5xl select-none">🎉</span>
+                    <p className="text-sm font-bold text-gray-700">All frogs eaten!</p>
+                    <p className="text-xs text-gray-400">No pending frog tasks remaining. Great work!</p>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-400 font-bold space-y-2">
-                  <span className="text-2xl">💤</span>
-                  <p className="text-xs">No Frog tasks scheduled for today.</p>
-                </div>
-              )}
-            </div>
+                ) : (
+                  frogTasks.map(t => (
+                    <div
+                      key={`frog-modal-${t.id}`}
+                      className="bg-white border border-gray-100 rounded-2xl p-3.5 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      {/* Badges row */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        {t.duration && (
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 rounded text-[9px] font-bold uppercase tracking-wide">
+                            {t.duration}
+                          </span>
+                        )}
+                        {t.category && (
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-bold uppercase tracking-wide">
+                            {getCategoryEmoji(t.category)} {t.category}
+                          </span>
+                        )}
+                        {(t.date || selectedDate) && (
+                          <span className="ml-auto px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 rounded text-[9px] font-semibold">
+                            {t.date || selectedDate}
+                          </span>
+                        )}
+                      </div>
+                      {/* Description + action */}
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-gray-800 leading-snug flex-1">{t.description}</p>
+                        <button
+                          onClick={() => handleToggleStatus(t.id)}
+                          className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1"
+                        >
+                          🐸 Eat Frog
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
 
-            {/* Footer */}
-            <div className="p-3 border-t border-gray-100 bg-gray-50 flex justify-end">
-              <button
-                onClick={() => setShowFrogModal(false)}
-                className="px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 font-bold border border-gray-300 rounded-xl text-xs shadow-sm transition active:scale-95"
-              >
-                Close Dialog
-              </button>
+              {/* Footer */}
+              <div className="p-4 pt-3 border-t border-gray-100 bg-gray-50/60">
+                <button
+                  onClick={() => setShowFrogModal(false)}
+                  className="w-full py-2 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors rounded-xl hover:bg-gray-100"
+                >
+                  Close Dialog
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

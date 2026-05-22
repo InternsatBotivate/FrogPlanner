@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
-import { getUsers, saveUsers } from '../utils/storageManager';
 
 export default function Settings() {
-  const { user, login } = useAuthStore();
+  const { user, updateProfile } = useAuthStore();
   
   // State for form fields
   const [name, setName] = useState('');
@@ -17,8 +16,8 @@ export default function Settings() {
 
   useEffect(() => {
     if (user) {
-      setName(user.name || '');
-      setPassword(user.password || '');
+      setName(user.full_name || '');
+      setPassword(user.password_hash || '');
       setEmail(user.email || '');
       setPhone(user.phone || '');
       setDesignation(user.designation || '');
@@ -27,7 +26,7 @@ export default function Settings() {
     }
   }, [user]);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
 
     if (!name.trim() || !password.trim()) {
@@ -45,27 +44,14 @@ export default function Settings() {
       bio: bio.trim()
     };
 
-    // Update global users database
-    const users = getUsers();
-    const updatedUsers = users.map(u => {
-      if (u.id === user.id) {
-        return {
-          ...u,
-          ...updatedData
-        };
-      }
-      return u;
-    });
-    saveUsers(updatedUsers);
+    const { error } = await updateProfile(updatedData);
 
-    // Update current session user store
-    const updatedSessionUser = {
-      ...user,
-      ...updatedData
-    };
-    login(updatedSessionUser);
-
-    toast.success('Professional profile details updated successfully!');
+    if (error) {
+      console.error(error);
+      toast.error(error.message || 'Failed to update profile details.');
+    } else {
+      toast.success('Professional profile details updated successfully!');
+    }
   };
 
   if (!user) {
@@ -93,9 +79,6 @@ export default function Settings() {
           <div className="flex-1 text-center md:text-left space-y-1">
             <div className="flex flex-col md:flex-row md:items-center gap-2">
               <h2 className="text-lg font-bold text-gray-800">{name || 'User Profile'}</h2>
-              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-150 rounded-full text-[9px] font-bold uppercase w-fit mx-auto md:mx-0">
-                {user.role || 'USER'}
-              </span>
             </div>
             <p className="text-xs text-gray-600 font-semibold">{designation || 'Specialist'} • {department || 'General Division'}</p>
             <p className="text-[11px] text-gray-400">Account ID: <span className="font-semibold text-gray-600">{user.id}</span></p>
@@ -113,7 +96,7 @@ export default function Settings() {
               <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tight">User ID / Username</label>
               <input 
                 type="text" 
-                value={user.id} 
+                value={user.username || user.id} 
                 disabled 
                 className="w-full border border-gray-200 bg-gray-50 rounded px-2.5 py-1.5 focus:outline-none text-[11px] font-medium text-gray-400 cursor-not-allowed"
               />

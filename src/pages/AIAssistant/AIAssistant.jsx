@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles, User, Bot, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { getTasks, saveTasks, getCompletions } from '../../utils/storageManager';
+import { usePlannerStore } from '../../store/plannerStore';
 
 export default function AIAssistant() {
   const { user } = useAuthStore();
+  const { tasks, completions, addPlannerTasks } = usePlannerStore();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const chatEndRef = useRef(null);
@@ -16,7 +17,7 @@ export default function AIAssistant() {
         {
           id: 'welcome',
           sender: 'bot',
-          text: `Hello ${user.name}! 👋 I am your Frog Planner AI Assistant. I can help you analyze your tasks, track your completions, and review your daily schedule. Ask me anything about your planner!`,
+          text: `Hello ${user.full_name || user.username}! 👋 I am your Frog Planner AI Assistant. I can help you analyze your tasks, track your completions, and review your daily schedule. Ask me anything about your planner!`,
           timestamp: new Date(Date.now() - 60000 * 5)
         },
         {
@@ -40,7 +41,7 @@ export default function AIAssistant() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = (textToSend) => {
+  const handleSend = async (textToSend) => {
     const query = textToSend || input;
     if (!query.trim()) return;
 
@@ -55,24 +56,23 @@ export default function AIAssistant() {
     setMessages(prev => [...prev, userMsg]);
     if (!textToSend) setInput('');
 
-    // Simulate AI thinking and reply
-    setTimeout(() => {
-      const replyText = generateBotReply(query);
-      const botMsg = {
-        id: `bot-${Date.now()}`,
-        sender: 'bot',
-        text: replyText,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMsg]);
-    }, 600);
+    // Simulate AI thinking and reply asynchronously
+    const replyText = await generateBotReply(query);
+    const botMsg = {
+      id: `bot-${Date.now()}`,
+      sender: 'bot',
+      text: replyText,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, botMsg]);
   };
 
-  // Rule-based NLP processor based on real dummy data
-  const generateBotReply = (query) => {
+  // Rule-based NLP processor based on real Supabase data
+  const generateBotReply = async (query) => {
+    if (!user?.id) return "Please log in to use the AI Assistant.";
     const cleanQuery = query.toLowerCase();
-    const tasks = getTasks();
-    const completions = getCompletions();
+    
+    // Read cached state directly from the outer lexical scope of usePlannerStore
     
     // Get today's date formatted local
     const yyyy = new Date().getFullYear();
@@ -125,20 +125,22 @@ export default function AIAssistant() {
       if (desc.length > 2) {
         desc = desc.charAt(0).toUpperCase() + desc.slice(1);
         const newTask = {
-          id: `TSK-${Date.now()}`,
           description: desc,
           duration: duration,
           category: category,
           priority: 'High',
           date: todayStr,
-          status: 'Pending',
-          timestamp: new Date().toISOString()
+          selectValue: 'Select',
+          remarks: ''
         };
 
-        const updatedTasks = [...tasks, newTask];
-        saveTasks(updatedTasks);
+        const createdTasks = await addPlannerTasks(user.id, [newTask]);
 
-        return `Sure! I have scheduled that task for you. 📅\n\n- **Task Details**: "${desc}"\n- **Time**: ${duration}\n- **Category**: ${category}\n\nIt is now successfully added to your planner schedule database! You will see it listed on the Index page and across all days on the Planner.`;
+        if (createdTasks && createdTasks.length > 0) {
+          return `Sure! I have scheduled that task for you. 📅\n\n- **Task Details**: "${desc}"\n- **Time**: ${duration}\n- **Category**: ${category}\n\nIt is now successfully added to your planner schedule database! You will see it listed on the Index page and across all days on the Planner.`;
+        } else {
+          return `Sorry, I encountered an issue adding that task to Supabase. Please try again.`;
+        }
       }
     }
 

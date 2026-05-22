@@ -5,7 +5,7 @@ import ModalAlert from '../../components/ModalAlert';
 import ModalForm from '../../components/ModalForm';
 import { getCategoryEmoji } from '../../utils/helpers';
 import { useAuthStore } from '../../store/authStore';
-import { fetchPlannerData, addPlannerTasks, updateTask, deleteTask, migrateLegacyData } from '../../lib/plannerService';
+import { usePlannerStore } from '../../store/plannerStore';
 
 export default function Index() {
   const [tasks, setTasks] = useState([]);
@@ -39,20 +39,29 @@ export default function Index() {
   const headers = ['Action', 'Task Description', 'Time', 'Category'];
 
   const { user } = useAuthStore();
+  const storeTasks = usePlannerStore(state => state.tasks);
+  const storeLoading = usePlannerStore(state => state.loading);
   const [loading, setLoading] = useState(true);
+
+  // Sync tasks from store
+  useEffect(() => {
+    const recurringTasks = (storeTasks || []).filter(t => t.isRecurring);
+    setTasks(recurringTasks);
+  }, [storeTasks]);
+
+  // Sync loading state
+  useEffect(() => {
+    if (!usePlannerStore.getState().hasLoaded) {
+      setLoading(storeLoading);
+    } else {
+      setLoading(false);
+    }
+  }, [storeLoading]);
 
   useEffect(() => {
     const initData = async () => {
       if (user?.id) {
-        setLoading(true);
-        // Migrate legacy data
-        await migrateLegacyData(user.id);
-        // Fetch planner data
-        const { tasks: dbTasks } = await fetchPlannerData(user.id);
-        // Filter recurring template tasks (date IS NULL / !t.date)
-        const recurringTasks = dbTasks.filter(t => !t.date);
-        setTasks(recurringTasks);
-        setLoading(false);
+        await usePlannerStore.getState().fetchPlannerData(user.id);
       }
     };
     initData();
@@ -107,9 +116,8 @@ export default function Index() {
   const handleDelete = (id) => {
     showAlert('confirm', 'Delete Task?', 'Are you sure you want to delete this task?', async () => {
       setLoading(true);
-      const success = await deleteTask(id);
+      const success = await usePlannerStore.getState().deleteTask(id);
       if (success) {
-        setTasks(prev => prev.filter(t => t.id !== id));
         showAlert('success', 'Deleted!', 'Task has been successfully removed.');
       } else {
         showAlert('error', 'Database Error', 'Failed to delete task from Supabase.');
@@ -142,29 +150,28 @@ export default function Index() {
       description: formData.description,
       duration: formData.duration,
       category: finalCategory,
-      priority: formData.priority
+      priority: formData.priority,
+      isRecurring: true
     };
 
     if (!user?.id) return;
 
     setLoading(true);
     if (editingId) {
-      const updatedTask = await updateTask(editingId, payload);
+      const updatedTask = await usePlannerStore.getState().updateTask(editingId, payload);
       if (updatedTask) {
-        setTasks(prev => prev.map(t => t.id === editingId ? updatedTask : t));
         showAlert('success', 'Updated!', 'Task has been modified successfully.');
       } else {
         showAlert('error', 'Database Error', 'Failed to update task in Supabase.');
       }
     } else {
-      const createdTasks = await addPlannerTasks(user.id, [{
+      const createdTasks = await usePlannerStore.getState().addPlannerTasks(user.id, [{
         ...payload,
         date: null, // baseline template task
         selectValue: 'Select',
         remarks: ''
       }]);
       if (createdTasks && createdTasks.length > 0) {
-        setTasks(prev => [...prev, ...createdTasks]);
         showAlert('success', 'Created!', 'New task has been added successfully.');
       } else {
         showAlert('error', 'Database Error', 'Failed to add task to Supabase.');

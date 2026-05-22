@@ -3,7 +3,8 @@ import { ChevronLeft, ChevronRight, LogIn, LogOut, RefreshCw, Calendar as Calend
 import Daily from './Daily';
 import Weekly from './Weekly';
 import Monthly from './Monthly';
-import { getTasks, getCompletions, saveCompletions } from '../../utils/storageManager';
+import { useAuthStore } from '../../store/authStore';
+import { usePlannerStore } from '../../store/plannerStore';
 import toast from 'react-hot-toast';
 
 // ─────────────────────────────────────────────────────────
@@ -14,7 +15,7 @@ import toast from 'react-hot-toast';
 //        → Authorised JS origins: http://localhost:3001
 // ─────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
 // Load Google Identity Services script once
 let gisLoaded = false;
@@ -28,12 +29,12 @@ const loadGIS = () =>
   });
 
 export default function Calendar() {
+  const { user } = useAuthStore();
   const [view, setView] = useState('Monthly');
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Local tasks & completions
-  const [tasks, setTasks] = useState([]);
-  const [completions, setCompletions] = useState({});
+  // Central tasks & completions from Zustand store
+  const { tasks, completions, loading, fetchPlannerData, toggleCompletion } = usePlannerStore();
 
   // Google Calendar state
   const [gcToken, setGcToken] = useState(() => sessionStorage.getItem('gc_token') || null);
@@ -45,7 +46,11 @@ export default function Calendar() {
   const [tokenClient, setTokenClient] = useState(null);
   const [showGcSetup, setShowGcSetup] = useState(false);
 
-  useEffect(() => { setTasks(getTasks()); setCompletions(getCompletions()); }, []);
+  useEffect(() => {
+    if (user?.id) {
+      fetchPlannerData(user.id);
+    }
+  }, [user, fetchPlannerData]);
 
   // ── Init Google Identity Services token client ──────────────
   useEffect(() => {
@@ -91,20 +96,31 @@ export default function Calendar() {
       }
 
       const data = await res.json();
-      const events = (data.items || []).map((ev) => ({
-        id: `gc_${ev.id}`,
-        title: ev.summary || '(No Title)',
-        dateStr: (ev.start?.date || ev.start?.dateTime || '').substring(0, 10),
-        time: ev.start?.dateTime
-          ? new Date(ev.start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-          : 'All Day',
-        type: 'Google Cal',
-        priority: '',
-        isCompleted: false,
-        isGoogle: true,
-        color: ev.colorId || '1',
-        htmlLink: ev.htmlLink,
-      }));
+      const events = (data.items || []).map((ev) => {
+        // Extract task ID from private extended properties or fallback to parsing the description
+        let taskId = ev.extendedProperties?.private?.taskId || null;
+        if (!taskId && ev.description) {
+          const match = ev.description.match(/\[FrogPlanner ID:\s*([a-f0-9-]+)\]/i);
+          if (match) taskId = match[1];
+        }
+
+        return {
+          id: `gc_${ev.id}`,
+          title: ev.summary || '(No Title)',
+          dateStr: (ev.start?.date || ev.start?.dateTime || '').substring(0, 10),
+          time: ev.start?.dateTime
+            ? new Date(ev.start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            : 'All Day',
+          type: 'Google Cal',
+          priority: '',
+          isCompleted: false,
+          isGoogle: true,
+          color: ev.colorId || '1',
+          htmlLink: ev.htmlLink,
+          taskId: taskId,
+        };
+      });
+
       setGcEvents(events);
       sessionStorage.setItem('gc_events', JSON.stringify(events));
       toast.success(`Synced ${events.length} events from Google Calendar`);
@@ -115,8 +131,124 @@ export default function Calendar() {
     }
   }, []);
 
+  // ── Sync local tasks to Google Calendar ────────────────────
+  const syncLocalTasksToGoogle = useCallback(async (token, currentTasks, existingEvents) => {
+    if (!token || !currentTasks || currentTasks.length === 0) return;
+
+    // Identify already synced tasks
+    const syncedTaskIds = new Set();
+    
+    // 1. Check loaded calendar events
+    existingEvents.forEach((ev) => {
+      if (ev.taskId) {
+        syncedTaskIds.add(ev.taskId);
+      }
+    });
+
+    // 2. Check local sync cache for double-safety
+    const localSyncCache = JSON.parse(localStorage.getItem(`gc_synced_${user?.id}`) || '{}');
+    Object.keys(localSyncCache).forEach((id) => syncedTaskIds.add(id));
+
+    // Filter tasks that need to be synced (must have a valid date and not already synced)
+    const tasksToSync = currentTasks.filter((task) => {
+      const taskDate = task.date || task.task_date;
+      return taskDate && !syncedTaskIds.has(task.id);
+    });
+
+    if (tasksToSync.length === 0) return;
+
+    setGcLoading(true);
+    let successCount = 0;
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+    for (const task of tasksToSync) {
+      try {
+        const taskDate = task.date || task.task_date;
+        
+        // Determine start and end time based on the task time slot/duration
+        let start, end;
+        if (task.duration === 'Morning') {
+          start = { dateTime: `${taskDate}T09:00:00`, timeZone };
+          end = { dateTime: `${taskDate}T12:00:00`, timeZone };
+        } else if (task.duration === 'Afternoon') {
+          start = { dateTime: `${taskDate}T13:00:00`, timeZone };
+          end = { dateTime: `${taskDate}T17:00:00`, timeZone };
+        } else if (task.duration === 'Evening') {
+          start = { dateTime: `${taskDate}T18:00:00`, timeZone };
+          end = { dateTime: `${taskDate}T21:00:00`, timeZone };
+        } else {
+          // All Day Event
+          // Note: All-day end date in Google Calendar is exclusive (next day)
+          const startDateObj = new Date(taskDate);
+          const endDateObj = new Date(startDateObj);
+          endDateObj.setDate(startDateObj.getDate() + 1);
+          const endDateStr = endDateObj.toISOString().split('T')[0];
+          
+          start = { date: taskDate };
+          end = { date: endDateStr };
+        }
+
+        const eventPayload = {
+          summary: task.description || 'FrogPlanner Task',
+          description: `Category: ${task.category || 'General'}\nPriority: ${task.priority || 'Normal'}\nTime Slot: ${task.duration || 'All Day'}\nRemarks: ${task.remarks || ''}\n\n[FrogPlanner ID: ${task.id}]`,
+          start,
+          end,
+          extendedProperties: {
+            private: {
+              taskId: task.id,
+            },
+          },
+        };
+
+        const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(eventPayload),
+        });
+
+        if (res.status === 401) {
+          setGcToken(null);
+          sessionStorage.removeItem('gc_token');
+          setGcError('Google Calendar session expired. Please reconnect.');
+          break;
+        }
+
+        if (res.ok) {
+          const createdEvent = await res.json();
+          if (createdEvent) {
+            localSyncCache[task.id] = createdEvent.id;
+            localStorage.setItem(`gc_synced_${user?.id}`, JSON.stringify(localSyncCache));
+            successCount++;
+          }
+        } else {
+          const errorData = await res.json();
+          console.error('[Calendar Sync] Failed to sync task:', task.id, errorData);
+        }
+      } catch (err) {
+        console.error('[Calendar Sync] Error syncing task to Google Calendar:', err);
+      }
+    }
+
+    setGcLoading(false);
+    if (successCount > 0) {
+      toast.success(`Successfully synced ${successCount} task(s) to Google Calendar! 🗓️`);
+      // Refresh to pull new events
+      fetchGoogleEvents(token);
+    }
+  }, [user, fetchGoogleEvents]);
+
   // Auto-fetch when token changes
   useEffect(() => { if (gcToken) fetchGoogleEvents(gcToken); }, [gcToken, fetchGoogleEvents]);
+
+  // Auto-sync local tasks when connected and loaded
+  useEffect(() => {
+    if (gcToken && tasks.length > 0 && !loading && !gcLoading) {
+      syncLocalTasksToGoogle(gcToken, tasks, gcEvents);
+    }
+  }, [gcToken, tasks, loading, gcEvents, gcLoading, syncLocalTasksToGoogle]);
 
   const handleGcConnect = () => {
     if (!GOOGLE_CLIENT_ID) { setShowGcSetup(true); return; }
@@ -134,15 +266,18 @@ export default function Calendar() {
     toast('Google Calendar disconnected.', { icon: '🔌' });
   };
 
-  // ── Toggle task completion (local tasks only) ──────────────
-  const handleToggleStatus = (taskId, dateStr) => {
+  // ── Toggle task completion (Supabase sync) ──────────────
+  const handleToggleStatus = async (taskId, dateStr) => {
+    if (!user?.id) return;
     const currentCompleted = completions[dateStr] || [];
-    const updated = currentCompleted.includes(taskId)
-      ? currentCompleted.filter(id => id !== taskId)
-      : [...currentCompleted, taskId];
-    const newCompletions = { ...completions, [dateStr]: updated };
-    setCompletions(newCompletions);
-    saveCompletions(newCompletions);
+    const isCompleted = !currentCompleted.includes(taskId);
+    
+    const success = await toggleCompletion(user.id, taskId, dateStr, isCompleted);
+    if (success) {
+      toast.success(isCompleted ? 'Task completed! 🎉' : 'Task marked pending. ⏳');
+    } else {
+      toast.error('Failed to update task completion status.');
+    }
   };
 
   const formatDateStr = (date) => {
@@ -161,7 +296,7 @@ export default function Calendar() {
     const buildRange = (dates) => {
       dates.forEach(({ dateObj, dateStr }) => {
         const doneIds = completions[dateStr] || [];
-        const activeTasks = tasks.filter(t => !t.date || t.date === dateStr);
+        const activeTasks = tasks.filter(t => t.isRecurring || t.date === dateStr);
         const pendingTasks = activeTasks.filter(t => !doneIds.includes(t.id));
         pendingTasks.forEach(t => {
           list.push({
@@ -220,6 +355,15 @@ export default function Calendar() {
   };
 
   const gcEventCount = gcEvents.length;
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
+        <div className="text-5xl animate-bounce">🐸</div>
+        <div className="text-gray-500 font-bold tracking-wide animate-pulse">Loading Calendar Data from Supabase...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-0 sm:p-2 md:p-6 space-y-3 md:space-y-4 flex flex-col h-full min-h-0">

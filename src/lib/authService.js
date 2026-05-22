@@ -154,3 +154,33 @@ export const createSession = async (userId) => {
   localStorage.setItem(SESSION_KEY, token);
   return token;
 };
+
+/**
+ * updateUserProfile
+ * Updates a user's details in the public.users table by their user ID.
+ */
+export const updateUserProfile = async (userId, updatedData) => {
+  try {
+    if (!userId) return { user: null, error: new Error('User ID is required.') };
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .update({
+        full_name: updatedData.name,
+        password_hash: updatedData.password,
+        email: updatedData.email,
+        phone: updatedData.phone,
+        designation: updatedData.designation,
+        department: updatedData.department,
+        bio: updatedData.bio,
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) return { user: null, error };
+    return { user, error: null };
+  } catch (err) {
+    return { user: null, error: err };
+  }
+};

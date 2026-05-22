@@ -2,7 +2,7 @@
  * upcomingPlannerService.js
  * ──────────────────────────────────────────────────────────────────────────
  * Centralized service layer for managing Upcoming Planner Tasks in Supabase.
- * Enforces integer serial keys for database records.
+ * Uses public.tasks database table with UUID keys.
  * Handles automatic, seamless legacy localStorage migrations.
  * ──────────────────────────────────────────────────────────────────────────
  */
@@ -17,9 +17,10 @@ export const fetchUpcomingTasks = async (userId) => {
     if (!userId) return [];
 
     const { data, error } = await supabase
-      .from('upcoming_tasks')
+      .from('tasks')
       .select('*')
       .eq('user_id', userId)
+      .eq('is_recurring', false)
       .order('task_date', { ascending: true })
       .order('created_at', { ascending: true });
 
@@ -27,15 +28,16 @@ export const fetchUpcomingTasks = async (userId) => {
 
     // Map DB snake_case columns to frontend camelCase formats
     return data.map(t => ({
-      id: t.id, // Serial integer primary key
+      id: t.id, // UUID primary key string
       description: t.description,
       duration: t.duration,
       category: t.category,
       priority: t.priority,
       date: t.task_date,
-      status: t.status,
-      selectValue: t.status === 'Completed' ? 'Done' : 'Pending',
+      status: t.select_value === 'Done' ? 'Completed' : 'Pending',
+      selectValue: t.select_value || 'Select',
       remarks: t.remarks || '',
+      isRecurring: t.is_recurring || false,
       timestamp: t.created_at
     }));
   } catch (error) {
@@ -59,12 +61,13 @@ export const createUpcomingTasks = async (userId, newTasksArray) => {
       category: t.category,
       priority: t.priority || '',
       task_date: t.date || null,
-      status: t.status || 'Pending',
-      remarks: t.remarks || ''
+      select_value: t.status === 'Completed' ? 'Done' : 'Pending',
+      remarks: t.remarks || '',
+      is_recurring: false
     }));
 
     const { data, error } = await supabase
-      .from('upcoming_tasks')
+      .from('tasks')
       .insert(rowsToInsert)
       .select();
 
@@ -77,9 +80,10 @@ export const createUpcomingTasks = async (userId, newTasksArray) => {
       category: t.category,
       priority: t.priority,
       date: t.task_date,
-      status: t.status,
-      selectValue: t.status === 'Completed' ? 'Done' : 'Pending',
+      status: t.select_value === 'Done' ? 'Completed' : 'Pending',
+      selectValue: t.select_value || 'Select',
       remarks: t.remarks || '',
+      isRecurring: t.is_recurring || false,
       timestamp: t.created_at
     }));
   } catch (error) {
@@ -90,20 +94,19 @@ export const createUpcomingTasks = async (userId, newTasksArray) => {
 
 /**
  * updateUpcomingTaskField
- * Updates a single field of a task (e.g. status, remarks).
+ * Updates a single field of a task (e.g. status/select_value, remarks).
  */
 export const updateUpcomingTaskField = async (taskId, field, value) => {
   try {
     if (!taskId) return false;
 
-    const numericTaskId = parseInt(taskId, 10);
-    if (isNaN(numericTaskId)) return false;
+    const dbField = field === 'date' ? 'task_date' : (field === 'status' ? 'select_value' : field);
+    const dbValue = field === 'status' ? (value === 'Completed' ? 'Done' : 'Pending') : value;
 
-    const dbField = field === 'date' ? 'task_date' : field;
     const { error } = await supabase
-      .from('upcoming_tasks')
-      .update({ [dbField]: value })
-      .eq('id', numericTaskId);
+      .from('tasks')
+      .update({ [dbField]: dbValue })
+      .eq('id', taskId);
 
     if (error) throw error;
     return true;
@@ -121,11 +124,8 @@ export const updateUpcomingTask = async (taskId, taskPayload) => {
   try {
     if (!taskId) return null;
 
-    const numericTaskId = parseInt(taskId, 10);
-    if (isNaN(numericTaskId)) return null;
-
     const { data, error } = await supabase
-      .from('upcoming_tasks')
+      .from('tasks')
       .update({
         description: taskPayload.description,
         duration: taskPayload.duration,
@@ -133,7 +133,7 @@ export const updateUpcomingTask = async (taskId, taskPayload) => {
         priority: taskPayload.priority || '',
         task_date: taskPayload.date
       })
-      .eq('id', numericTaskId)
+      .eq('id', taskId)
       .select()
       .single();
 
@@ -146,9 +146,10 @@ export const updateUpcomingTask = async (taskId, taskPayload) => {
       category: data.category,
       priority: data.priority,
       date: data.task_date,
-      status: data.status,
-      selectValue: data.status === 'Completed' ? 'Done' : 'Pending',
+      status: data.select_value === 'Done' ? 'Completed' : 'Pending',
+      selectValue: data.select_value || 'Select',
       remarks: data.remarks || '',
+      isRecurring: data.is_recurring || false,
       timestamp: data.created_at
     };
   } catch (error) {
@@ -165,13 +166,10 @@ export const deleteUpcomingTask = async (taskId) => {
   try {
     if (!taskId) return false;
 
-    const numericTaskId = parseInt(taskId, 10);
-    if (isNaN(numericTaskId)) return false;
-
     const { error } = await supabase
-      .from('upcoming_tasks')
+      .from('tasks')
       .delete()
-      .eq('id', numericTaskId);
+      .eq('id', taskId);
 
     if (error) throw error;
     return true;
@@ -184,7 +182,6 @@ export const deleteUpcomingTask = async (taskId) => {
 /**
  * migrateUpcomingTasksLegacyData
  * Moves existing local upcoming tasks into Supabase when the user logs in.
- * Standardizes primary keys to auto-incrementing serial integers.
  */
 export const migrateUpcomingTasksLegacyData = async (userId) => {
   try {
@@ -212,8 +209,9 @@ export const migrateUpcomingTasksLegacyData = async (userId) => {
       category: t.category,
       priority: t.priority || '',
       task_date: t.date || null,
-      status: t.status || 'Pending',
+      select_value: t.status === 'Completed' ? 'Done' : 'Pending',
       remarks: t.remarks || '',
+      is_recurring: false,
       created_at: t.timestamp || new Date().toISOString()
     }));
 
@@ -222,7 +220,7 @@ export const migrateUpcomingTasksLegacyData = async (userId) => {
     for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
       const chunk = rowsToInsert.slice(i, i + chunkSize);
       const { error } = await supabase
-        .from('upcoming_tasks')
+        .from('tasks')
         .insert(chunk);
       if (error) throw error;
     }

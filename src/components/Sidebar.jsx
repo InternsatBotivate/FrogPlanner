@@ -18,17 +18,19 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { usePlannerStore } from '../store/plannerStore';
 
 const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
+    usePlannerStore.getState().resetStore();
     logout();
     navigate('/login', { replace: true });
   };
 
-  const adminMenuItems = [
+  const menuItems = [
     { path: '/dashboard', icon: BarChart2, label: 'Dashboard' },
     { path: '/planner', icon: Calendar, label: 'Today' },
     { path: '/next-day-planner', icon: CalendarRange, label: 'Next Day Planner' },
@@ -40,20 +42,6 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
     { path: '/about-frog-planner', icon: '🐸', label: 'About Frog Planner' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
-
-  const employeeMenuItems = [
-    { path: '/dashboard', icon: BarChart2, label: 'Dashboard' },
-    { path: '/planner', icon: Calendar, label: 'Today' },
-    { path: '/next-day-planner', icon: CalendarRange, label: 'Next Day Planner' },
-    { path: '/all-tasks', icon: ListTodo, label: 'All Tasks' },
-    { path: '/my-projects', icon: FolderClosed, label: 'My Projects' },
-    { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-    { path: '/index', icon: LayoutGrid, label: 'Recurring Tasks' },
-    { path: '/ai-assistant', icon: Sparkles, label: 'AI Assistant' },
-    { path: '/about-frog-planner', icon: '🐸', label: 'About Frog Planner' },
-  ];
-
-  const menuItems = user?.role === 'ADMIN' ? adminMenuItems : employeeMenuItems;
 
   return (
     <>

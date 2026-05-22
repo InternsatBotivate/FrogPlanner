@@ -1,12 +1,21 @@
+import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { usePlannerStore } from '../store/plannerStore';
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore();
+  const { user, loading: authLoading } = useAuthStore();
+  const fetchPlannerData = usePlannerStore((state) => state.fetchPlannerData);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchPlannerData(user.id);
+    }
+  }, [user?.id, fetchPlannerData]);
 
   // Wait for the async session check (Supabase) to complete
   // before making a redirect decision — avoids flashing /login on refresh.
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">

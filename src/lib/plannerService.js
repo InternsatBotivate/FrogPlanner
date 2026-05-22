@@ -44,6 +44,7 @@ export const fetchPlannerData = async (userId) => {
       date: t.task_date || null,
       selectValue: t.select_value || 'Select',
       remarks: t.remarks || '',
+      isRecurring: t.is_recurring || false,
       timestamp: t.created_at
     }));
 
@@ -81,7 +82,8 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
       priority: t.priority || '',
       task_date: t.date || null,
       select_value: t.selectValue || 'Select',
-      remarks: t.remarks || ''
+      remarks: t.remarks || '',
+      is_recurring: t.isRecurring !== undefined ? t.isRecurring : (t.date === null)
     }));
 
     const { data, error } = await supabase
@@ -100,6 +102,7 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
       date: t.task_date || null,
       selectValue: t.select_value || 'Select',
       remarks: t.remarks || '',
+      isRecurring: t.is_recurring || false,
       timestamp: t.created_at
     }));
   } catch (error) {
@@ -196,7 +199,8 @@ export const migrateLegacyData = async (userId) => {
       priority: t.priority || '',
       task_date: t.date || null,
       select_value: t.selectValue || 'Select',
-      remarks: t.remarks || ''
+      remarks: t.remarks || '',
+      is_recurring: t.isRecurring !== undefined ? t.isRecurring : (t.date === null)
     }));
 
     const { data: dbTasks, error: tasksError } = await supabase
@@ -285,7 +289,8 @@ export const updateTask = async (taskId, taskPayload) => {
         description: taskPayload.description,
         duration: taskPayload.duration,
         category: taskPayload.category,
-        priority: taskPayload.priority || ''
+        priority: taskPayload.priority || '',
+        is_recurring: taskPayload.isRecurring !== undefined ? taskPayload.isRecurring : (taskPayload.date === null)
       })
       .eq('id', taskId)
       .select()
@@ -302,6 +307,7 @@ export const updateTask = async (taskId, taskPayload) => {
       date: data.task_date || null,
       selectValue: data.select_value || 'Select',
       remarks: data.remarks || '',
+      isRecurring: data.is_recurring || false,
       timestamp: data.created_at
     };
   } catch (error) {

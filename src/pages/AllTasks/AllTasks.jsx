@@ -6,7 +6,7 @@ import {
 import { getCategoryEmoji } from '../../utils/helpers';
 import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../store/authStore';
-import { fetchPlannerData, toggleCompletion, migrateLegacyData } from '../../lib/plannerService';
+import { usePlannerStore } from '../../store/plannerStore';
 
 // Format date helper
 const formatDateStr = (date) => {
@@ -18,9 +18,7 @@ const formatDateStr = (date) => {
 
 export default function AllTasks() {
   const { user } = useAuthStore();
-  const [tasks, setTasks] = useState([]);
-  const [completions, setCompletions] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { tasks, completions, loading, fetchPlannerData, toggleCompletion } = usePlannerStore();
 
   // Tabs & filters state
   const [activeTab, setActiveTab] = useState('Pending'); // Pending, History, All
@@ -50,21 +48,10 @@ export default function AllTasks() {
 
   // Load database data with legacy localStorage migration
   useEffect(() => {
-    const initData = async () => {
-      if (user?.id) {
-        setLoading(true);
-        // Seamlessly migrate legacy data if any
-        await migrateLegacyData(user.id);
-        const { tasks: dbTasks, completions: dbComps } = await fetchPlannerData(user.id);
-        setTasks(dbTasks || []);
-        setCompletions(dbComps || {});
-        setLoading(false);
-      } else {
-        setLoading(false);
-      }
-    };
-    initData();
-  }, [user]);
+    if (user?.id) {
+      fetchPlannerData(user.id);
+    }
+  }, [user, fetchPlannerData]);
 
 
 
@@ -92,10 +79,10 @@ export default function AllTasks() {
     dateStrings.forEach(dStr => {
       const doneIds = completions[dStr] || [];
 
-      // Filter master tasks that are either recurring template (no date) or explicitly for this date
+      // Filter master tasks that are either recurring template (isRecurring is true) or explicitly for this date
       // For recurring tasks, only activate them for today or in the past (not future dates)
       const activeTasks = tasks.filter(t => {
-        if (!t.date) {
+        if (t.isRecurring) {
           return dStr <= todayStr;
         }
         return t.date === dStr;
@@ -139,22 +126,7 @@ export default function AllTasks() {
     const currentCompleted = completions[dateStr] || [];
     const isAdding = !currentCompleted.includes(taskId);
 
-    // Optimistic UI updates
-    let newCompleted;
-    if (!isAdding) {
-      newCompleted = currentCompleted.filter(id => id !== taskId);
-    } else {
-      newCompleted = [...currentCompleted, taskId];
-    }
-    const newCompletions = { ...completions, [dateStr]: newCompleted };
-    setCompletions(newCompletions);
-
-    // DB update
-    const success = await toggleCompletion(user.id, taskId, dateStr, isAdding);
-    if (!success) {
-      // Revert if failed
-      setCompletions(completions);
-    }
+    await toggleCompletion(user.id, taskId, dateStr, isAdding);
   };
 
   // Filter & Search tasks based on activeTab, kpiFilter, and other filters

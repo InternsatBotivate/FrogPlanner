@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { getCategoryEmoji } from '../../utils/helpers';
 import { useAuthStore } from '../../store/authStore';
-import { fetchPlannerData, toggleCompletion, updateTaskField } from '../../lib/plannerService';
+import { usePlannerStore } from '../../store/plannerStore';
 
 // Inline ProgressCircle component since we don't have separate ProgressCircle.jsx
 const ProgressCircle = ({ value, size = 90, strokeWidth = 7, color, label }) => {
@@ -71,8 +71,9 @@ const ProductivityChart = React.memo(({ data }) => (
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Central state and actions from Zustand store
+  const { tasks, completions, loading, fetchPlannerData, toggleCompletion, updateTaskField } = usePlannerStore();
 
   // Time-based greeting
   const getTimeGreeting = () => {
@@ -83,7 +84,6 @@ export default function Dashboard() {
     return { wish: 'Good Night', emoji: '🌙', sub: 'Rest well. Tomorrow, eat the frog early!' };
   };
   const greeting = getTimeGreeting();
-  const [completions, setCompletions] = useState({});
   const [timeRange, setTimeRange] = useState('Today'); // Today, Weekly, Monthly
   const [showTodayModal, setShowTodayModal] = useState(false);
 
@@ -117,17 +117,10 @@ export default function Dashboard() {
 
   // Load tasks and completions from Supabase on mount/user change
   useEffect(() => {
-    const loadData = async () => {
-      if (user?.id) {
-        setLoading(true);
-        const { tasks: dbTasks, completions: dbCompletions } = await fetchPlannerData(user.id);
-        setTasks(dbTasks);
-        setCompletions(dbCompletions);
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [user]);
+    if (user?.id) {
+      fetchPlannerData(user.id);
+    }
+  }, [user, fetchPlannerData]);
 
   // Update health logs in localStorage
   const saveHealthLogs = (updated) => {
@@ -158,27 +151,10 @@ export default function Dashboard() {
     const currentCompleted = completions[selectedDateStr] || [];
     const isAdding = !currentCompleted.includes(id);
 
-    // Optimistic UI update
-    let updated;
-    if (!isAdding) {
-      updated = currentCompleted.filter(x => x !== id);
-    } else {
-      updated = [...currentCompleted, id];
-    }
-    const newCompletions = { ...completions, [selectedDateStr]: updated };
-    setCompletions(newCompletions);
-
-    // Call Supabase
     const success = await toggleCompletion(user.id, id, selectedDateStr, isAdding);
     if (success) {
-      // Also update selectValue field
       const newSelectVal = isAdding ? 'Done' : 'Select';
       await updateTaskField(id, 'selectValue', newSelectVal);
-      // Update tasks state
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, selectValue: newSelectVal } : t));
-    } else {
-      // Revert if error
-      setCompletions(completions);
     }
   };
 
@@ -221,13 +197,13 @@ export default function Dashboard() {
 
   // Statistics for selected range
   const totalCount = relevantDates.reduce((acc, dStr) => {
-    const dateTasks = tasks.filter(t => !t.date || t.date === dStr);
+    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
     return acc + dateTasks.length;
   }, 0);
 
   const completedCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
-    const dateTasks = tasks.filter(t => !t.date || t.date === dStr);
+    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
     return acc + dateTasks.filter(t => doneIds.includes(t.id)).length;
   }, 0);
 
@@ -236,21 +212,21 @@ export default function Dashboard() {
   // Active workload card calculation
   const activeCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
-    const dateTasks = tasks.filter(t => !t.date || t.date === dStr);
+    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
     return acc + dateTasks.filter(t => (t.duration === 'Morning' || t.duration === 'Afternoon') && !doneIds.includes(t.id)).length;
   }, 0);
 
   // Delayed count heuristic (e.g. pending work tasks or explicitly set delayed)
   const delayedCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
-    const dateTasks = tasks.filter(t => !t.date || t.date === dStr);
+    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
     return acc + dateTasks.filter(t => (t.category === 'Review' || t.category === 'Call') && !doneIds.includes(t.id)).length;
   }, 0);
 
   // Today specific tasks lists (from selected Date)
   const selectedDayDoneIds = completions[selectedDateStr] || [];
   const selectedDayTasks = tasks
-    .filter(t => !t.date || t.date === selectedDateStr)
+    .filter(t => t.isRecurring || t.date === selectedDateStr)
     .map(t => ({
       ...t,
       status: selectedDayDoneIds.includes(t.id) ? 'Completed' : 'Pending'
@@ -285,7 +261,7 @@ export default function Dashboard() {
     const tom = new Date(selectedDate);
     tom.setDate(tom.getDate() + 1);
     const tomStr = formatDateObj(tom);
-    return tasks.filter(t => !t.date || t.date === tomStr).slice(0, 4);
+    return tasks.filter(t => t.isRecurring || t.date === tomStr).slice(0, 4);
   }, [tasks, selectedDate]);
 
   // 7-Day Performance Chart Data based on selected date
@@ -296,7 +272,7 @@ export default function Dashboard() {
       const ds = formatDateObj(d);
       
       const doneIds = completions[ds] || [];
-      const dateTasks = tasks.filter(t => !t.date || t.date === ds);
+      const dateTasks = tasks.filter(t => t.isRecurring || t.date === ds);
       const total = dateTasks.length;
       const done = dateTasks.filter(t => doneIds.includes(t.id)).length;
       const score = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -462,7 +438,7 @@ export default function Dashboard() {
             const ds = formatDateObj(d);
             const isSelected = ds === selectedDateStr;
             const isCurrentToday = ds === getTodayStr();
-            const dayTasksCount = tasks.filter(t => !t.date || t.date === ds).length;
+            const dayTasksCount = tasks.filter(t => t.isRecurring || t.date === ds).length;
 
             return (
               <button
@@ -923,7 +899,7 @@ export default function Dashboard() {
               {relevantDates.map(dStr => {
                 const dateCompletedIds = completions[dStr] || [];
                 const dateTasks = tasks
-                  .filter(t => !t.date || t.date === dStr)
+                  .filter(t => t.isRecurring || t.date === dStr)
                   .sort((a, b) => {
                     if (a.priority === 'Frog' && b.priority !== 'Frog') return -1;
                     if (a.priority !== 'Frog' && b.priority === 'Frog') return 1;
