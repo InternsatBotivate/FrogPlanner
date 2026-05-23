@@ -44,6 +44,7 @@ export default function Planner() {
   const storeLoading = usePlannerStore(state => state.loading);
 
   const [loading, setLoading] = useState(true);
+  const [modalLoading, setModalLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(formatDateLocal(new Date()));
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
@@ -402,11 +403,11 @@ export default function Planner() {
     
     setAlertConfig({
       isOpen: true,
-      type: 'warning',
+      type: 'confirm',
       title: 'Confirm Delete',
       message: `Are you sure you want to permanently delete the ${selectedTaskIds.length} selected task(s)?`,
       onConfirm: async () => {
-        setLoading(true);
+        const toastId = toast.loading('Deleting selected task(s)...');
         try {
           const { error } = await supabase
             .from('tasks')
@@ -417,12 +418,10 @@ export default function Planner() {
           
           await usePlannerStore.getState().fetchPlannerData(user.id, true);
           setSelectedTaskIds([]);
-          toast.success('Selected task(s) deleted successfully.');
+          toast.success('Selected task(s) deleted successfully.', { id: toastId });
         } catch (error) {
           console.error('[Bulk Delete]', error);
-          toast.error('Failed to delete selected tasks.');
-        } finally {
-          setLoading(false);
+          toast.error('Failed to delete selected tasks.', { id: toastId });
         }
       }
     });
@@ -436,7 +435,7 @@ export default function Planner() {
       return;
     }
 
-    setLoading(true);
+    const toastId = toast.loading('Submitting changes to database...');
     try {
       // 1. Prepare updates for tasks table
       const taskPromises = dirtyList.map(item => {
@@ -493,16 +492,14 @@ export default function Planner() {
 
       // Success! Clear dirty state
       setDirtyTasks({});
-      toast.success(`Successfully submitted ${dirtyList.length} change(s) to database!`);
+      toast.success(`Successfully submitted ${dirtyList.length} change(s) to database!`, { id: toastId });
       await usePlannerStore.getState().fetchPlannerData(user.id, true);
     } catch (error) {
       console.error('[Planner Submit Error]', error);
-      toast.error('Failed to submit changes to the database. Reverting to server state...');
+      toast.error('Failed to submit changes to the database. Reverting to server state...', { id: toastId });
       // Revert states by refetching through central store
       await usePlannerStore.getState().fetchPlannerData(user.id, true);
       setDirtyTasks({});
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -607,7 +604,7 @@ export default function Planner() {
 
     if (!user?.id) return;
 
-    setLoading(true);
+    setModalLoading(true);
     // Format rows correctly for addPlannerTasks
     const tasksToCreate = validRows.map(row => ({
       description: row.description.trim(),
@@ -625,7 +622,7 @@ export default function Planner() {
     } else {
       showAlert('error', 'Database Error', 'Failed to save tasks to Supabase.');
     }
-    setLoading(false);
+    setModalLoading(false);
     setShowModal(false);
   };
 
@@ -1188,6 +1185,7 @@ export default function Planner() {
         title="Add New Task(s)"
         onSubmit={handleSubmit}
         submitText="Save Schedule"
+        loading={modalLoading}
       >
         <div className="space-y-4 text-left">
           
