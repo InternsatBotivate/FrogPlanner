@@ -7,6 +7,8 @@ import { getCategoryEmoji } from '../../utils/helpers';
 import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../store/authStore';
 import { usePlannerStore } from '../../store/plannerStore';
+import ModalForm from '../../components/ModalForm';
+import toast from 'react-hot-toast';
 
 // Format date helper
 const formatDateStr = (date) => {
@@ -57,6 +59,19 @@ export default function AllTasks() {
   const [showFrogModal, setShowFrogModal] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
+  // Editing states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTaskData, setEditTaskData] = useState({
+    id: '',
+    description: '',
+    duration: 'Morning',
+    category: 'Work',
+    priority: '',
+    isCreatingCategory: false,
+    newCategoryText: ''
+  });
+  const [modalLoading, setModalLoading] = useState(false);
+
   // Unified Pagination states (showing 100 rows by default)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
@@ -66,7 +81,7 @@ export default function AllTasks() {
   const todayStr = useMemo(() => formatDateStr(today), [today]);
 
   // Custom Categories & Durations
-  const [customCategories] = useState(() => {
+  const [customCategories, setCustomCategories] = useState(() => {
     const saved = localStorage.getItem('index_custom_categories');
     return saved ? JSON.parse(saved) : ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
   });
@@ -78,6 +93,67 @@ export default function AllTasks() {
       fetchPlannerData(user.id);
     }
   }, [user, fetchPlannerData]);
+
+  const handleEditTaskClick = (item) => {
+    setEditTaskData({
+      id: item.id,
+      description: item.description,
+      duration: item.duration || 'Morning',
+      category: item.category || customCategories[0] || 'Work',
+      priority: item.priority || '',
+      isCreatingCategory: false,
+      newCategoryText: ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditCategoryChange = (value) => {
+    if (value === '__NEW__') {
+      setEditTaskData(prev => ({ ...prev, isCreatingCategory: true }));
+    } else {
+      setEditTaskData(prev => ({ ...prev, category: value }));
+    }
+  };
+
+  const handleAddEditCategoryInline = () => {
+    const text = (editTaskData.newCategoryText || '').trim();
+    if (!text) return;
+    if (customCategories.includes(text)) {
+      setEditTaskData(prev => ({ ...prev, category: text, isCreatingCategory: false, newCategoryText: '' }));
+      return;
+    }
+    const updated = [...customCategories, text];
+    localStorage.setItem('index_custom_categories', JSON.stringify(updated));
+    setCustomCategories(updated);
+    setEditTaskData(prev => ({ ...prev, category: text, isCreatingCategory: false, newCategoryText: '' }));
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editTaskData.description.trim()) {
+      toast.error('Please enter a task description.');
+      return;
+    }
+
+    if (!user?.id) return;
+
+    setModalLoading(true);
+    const payload = {
+      description: editTaskData.description.trim(),
+      duration: editTaskData.duration,
+      category: editTaskData.category,
+      priority: editTaskData.priority
+    };
+
+    const updatedTask = await usePlannerStore.getState().updateTask(editTaskData.id, payload);
+    if (updatedTask) {
+      toast.success('Task updated successfully.');
+      setShowEditModal(false);
+    } else {
+      toast.error('Failed to update task.');
+    }
+    setModalLoading(false);
+  };
 
 
 
@@ -151,7 +227,6 @@ export default function AllTasks() {
     if (!user?.id) return;
     const currentCompleted = completions[dateStr] || [];
     const isAdding = !currentCompleted.includes(taskId);
-
     await toggleCompletion(user.id, taskId, dateStr, isAdding);
   };
 
@@ -225,7 +300,7 @@ export default function AllTasks() {
   }, [activeTab, kpiFilter, searchQuery, filterDuration, filterCategory, filterFrog, fromDate, toDate]);
 
   // Table Headers
-  const tableHeaders = ['Action', 'Date', 'Task Description', 'Time', 'Category', 'Status'];
+  const tableHeaders = ['Action', 'Date', 'Task Description', 'Time', 'Category', 'Status', 'Edit'];
 
   // Row Renderer for Pending
   const renderPendingRow = (item) => (
@@ -236,7 +311,7 @@ export default function AllTasks() {
             onClick={() => handleToggleStatus(item.id, item.dateInstance)}
             className={`px-3.5 py-1.5 text-xs font-bold rounded-lg border transition-all shadow-sm flex items-center justify-center gap-1.5 ${item.priority === 'Frog'
                 ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
-                : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-550 hover:text-white'
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-550 hover:text-white'
               }`}
           >
             {item.priority === 'Frog' ? '🐸 Eat Frog' : 'Done'}
@@ -268,48 +343,63 @@ export default function AllTasks() {
           Pending
         </span>
       </td>
+      {/* Edit Cell */}
+      <td className="px-4 py-3.5 whitespace-nowrap">
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => handleEditTaskClick(item)}
+            className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 p-1.5 rounded-lg transition"
+            title="Edit Task"
+          >
+            <Edit size={14} />
+          </button>
+        </div>
+      </td>
     </tr>
   );
 
   // Card Renderer for Pending (Mobile)
   const renderPendingCard = (item) => (
-    <div key={`pending-card-${item.id}-${item.dateInstance}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3.5 text-left transition-all duration-150 hover:shadow-md">
-      {/* Top Badges Row */}
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold text-gray-500 border border-gray-200 bg-gray-50/55 px-2 py-0.5 rounded-lg select-none">
-            {item.dateInstance}
-          </span>
-          <span className={`px-2 py-0.5 border rounded-lg text-[10px] font-bold uppercase flex items-center gap-1 select-none ${getCategoryColorClass(item.category)}`}>
-            <span>{getCategoryEmoji(item.category)}</span>
-            <span>{item.category}</span>
-          </span>
-        </div>
-        <span className="px-2 py-0.5 bg-amber-50/30 text-amber-600 border border-amber-300 rounded-lg text-[9px] font-black uppercase tracking-wider select-none">
-          Pending
-        </span>
-      </div>
-
-      {/* Description & Check Toggle Row */}
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-extrabold text-gray-800 tracking-tight leading-snug flex items-start gap-1.5">
-          {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
+    <div key={`pending-card-${item.id}-${item.dateInstance}`} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm space-y-2 text-left transition-all duration-150 hover:shadow-md">
+      {/* Row 1: Description + Edit + Check Toggle */}
+      <div className="flex justify-between items-start gap-2">
+        <p className="text-sm font-extrabold text-gray-800 tracking-tight leading-snug flex items-start gap-1">
+          {item.priority === 'Frog' && <span className="text-sm select-none flex-shrink-0">🐸</span>}
           <span>{item.description}</span>
         </p>
-        <button
-          onClick={() => handleToggleStatus(item.id, item.dateInstance)}
-          className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-350 bg-white text-transparent hover:border-emerald-500 hover:bg-emerald-50/50 focus:outline-none transition-all shrink-0 active:scale-90 shadow-sm"
-          title="Mark Complete"
-        >
-          <CheckCircle2 size={16} className="text-gray-350 hover:text-emerald-500 transition-colors" strokeWidth={2.5} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => handleEditTaskClick(item)}
+            className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 bg-white text-indigo-650 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none transition-all active:scale-90 shadow-sm"
+            title="Edit Task"
+          >
+            <Edit size={14} />
+          </button>
+          <button
+            onClick={() => handleToggleStatus(item.id, item.dateInstance)}
+            className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-350 bg-white text-transparent hover:border-emerald-500 hover:bg-emerald-50/50 focus:outline-none transition-all shrink-0 active:scale-90 shadow-sm"
+            title="Mark Complete"
+          >
+            <CheckCircle2 size={16} className="text-gray-350 hover:text-emerald-500 transition-colors" strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
 
-      {/* Duration Badge Row */}
-      <div className="flex items-center">
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg text-[10px] font-extrabold text-gray-550 select-none">
+      {/* Row 2: Badges (Date, Category, Duration, Status) */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[9px] font-bold text-gray-500 border border-gray-200 bg-gray-50/55 px-2 py-0.5 rounded select-none">
+          {item.dateInstance}
+        </span>
+        <span className={`px-2 py-0.5 border rounded text-[9px] font-bold uppercase flex items-center gap-1 select-none ${getCategoryColorClass(item.category)}`}>
+          <span>{getCategoryEmoji(item.category)}</span>
+          <span>{item.category}</span>
+        </span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-150 rounded text-[9px] font-bold text-gray-500 select-none">
           <span>{getDurationEmoji(item.duration)}</span>
           <span>{item.duration || 'Flexible'}</span>
+        </span>
+        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-wider select-none">
+          Pending
         </span>
       </div>
     </div>
@@ -353,48 +443,63 @@ export default function AllTasks() {
           Completed
         </span>
       </td>
+      {/* Edit Cell */}
+      <td className="px-4 py-3.5 whitespace-nowrap">
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => handleEditTaskClick(item)}
+            className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 p-1.5 rounded-lg transition"
+            title="Edit Task"
+          >
+            <Edit size={14} />
+          </button>
+        </div>
+      </td>
     </tr>
   );
 
   // Card Renderer for History (Mobile)
   const renderHistoryCard = (item) => (
-    <div key={`history-card-${item.id}-${item.dateInstance}`} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3.5 text-left opacity-80 transition-all duration-150 hover:shadow-md">
-      {/* Top Badges Row */}
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold text-gray-400 border border-gray-200 bg-gray-50/55 px-2 py-0.5 rounded-lg select-none">
-            {item.dateInstance}
-          </span>
-          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 rounded-lg text-[10px] font-bold uppercase flex items-center gap-1 select-none">
-            <span>{getCategoryEmoji(item.category)}</span>
-            <span>{item.category}</span>
-          </span>
-        </div>
-        <span className="px-2 py-0.5 bg-emerald-50/30 text-emerald-600 border border-emerald-300 rounded-lg text-[9px] font-black uppercase tracking-wider select-none">
-          Completed
-        </span>
-      </div>
-
-      {/* Description & Check Toggle Row */}
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-extrabold text-gray-400 tracking-tight leading-snug line-through flex items-start gap-1.5">
-          {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
+    <div key={`history-card-${item.id}-${item.dateInstance}`} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm space-y-2 text-left opacity-80 transition-all duration-150 hover:shadow-md">
+      {/* Row 1: Description + Edit + Undo Toggle */}
+      <div className="flex justify-between items-start gap-2">
+        <p className="text-sm font-extrabold text-gray-400 tracking-tight leading-snug line-through flex items-start gap-1">
+          {item.priority === 'Frog' && <span className="text-sm select-none flex-shrink-0">🐸</span>}
           <span>{item.description}</span>
         </p>
-        <button
-          onClick={() => handleToggleStatus(item.id, item.dateInstance)}
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm border border-emerald-700 focus:outline-none hover:bg-emerald-700 transition-all shrink-0 active:scale-90"
-          title="Mark Incomplete"
-        >
-          <CheckCircle2 size={16} strokeWidth={2.5} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => handleEditTaskClick(item)}
+            className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 bg-white text-indigo-650 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none transition-all active:scale-90 shadow-sm"
+            title="Edit Task"
+          >
+            <Edit size={14} />
+          </button>
+          <button
+            onClick={() => handleToggleStatus(item.id, item.dateInstance)}
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm border border-emerald-700 focus:outline-none hover:bg-emerald-700 transition-all shrink-0 active:scale-90"
+            title="Mark Incomplete"
+          >
+            <CheckCircle2 size={16} strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
 
-      {/* Duration Badge Row */}
-      <div className="flex items-center">
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg text-[10px] font-extrabold text-gray-400 select-none">
+      {/* Row 2: Badges (Date, Category, Duration, Status) */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[9px] font-bold text-gray-400 border border-gray-200 bg-gray-50/55 px-2 py-0.5 rounded select-none">
+          {item.dateInstance}
+        </span>
+        <span className="px-2 py-0.5 bg-gray-100 text-gray-550 border border-gray-200 rounded text-[9px] font-bold uppercase flex items-center gap-1 select-none">
+          <span>{getCategoryEmoji(item.category)}</span>
+          <span>{item.category}</span>
+        </span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-150 rounded text-[9px] font-bold text-gray-400 select-none">
           <span>{getDurationEmoji(item.duration)}</span>
           <span>{item.duration || 'Flexible'}</span>
+        </span>
+        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black uppercase tracking-wider select-none">
+          Completed
         </span>
       </div>
     </div>
@@ -924,6 +1029,116 @@ export default function AllTasks() {
           </div>
         );
       })()}
+
+      {/* EDIT TASK POPUP MODAL */}
+      <ModalForm
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Task"
+        onSubmit={handleEditSubmit}
+        submitText="Save Changes"
+        loading={modalLoading}
+      >
+        <div className="space-y-4 text-left">
+          {/* Task Description Field */}
+          <div className="space-y-1">
+            <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Task Description *</label>
+            <input
+              type="text"
+              required
+              placeholder="What needs to be done?"
+              value={editTaskData.description}
+              onChange={(e) => setEditTaskData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[32px] bg-white font-medium shadow-sm"
+            />
+          </div>
+
+          {/* Grid Fields: Duration, Category, Priority */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {/* Time Select */}
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Time *</label>
+              <select
+                required
+                value={editTaskData.duration}
+                onChange={(e) => setEditTaskData(prev => ({ ...prev, duration: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] md:text-[12px] h-[32px] bg-white font-medium"
+              >
+                {durationOptions.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Category Select / Add */}
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Category *</label>
+              {editTaskData.isCreatingCategory ? (
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    placeholder="New category..."
+                    value={editTaskData.newCategoryText || ''}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, newCategoryText: e.target.value }))}
+                    className="w-full border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] h-[32px] bg-white font-medium"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddEditCategoryInline();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddEditCategoryInline}
+                    className="h-[32px] w-[30px] flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold shrink-0"
+                    title="Confirm"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTaskData(prev => ({ ...prev, isCreatingCategory: false }))}
+                    className="h-[32px] w-[30px] flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-600 rounded text-[11px] shrink-0"
+                    title="Cancel"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <select
+                  required
+                  value={editTaskData.category}
+                  onChange={(e) => handleEditCategoryChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] md:text-[12px] h-[32px] bg-white font-medium"
+                >
+                  {customCategories.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                  <option value="__NEW__">+ New Category...</option>
+                </select>
+              )}
+            </div>
+
+            {/* Frog Toggle */}
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Frog Task?</label>
+              <button
+                type="button"
+                onClick={() => setEditTaskData(prev => ({ ...prev, priority: prev.priority === 'Frog' ? '' : 'Frog' }))}
+                className={`w-full border rounded text-[10px] md:text-[11px] h-[32px] font-bold transition-all flex items-center justify-center gap-1 shadow-sm ${
+                  editTaskData.priority === 'Frog'
+                    ? 'bg-emerald-50 border-emerald-355 text-emerald-700 font-extrabold'
+                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {editTaskData.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </ModalForm>
 
     </div>
   );

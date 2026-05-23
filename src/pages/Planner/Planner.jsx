@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, SlidersHorizontal, Save } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, SlidersHorizontal, Save, Edit } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 import ModalForm from '../../components/ModalForm';
 import ModalAlert from '../../components/ModalAlert';
@@ -46,6 +46,18 @@ export default function Planner() {
   const [loading, setLoading] = useState(true);
   const [modalLoading, setModalLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(formatDateLocal(new Date()));
+  
+  // Editing states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTaskData, setEditTaskData] = useState({
+    id: '',
+    description: '',
+    duration: 'Morning',
+    category: 'Work',
+    priority: '',
+    isCreatingCategory: false,
+    newCategoryText: ''
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -82,6 +94,7 @@ export default function Planner() {
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
   const [dirtyTasks, setDirtyTasks] = useState({});
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [submittingFrogIds, setSubmittingFrogIds] = useState([]);
 
   // Custom categories list loaded from localStorage if it exists
   const [customCategories, setCustomCategories] = useState(() => {
@@ -108,6 +121,67 @@ export default function Planner() {
     setSelectedTaskIds([]); // Reset selection when date changes
     setActiveFilter('Pending'); // Reset filter when date changes
   }, [selectedDate]);
+
+  const handleEditTaskClick = (item) => {
+    setEditTaskData({
+      id: item.id,
+      description: item.description,
+      duration: item.duration || 'Morning',
+      category: item.category || customCategories[0] || 'Work',
+      priority: item.priority || '',
+      isCreatingCategory: false,
+      newCategoryText: ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditCategoryChange = (value) => {
+    if (value === '__NEW__') {
+      setEditTaskData(prev => ({ ...prev, isCreatingCategory: true }));
+    } else {
+      setEditTaskData(prev => ({ ...prev, category: value }));
+    }
+  };
+
+  const handleAddEditCategoryInline = () => {
+    const text = (editTaskData.newCategoryText || '').trim();
+    if (!text) return;
+    if (customCategories.includes(text)) {
+      setEditTaskData(prev => ({ ...prev, category: text, isCreatingCategory: false, newCategoryText: '' }));
+      return;
+    }
+    const updated = [...customCategories, text];
+    localStorage.setItem('index_custom_categories', JSON.stringify(updated));
+    setCustomCategories(updated);
+    setEditTaskData(prev => ({ ...prev, category: text, isCreatingCategory: false, newCategoryText: '' }));
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editTaskData.description.trim()) {
+      showAlert('error', 'Validation Error', 'Please enter a task description.');
+      return;
+    }
+
+    if (!user?.id) return;
+
+    setModalLoading(true);
+    const payload = {
+      description: editTaskData.description.trim(),
+      duration: editTaskData.duration,
+      category: editTaskData.category,
+      priority: editTaskData.priority
+    };
+
+    const updatedTask = await usePlannerStore.getState().updateTask(editTaskData.id, payload);
+    if (updatedTask) {
+      toast.success('Task updated successfully.');
+      setShowEditModal(false);
+    } else {
+      toast.error('Failed to update task.');
+    }
+    setModalLoading(false);
+  };
 
   // Reset page when filters change
   useEffect(() => {
@@ -143,7 +217,18 @@ export default function Planner() {
     return dates;
   }, [weekOffset]);
 
+  const isTaskCompletedForDate = React.useCallback((task, dateStr = selectedDate) => {
+    const taskDate = task.date || dateStr;
+    const doneIds = completions[taskDate] || [];
+    return doneIds.includes(task.id) || task.selectValue === 'Done';
+  }, [completions, selectedDate]);
 
+  const isTaskLocallyCompletedPendingSubmit = React.useCallback((task, dateStr = selectedDate) => {
+    const taskDate = task.date || dateStr;
+    const dirtyEntry = dirtyTasks[task.id];
+    if (!dirtyEntry || dirtyEntry.date !== taskDate) return false;
+    return dirtyEntry.selectValue === 'Done' && !dirtyEntry.originalDone;
+  }, [dirtyTasks, selectedDate]);
 
   // Map master tasks to include date-specific completion status & priority
   const filteredTasks = useMemo(() => {
@@ -163,9 +248,7 @@ export default function Planner() {
     }
 
     const mapped = tasksToMap.map(task => {
-      const taskDate = task.date || selectedDate;
-      const dateCompletions = completions[taskDate] || [];
-      const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
+      const isDone = isTaskCompletedForDate(task, selectedDate);
       let calculatedStatus = 'Pending';
       if (isDone) {
         calculatedStatus = 'Completed';
@@ -186,20 +269,15 @@ export default function Planner() {
     if (activeFilter === 'Completed') {
       result = result.filter(t => t.status === 'Completed');
     } else if (activeFilter === 'Pending') {
-      // Filter out tasks that are already saved as completed in the database
-      result = result.filter(t => {
-        const tDate = t.date || selectedDate;
-        const savedCompletions = storeCompletions[tDate] || [];
-        const isSavedDone = savedCompletions.includes(t.id);
-        return !isSavedDone;
-      });
+      result = result.filter(t => (
+        !isTaskCompletedForDate(t, selectedDate) || isTaskLocallyCompletedPendingSubmit(t, selectedDate)
+      ));
     } else if (activeFilter === 'PendingFrogs') {
-      result = result.filter(t => {
-        const tDate = t.date || selectedDate;
-        const savedCompletions = storeCompletions[tDate] || [];
-        const isSavedDone = savedCompletions.includes(t.id);
-        return !isSavedDone && t.priority === 'Frog';
-      });
+      result = result.filter(t => (
+        t.priority === 'Frog' && (
+          !isTaskCompletedForDate(t, selectedDate) || isTaskLocallyCompletedPendingSubmit(t, selectedDate)
+        )
+      ));
     }
 
     // Search query filter
@@ -224,12 +302,11 @@ export default function Planner() {
     }
 
     return result;
-  }, [masterTasks, completions, storeCompletions, selectedDate, activeFilter, searchQuery, filterDuration, filterCategory, filterFrog]);
+  }, [masterTasks, completions, selectedDate, activeFilter, searchQuery, filterDuration, filterCategory, filterFrog, isTaskCompletedForDate, isTaskLocallyCompletedPendingSubmit]);
 
   // Compute stats for current day's KPI filter cards
   const stats = useMemo(() => {
     const todayStr = formatDateLocal(new Date());
-    const dateCompletions = completions[selectedDate] || [];
     const dayTasks = masterTasks.filter(task => task.date === selectedDate);
     
     let completed = 0;
@@ -237,8 +314,7 @@ export default function Planner() {
     let pendingFrogs = 0;
 
     dayTasks.forEach(task => {
-      const taskDate = task.date || selectedDate;
-      const isDone = dateCompletions.includes(task.id) || task.selectValue === 'Done';
+      const isDone = isTaskCompletedForDate(task, selectedDate);
       if (isDone) {
         completed++;
       } else {
@@ -251,31 +327,28 @@ export default function Planner() {
 
     const overdue = masterTasks.filter(t => {
       if (t.isRecurring || !t.date || t.date >= todayStr) return false;
-      const doneIds = completions[t.date] || [];
-      const isCompleted = doneIds.includes(t.id) || t.selectValue === 'Done';
-      return !isCompleted;
+      return !isTaskCompletedForDate(t, t.date);
     }).length;
 
     const total = completed + pending;
     return { total, completed, pending, pendingFrogs, overdue };
-  }, [masterTasks, completions, selectedDate]);
+  }, [masterTasks, completions, selectedDate, isTaskCompletedForDate]);
 
   // Get all Frog Tasks for selected date
   const allTodayFrogTasks = useMemo(() => {
-    const dateCompletions = completions[selectedDate] || [];
     return masterTasks
       .filter(t => t.date === selectedDate)
       .filter(t => t.priority === 'Frog')
       .map(t => ({
         ...t,
-        isCompleted: dateCompletions.includes(t.id)
+        isCompleted: isTaskCompletedForDate(t, selectedDate)
       }));
-  }, [masterTasks, completions, selectedDate]);
+  }, [masterTasks, completions, selectedDate, isTaskCompletedForDate]);
 
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
   const paginatedTasks = filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const headers = ['Action', 'Status', 'Remarks', 'Time', 'Task Description', 'Category'];
+  const headers = ['Action', 'Status', 'Remarks', 'Time', 'Task Description', 'Category', 'Edit'];
 
   const getDayName = (date) => {
     return date.toLocaleDateString('en-US', { weekday: 'short' });
@@ -348,6 +421,79 @@ export default function Planner() {
     const isAdding = !currentCompleted.includes(taskId);
     const newSelectVal = isAdding ? 'Done' : 'Select';
     handleStatusDropdownChange(taskId, newSelectVal);
+  };
+
+  const handleEatFrogNow = async (taskId) => {
+    if (!user?.id) return;
+
+    const task = masterTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const taskDate = task.date || selectedDate;
+    if (isTaskCompletedForDate(task, taskDate)) return;
+
+    const existingDirty = dirtyTasks[taskId];
+    const remarksToSave = existingDirty?.remarks ?? task.remarks ?? '';
+    const previousCompletions = completions;
+    const previousMasterTasks = masterTasks;
+
+    setSubmittingFrogIds(prev => [...prev, taskId]);
+
+    setCompletions(prev => {
+      const dateCompletions = prev[taskDate] || [];
+      if (dateCompletions.includes(taskId)) return prev;
+      return {
+        ...prev,
+        [taskDate]: [...dateCompletions, taskId]
+      };
+    });
+
+    setMasterTasks(prev => prev.map(t => (
+      t.id === taskId
+        ? { ...t, selectValue: 'Done', remarks: remarksToSave }
+        : t
+    )));
+
+    const toastId = toast.loading('Saving frog task as completed...');
+
+    try {
+      const [taskUpdate, completionInsert] = await Promise.all([
+        supabase
+          .from('tasks')
+          .update({
+            select_value: 'Done',
+            remarks: remarksToSave
+          })
+          .eq('id', taskId),
+        supabase
+          .from('task_completions')
+          .insert({
+            user_id: user.id,
+            task_id: taskId,
+            completion_date: taskDate
+          })
+      ]);
+
+      if (taskUpdate.error) throw taskUpdate.error;
+      if (completionInsert.error && completionInsert.error.code !== '23505') throw completionInsert.error;
+
+      setDirtyTasks(prev => {
+        const updated = { ...prev };
+        delete updated[taskId];
+        return updated;
+      });
+
+      toast.success('Frog task marked completed and submitted.', { id: toastId });
+      await usePlannerStore.getState().fetchPlannerData(user.id, true);
+    } catch (error) {
+      console.error('[Eat Frog Submit Error]', error);
+      setCompletions(previousCompletions);
+      setMasterTasks(previousMasterTasks);
+      toast.error('Failed to submit frog task. Reverted to previous state.', { id: toastId });
+      await usePlannerStore.getState().fetchPlannerData(user.id, true);
+    } finally {
+      setSubmittingFrogIds(prev => prev.filter(id => id !== taskId));
+    }
   };
 
   // Bulk Actions
@@ -627,8 +773,9 @@ export default function Planner() {
   };
 
   const renderRow = (item) => {
-    const isSavedDone = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
-    const isDisabled = activeFilter === 'Completed' || isSavedDone;
+    const isCompleted = isTaskCompletedForDate(item, item.date || selectedDate);
+    const isSavedCompleted = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
+    const isDisabled = activeFilter === 'Completed' || (isCompleted && isSavedCompleted);
     return (
       <tr key={item.id} className="hover:bg-gray-50/80 transition-colors text-center text-sm border-b border-gray-100">
         {/* Action Checkbox */}
@@ -695,83 +842,95 @@ export default function Planner() {
             <span>{item.category}</span>
           </span>
         </td>
+        {/* Edit Action Button */}
+        <td className="px-2 py-2 w-[60px] whitespace-nowrap">
+          <div className="flex items-center justify-center">
+            <button
+              onClick={() => handleEditTaskClick(item)}
+              className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 p-1.5 rounded-lg transition"
+              title="Edit Task"
+            >
+              <Edit size={14} />
+            </button>
+          </div>
+        </td>
       </tr>
     );
   };
 
   const renderCard = (item) => {
-    const isSavedDone = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
-    const isDisabled = activeFilter === 'Completed' || isSavedDone;
+    const isCompleted = isTaskCompletedForDate(item, item.date || selectedDate);
+    const isSavedCompleted = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
+    const isDisabled = activeFilter === 'Completed' || (isCompleted && isSavedCompleted);
     return (
-      <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-150 shadow-sm space-y-3 transition-all duration-200 hover:shadow-md">
-        {/* Header Row: Category Badge + Large Checkbox */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${getCategoryColorClass(item.category)}`}>
-              {getCategoryEmoji(item.category)} {item.category}
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wider ${
-              item.status === 'Completed' 
-                ? 'bg-emerald-50 border-emerald-100 text-emerald-600' 
-                : 'bg-amber-50 border-amber-100 text-amber-600'
-            }`}>
-              {item.status}
-            </span>
-          </div>
-          <div className="flex items-center">
+      <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-150 shadow-sm space-y-2 transition-all duration-200 hover:shadow-md">
+        {/* Row 1: Description + Edit + Checkbox */}
+        <div className="flex justify-between items-start gap-2">
+          <h3 className="text-sm font-bold text-gray-800 leading-snug text-left flex items-start gap-1">
+            {item.priority === 'Frog' && (
+              <span className="text-sm select-none flex-shrink-0" title="Frog Task">🐸</span>
+            )}
+            <span>{item.description}</span>
+          </h3>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => handleEditTaskClick(item)}
+              className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 p-1 rounded transition"
+              title="Edit Task"
+            >
+              <Edit size={14} />
+            </button>
             <input
               type="checkbox"
               checked={item.status === 'Completed'}
               onChange={() => handleToggleStatus(item.id)}
               disabled={isDisabled}
-              className={`w-[22px] h-[22px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
+              className={`w-[18px] h-[18px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
                 isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
               }`}
             />
           </div>
         </div>
 
-        {/* Task Description */}
-        <h3 className="text-sm font-bold text-gray-800 leading-snug text-left flex items-start gap-1.5 pt-1">
-          {item.priority === 'Frog' && (
-            <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
-          )}
-          <span>{item.description}</span>
-        </h3>
-
-        {/* Time duration with emoji */}
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 pt-0.5">
-          <span className="text-sm select-none">{getDurationEmoji(item.time)}</span>
-          <span>{item.time}</span>
+        {/* Row 2: Badges (Category, Time, Status) */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getCategoryColorClass(item.category)}`}>
+            {getCategoryEmoji(item.category)} {item.category}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-150 rounded text-[9px] font-bold text-gray-500">
+            <span className="text-[11px] select-none">{getDurationEmoji(item.time)}</span>
+            <span>{item.time}</span>
+          </span>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
+            item.status === 'Completed' 
+              ? 'bg-emerald-50 border-emerald-100 text-emerald-600' 
+              : 'bg-amber-50 border-amber-100 text-amber-600'
+          }`}>
+            {item.status}
+          </span>
         </div>
 
-        {/* Status Dropdown Selection */}
-        <div className="flex items-center justify-between text-xs pt-1.5">
-          <span className="font-bold text-gray-500">Status:</span>
+        {/* Row 3: Action controls (Status dropdown + Remarks input inline) */}
+        <div className="flex items-center gap-2 pt-1 text-xs">
           <select
             value={item.status === 'Completed' ? 'Done' : (item.selectValue || 'Select')}
             onChange={(e) => handleStatusDropdownChange(item.id, e.target.value)}
             disabled={isDisabled}
-            className={`border border-gray-250 rounded-lg px-2.5 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold ${
+            className={`border border-gray-250 rounded-lg px-2 py-1 text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold shrink-0 ${
               isDisabled ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
             }`}
           >
-            <option value="Select">Select</option>
+            <option value="Select">Status</option>
             <option value="Pending">Pending</option>
             <option value="Done">Done</option>
           </select>
-        </div>
-
-        {/* Remarks Box underneath status */}
-        <div className="flex flex-col gap-1 text-xs pt-1">
-          <span className="font-bold text-gray-500 text-left">Remarks:</span>
           <input
             type="text"
             value={item.remarks || ''}
             onChange={(e) => handleUpdateTaskField(item.id, 'remarks', e.target.value)}
             disabled={isDisabled}
-            placeholder={isDisabled ? 'No remarks' : 'Enter remarks...'}
-            className={`border border-gray-250 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full font-medium ${
+            placeholder={isDisabled ? 'No remarks' : 'Remarks...'}
+            className={`border border-gray-250 rounded-lg px-2.5 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 font-medium min-w-0 ${
               isDisabled ? 'cursor-not-allowed bg-gray-50 opacity-80' : ''
             }`}
           />
@@ -1060,6 +1219,20 @@ export default function Planner() {
               <SlidersHorizontal size={16} />
             </button>
 
+            {/* View Frog Tasks Button */}
+            <button
+              onClick={() => setShowFrogModal(true)}
+              className="relative p-2 border border-gray-300 rounded-lg flex items-center justify-center bg-white hover:bg-emerald-50 hover:border-emerald-300 transition-all h-[34px] w-[34px] shadow-sm text-sm active:scale-95 shrink-0"
+              title="View Frog Tasks"
+            >
+              <span>🐸</span>
+              {allTodayFrogTasks.filter(t => !t.isCompleted).length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-emerald-600 text-white font-extrabold text-[8px] rounded-full w-4 h-4 flex items-center justify-center leading-none ring-1 ring-white">
+                  {allTodayFrogTasks.filter(t => !t.isCompleted).length}
+                </span>
+              )}
+            </button>
+
             {/* Save/Submit Button */}
             <button 
               onClick={handleSaveAll}
@@ -1121,7 +1294,7 @@ export default function Planner() {
                 {/* Frog Tasks Toggle */}
                 <button
                   onClick={() => setFilterFrog(prev => prev === 'Frog' ? '' : 'Frog')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1.5 h-[32px] ${
+                  className={`w-full px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[32px] ${
                     filterFrog === 'Frog'
                       ? 'bg-emerald-50 border-emerald-250 text-emerald-700 shadow-sm'
                       : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
@@ -1129,17 +1302,6 @@ export default function Planner() {
                 >
                   <span>🐸 Frog Tasks Only</span>
                   {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
-                </button>
-                
-                {/* View Frog Tasks Dialog Toggle */}
-                <button
-                  onClick={() => {
-                    setShowFrogModal(true);
-                    setShowMobileFilters(false);
-                  }}
-                  className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg flex items-center justify-center gap-1.5 h-[32px] text-xs font-bold border border-emerald-200 transition"
-                >
-                  <span>🐸 Today's Frogs ({allTodayFrogTasks.filter(t => !t.isCompleted).length})</span>
                 </button>
               </div>
 
@@ -1344,6 +1506,116 @@ export default function Planner() {
         </div>
       </ModalForm>
 
+      {/* EDIT TASK POPUP MODAL */}
+      <ModalForm
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Task"
+        onSubmit={handleEditSubmit}
+        submitText="Save Changes"
+        loading={modalLoading}
+      >
+        <div className="space-y-4 text-left">
+          {/* Task Description Field */}
+          <div className="space-y-1">
+            <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Task Description *</label>
+            <input
+              type="text"
+              required
+              placeholder="What needs to be done?"
+              value={editTaskData.description}
+              onChange={(e) => setEditTaskData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[32px] bg-white font-medium shadow-sm"
+            />
+          </div>
+
+          {/* Grid Fields: Duration, Category, Priority */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {/* Time Select */}
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Time *</label>
+              <select
+                required
+                value={editTaskData.duration}
+                onChange={(e) => setEditTaskData(prev => ({ ...prev, duration: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] md:text-[12px] h-[32px] bg-white font-medium"
+              >
+                {durationOptions.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Category Select / Add */}
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Category *</label>
+              {editTaskData.isCreatingCategory ? (
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    placeholder="New category..."
+                    value={editTaskData.newCategoryText || ''}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, newCategoryText: e.target.value }))}
+                    className="w-full border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] h-[32px] bg-white font-medium"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddEditCategoryInline();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddEditCategoryInline}
+                    className="h-[32px] w-[30px] flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold shrink-0"
+                    title="Confirm"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTaskData(prev => ({ ...prev, isCreatingCategory: false }))}
+                    className="h-[32px] w-[30px] flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-600 rounded text-[11px] shrink-0"
+                    title="Cancel"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <select
+                  required
+                  value={editTaskData.category}
+                  onChange={(e) => handleEditCategoryChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[10px] md:text-[12px] h-[32px] bg-white font-medium"
+                >
+                  {customCategories.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                  <option value="__NEW__">+ New Category...</option>
+                </select>
+              )}
+            </div>
+
+            {/* Frog Toggle */}
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Frog Task?</label>
+              <button
+                type="button"
+                onClick={() => setEditTaskData(prev => ({ ...prev, priority: prev.priority === 'Frog' ? '' : 'Frog' }))}
+                className={`w-full border rounded text-[10px] md:text-[11px] h-[32px] font-bold transition-all flex items-center justify-center gap-1 shadow-sm ${
+                  editTaskData.priority === 'Frog'
+                    ? 'bg-emerald-50 border-emerald-355 text-emerald-700 font-extrabold'
+                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {editTaskData.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </ModalForm>
+
       <ModalAlert 
         {...alertConfig} 
         onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })} 
@@ -1415,8 +1687,13 @@ export default function Planner() {
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-bold text-gray-800 leading-snug flex-1">{t.description}</p>
                         <button
-                          onClick={() => handleToggleStatus(t.id)}
-                          className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1"
+                          onClick={() => handleEatFrogNow(t.id)}
+                          disabled={submittingFrogIds.includes(t.id)}
+                          className={`shrink-0 px-3 py-1.5 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1 ${
+                            submittingFrogIds.includes(t.id)
+                              ? 'bg-emerald-300 cursor-not-allowed opacity-80'
+                              : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
+                          }`}
                         >
                           🐸 Eat Frog
                         </button>
