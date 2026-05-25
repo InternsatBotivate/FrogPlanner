@@ -348,7 +348,7 @@ export default function Planner() {
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
   const paginatedTasks = filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const headers = ['Action', 'Status', 'Remarks', 'Time', 'Task Description', 'Category', 'Edit'];
+  const headers = ['Action', 'Status', 'Remarks', 'Time', 'Date', 'Task Description', 'Category', 'Edit'];
 
   const getDayName = (date) => {
     return date.toLocaleDateString('en-US', { weekday: 'short' });
@@ -826,6 +826,12 @@ export default function Planner() {
             <Clock size={14} className="text-gray-400" /> {item.time}
           </div>
         </td>
+        {/* Date */}
+        <td className="px-2 py-2 w-[120px] text-gray-800 font-medium whitespace-nowrap text-xs md:text-sm">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-gray-600 font-bold">
+            📅 {item.date || selectedDate}
+          </span>
+        </td>
         {/* Task Description */}
         <td className="px-4 py-2 text-gray-800 text-xs md:text-sm text-center font-medium">
           <div className="flex items-center justify-center gap-2">
@@ -892,7 +898,7 @@ export default function Planner() {
           </div>
         </div>
 
-        {/* Row 2: Badges (Category, Time, Status) */}
+        {/* Row 2: Badges (Category, Time, Date, Status) */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getCategoryColorClass(item.category)}`}>
             {getCategoryEmoji(item.category)} {item.category}
@@ -900,6 +906,9 @@ export default function Planner() {
           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-150 rounded text-[9px] font-bold text-gray-500">
             <span className="text-[11px] select-none">{getDurationEmoji(item.time)}</span>
             <span>{item.time}</span>
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-150 rounded text-[9px] font-bold text-slate-500">
+            <span>📅 {item.date || selectedDate}</span>
           </span>
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
             item.status === 'Completed' 
@@ -1329,7 +1338,7 @@ export default function Planner() {
             data={paginatedTasks}
             renderRow={renderRow}
             renderCard={renderCard}
-            minWidth="800px"
+            minWidth="900px"
             currentPage={currentPage}
             totalPages={totalPages}
             itemsPerPage={itemsPerPage}
