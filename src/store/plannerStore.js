@@ -18,6 +18,7 @@ let plannerFetchUserId = null;
 const usePlannerStore = create((set, get) => ({
   tasks: [],
   completions: {},
+  completionDates: {},
   loading: false,
   hasLoaded: false,
   loadedUserId: null,
@@ -57,7 +58,7 @@ const usePlannerStore = create((set, get) => ({
         }
 
         // 2. Fetch standard datasets from Supabase
-        const { tasks, completions, error } = await fetchDbPlannerData(userId);
+        const { tasks, completions, completionDates, error } = await fetchDbPlannerData(userId);
 
         if (error) {
           set({ error, loading: false });
@@ -65,6 +66,7 @@ const usePlannerStore = create((set, get) => ({
           set({ 
             tasks: tasks || [], 
             completions: completions || {}, 
+            completionDates: completionDates || {},
             loading: false, 
             hasLoaded: true,
             loadedUserId: userId
@@ -203,29 +205,34 @@ const usePlannerStore = create((set, get) => ({
     if (!userId || !taskId || !dateStr) return false;
 
     const previousCompletions = get().completions;
+    const previousCompletionDates = get().completionDates;
 
     set((state) => {
       const currentComps = { ...state.completions };
       const dateComps = currentComps[dateStr] ? [...currentComps[dateStr]] : [];
       
+      const currentDates = { ...state.completionDates };
+
       if (isCompleted) {
         if (!dateComps.includes(taskId)) {
           dateComps.push(taskId);
         }
+        currentDates[taskId] = new Date().toISOString();
       } else {
         const index = dateComps.indexOf(taskId);
         if (index > -1) {
           dateComps.splice(index, 1);
         }
+        delete currentDates[taskId];
       }
       currentComps[dateStr] = dateComps;
-      return { completions: currentComps };
+      return { completions: currentComps, completionDates: currentDates };
     });
 
     const success = await toggleDbCompletion(userId, taskId, dateStr, isCompleted);
     if (!success) {
       // Rollback on failure
-      set({ completions: previousCompletions });
+      set({ completions: previousCompletions, completionDates: previousCompletionDates });
       return false;
     }
     return true;
@@ -239,6 +246,7 @@ const usePlannerStore = create((set, get) => ({
     set({
       tasks: [],
       completions: {},
+      completionDates: {},
       loading: false,
       hasLoaded: false,
       loadedUserId: null,

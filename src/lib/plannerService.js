@@ -29,7 +29,7 @@ export const fetchPlannerData = async (userId) => {
     // 2. Fetch completions
     const { data: dbCompletions, error: completionsError } = await supabase
       .from('task_completions')
-      .select('task_id, completion_date')
+      .select('task_id, completion_date, created_at')
       .eq('user_id', userId);
 
     if (completionsError) throw completionsError;
@@ -50,15 +50,17 @@ export const fetchPlannerData = async (userId) => {
 
     // 4. Compile completions into standard YYYY-MM-DD -> [taskId1, taskId2] format
     const completions = {};
+    const completionDates = {};
     dbCompletions.forEach(c => {
       const dateStr = c.completion_date;
       if (!completions[dateStr]) {
         completions[dateStr] = [];
       }
       completions[dateStr].push(c.task_id);
+      completionDates[c.task_id] = c.created_at;
     });
 
-    return { tasks, completions };
+    return { tasks, completions, completionDates };
   } catch (error) {
     console.error('[Supabase Planner] Fetch Error:', error);
     return { tasks: [], completions: {}, error };

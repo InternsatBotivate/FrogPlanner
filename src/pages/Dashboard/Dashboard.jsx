@@ -204,7 +204,7 @@ export default function Dashboard() {
   const completedCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
     const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
-    return acc + dateTasks.filter(t => doneIds.includes(t.id)).length;
+    return acc + dateTasks.filter(t => doneIds.includes(t.id) || t.selectValue === 'Done').length;
   }, 0);
 
   const pendingCount = totalCount - completedCount;
@@ -213,14 +213,14 @@ export default function Dashboard() {
   const activeCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
     const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
-    return acc + dateTasks.filter(t => (t.duration === 'Morning' || t.duration === 'Afternoon') && !doneIds.includes(t.id)).length;
+    return acc + dateTasks.filter(t => (t.duration === 'Morning' || t.duration === 'Afternoon') && !doneIds.includes(t.id) && t.selectValue !== 'Done').length;
   }, 0);
 
   // Delayed count heuristic (e.g. pending work tasks or explicitly set delayed)
   const delayedCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
     const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
-    return acc + dateTasks.filter(t => (t.category === 'Review' || t.category === 'Call') && !doneIds.includes(t.id)).length;
+    return acc + dateTasks.filter(t => (t.category === 'Review' || t.category === 'Call') && !doneIds.includes(t.id) && t.selectValue !== 'Done').length;
   }, 0);
 
   // Today specific tasks lists (from selected Date)
@@ -229,7 +229,7 @@ export default function Dashboard() {
     .filter(t => t.isRecurring || t.date === selectedDateStr)
     .map(t => ({
       ...t,
-      status: selectedDayDoneIds.includes(t.id) ? 'Completed' : 'Pending'
+      status: (selectedDayDoneIds.includes(t.id) || t.selectValue === 'Done') ? 'Completed' : 'Pending'
     }))
     .sort((a, b) => {
       if (a.priority === 'Frog' && b.priority !== 'Frog') return -1;
@@ -248,7 +248,7 @@ export default function Dashboard() {
   // Alert tasks (pending tasks with Frog priority)
   const alertTasks = useMemo(() => {
     return tasks
-      .filter(t => t.priority === 'Frog' && !completions[selectedDateStr]?.includes(t.id))
+      .filter(t => t.priority === 'Frog' && !completions[selectedDateStr]?.includes(t.id) && t.selectValue !== 'Done')
       .slice(0, 3);
   }, [tasks, completions, selectedDateStr]);
 
@@ -274,7 +274,7 @@ export default function Dashboard() {
       const doneIds = completions[ds] || [];
       const dateTasks = tasks.filter(t => t.isRecurring || t.date === ds);
       const total = dateTasks.length;
-      const done = dateTasks.filter(t => doneIds.includes(t.id)).length;
+      const done = dateTasks.filter(t => doneIds.includes(t.id) || t.selectValue === 'Done').length;
       const score = total > 0 ? Math.round((done / total) * 100) : 0;
       
       return {
@@ -909,7 +909,7 @@ export default function Dashboard() {
                 if (dateTasks.length === 0) return null;
                 
                 return dateTasks.map((t, idx) => {
-                  const isDone = dateCompletedIds.includes(t.id);
+                  const isDone = dateCompletedIds.includes(t.id) || t.selectValue === 'Done';
                   return (
                     <tr key={`${dStr}-${t.id}-${idx}`} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 whitespace-nowrap text-gray-500 font-bold">

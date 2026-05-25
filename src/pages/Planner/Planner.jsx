@@ -41,6 +41,7 @@ export default function Planner() {
   const { user } = useAuthStore();
   const storeTasks = usePlannerStore(state => state.tasks);
   const storeCompletions = usePlannerStore(state => state.completions);
+  const storeCompletionDates = usePlannerStore(state => state.completionDates);
   const storeLoading = usePlannerStore(state => state.loading);
 
   const [loading, setLoading] = useState(true);
@@ -64,12 +65,26 @@ export default function Planner() {
   
   const [masterTasks, setMasterTasks] = useState([]);
   const [completions, setCompletions] = useState({});
+  const [completionDates, setCompletionDates] = useState({});
 
   // Synchronize store data to local state
   useEffect(() => {
     setMasterTasks(storeTasks || []);
     setCompletions(storeCompletions || {});
-  }, [storeTasks, storeCompletions]);
+    setCompletionDates(storeCompletionDates || {});
+  }, [storeTasks, storeCompletions, storeCompletionDates]);
+
+  const formatDateCompleted = (taskId) => {
+    const timestamp = completionDates[taskId];
+    if (timestamp) {
+      try {
+        return timestamp.split('T')[0];
+      } catch (e) {
+        return formatDateLocal(new Date());
+      }
+    }
+    return formatDateLocal(new Date());
+  };
 
   useEffect(() => {
     // Only show loading spinner on initial load, not background updates
@@ -827,10 +842,21 @@ export default function Planner() {
           </div>
         </td>
         {/* Date */}
-        <td className="px-2 py-2 w-[120px] text-gray-800 font-medium whitespace-nowrap text-xs md:text-sm">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-gray-600 font-bold">
-            📅 {item.date || selectedDate}
-          </span>
+        <td className="px-2 py-2 w-[140px] text-gray-800 font-medium whitespace-nowrap text-xs md:text-sm">
+          {item.status === 'Completed' ? (
+            <div className="flex flex-col items-center gap-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] text-gray-600 font-bold" title="Scheduled Date">
+                📅 {item.date || selectedDate}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[11px] text-emerald-700 font-bold" title="Date Completed">
+                ✅ Done: {formatDateCompleted(item.id)}
+              </span>
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-gray-600 font-bold" title="Scheduled Date">
+              📅 {item.date || selectedDate}
+            </span>
+          )}
         </td>
         {/* Task Description */}
         <td className="px-4 py-2 text-gray-800 text-xs md:text-sm text-center font-medium">
@@ -907,9 +933,20 @@ export default function Planner() {
             <span className="text-[11px] select-none">{getDurationEmoji(item.time)}</span>
             <span>{item.time}</span>
           </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-150 rounded text-[9px] font-bold text-slate-500">
-            <span>📅 {item.date || selectedDate}</span>
-          </span>
+          {item.status === 'Completed' ? (
+            <>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-150 rounded text-[9px] font-bold text-slate-500" title="Scheduled Date">
+                <span>📅 {item.date || selectedDate}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-150 rounded text-[9px] font-bold text-emerald-600" title="Date Completed">
+                <span>✅ Done: {formatDateCompleted(item.id)}</span>
+              </span>
+            </>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-150 rounded text-[9px] font-bold text-slate-500" title="Scheduled Date">
+              <span>📅 {item.date || selectedDate}</span>
+            </span>
+          )}
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
             item.status === 'Completed' 
               ? 'bg-emerald-50 border-emerald-100 text-emerald-600' 
@@ -1338,7 +1375,7 @@ export default function Planner() {
             data={paginatedTasks}
             renderRow={renderRow}
             renderCard={renderCard}
-            minWidth="900px"
+            minWidth="980px"
             currentPage={currentPage}
             totalPages={totalPages}
             itemsPerPage={itemsPerPage}
