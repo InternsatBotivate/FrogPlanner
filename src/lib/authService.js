@@ -43,6 +43,8 @@ export const signUp = async ({
   department = 'General Division',
   phone = '',
   bio = '',
+  business_name = '',
+  user_role = '',
 }) => {
   try {
     // Check for duplicate username
@@ -68,6 +70,8 @@ export const signUp = async ({
         department,
         phone,
         bio,
+        business_name: business_name.trim() || null,
+        user_role: user_role.trim() || null,
       })
       .select()
       .single();

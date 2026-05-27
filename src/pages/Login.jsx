@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus, Building, Briefcase, Shield, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import Footer from '../components/Footer';
@@ -28,6 +28,12 @@ const Login = () => {
   const [showSignupPwd, setShowSignupPwd] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
 
+  // New Business & User details
+  const [signupBusinessName, setSignupBusinessName] = useState('');
+  const [signupPosition, setSignupPosition] = useState('');
+  const [signupRole, setSignupRole] = useState('');
+  const [signupContact, setSignupContact] = useState('');
+
   const login = useAuthStore((state) => state.login);
   const register = useAuthStore((state) => state.register);
   const navigate = useNavigate();
@@ -52,18 +58,38 @@ const Login = () => {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    if (!signupName.trim() || !signupId.trim() || !signupPassword.trim()) {
+    // Validate required fields
+    if (
+      !signupName.trim() || 
+      !signupId.trim() || 
+      !signupPassword.trim() ||
+      !signupBusinessName.trim() ||
+      !signupPosition.trim() ||
+      !signupRole.trim() ||
+      !signupContact.trim()
+    ) {
       toast.error('Please fill all required fields.');
       return;
     }
+
+    // Validate passwords match
     if (signupPassword !== signupConfirm) {
       toast.error('Passwords do not match.');
       return;
     }
+
+    // Validate password length
     if (signupPassword.length < 6) {
       toast.error('Password must be at least 6 characters.');
       return;
     }
+
+    // Validate numeric Contact Number
+    if (!/^\d+$/.test(signupContact.trim())) {
+      toast.error('Contact Number must contain only numbers.');
+      return;
+    }
+
     setSigningUp(true);
     try {
       const { error } = await register({
@@ -72,10 +98,12 @@ const Login = () => {
         email: signupEmail.trim(),
         password: signupPassword,
         role: 'USER',
-        designation: 'Team Member',
+        designation: signupPosition.trim(),
         department: 'General Division',
-        phone: '',
+        phone: signupContact.trim(),
         bio: '',
+        business_name: signupBusinessName.trim(),
+        user_role: signupRole.trim(),
       });
       if (error) {
         toast.error(error.message || 'Sign up failed. Please try again.');
@@ -246,71 +274,129 @@ const Login = () => {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSignUp} className="p-6 flex flex-col gap-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Full Name *</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+            <form onSubmit={handleSignUp} className="p-5 flex flex-col gap-3 max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+              
+              {/* Account Details Group */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Full Name *</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <User className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="text" required value={signupName} onChange={(e) => setSignupName(e.target.value)}
+                        className={inputCls} placeholder="Full name" />
                     </div>
-                    <input type="text" required value={signupName} onChange={(e) => setSignupName(e.target.value)}
-                      className={inputCls} placeholder="Full name" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User ID *</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="text" required value={signupId}
+                        onChange={(e) => setSignupId(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                        className={inputCls} placeholder="user_id" />
+                    </div>
                   </div>
                 </div>
+
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">User ID *</label>
+                  <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Email (optional)</label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <BadgeCheck className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      <Mail className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
                     </div>
-                    <input type="text" required value={signupId}
-                      onChange={(e) => setSignupId(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                      className={inputCls} placeholder="user_id" />
+                    <input type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)}
+                      className={inputCls} placeholder="your@email.com" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Password *</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type={showSignupPwd ? 'text' : 'password'} required value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className={`${inputCls} pr-9`} placeholder="Min 6 chars" />
+                      <button type="button" onClick={() => setShowSignupPwd(!showSignupPwd)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
+                        {showSignupPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Confirm *</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="password" required value={signupConfirm} onChange={(e) => setSignupConfirm(e.target.value)}
+                        className={`${inputCls} ${signupConfirm && signupPassword !== signupConfirm ? 'border-rose-300 focus:border-rose-400' : ''}`}
+                        placeholder="Repeat password" />
+                    </div>
+                    {signupConfirm && signupPassword !== signupConfirm && (
+                      <p className="text-[10px] text-rose-500 font-semibold">Passwords don't match</p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Email (optional)</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                  </div>
-                  <input type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)}
-                    className={inputCls} placeholder="your@email.com" />
+              {/* Business Profile Details Group */}
+              <div className="border border-green-100 rounded-xl p-3.5 bg-green-50/10 space-y-3 mt-1.5">
+                <div className="flex items-center gap-1.5 border-b border-green-100/50 pb-1.5">
+                  <Building className="h-4 w-4 text-green-700" />
+                  <span className="text-[10px] font-extrabold text-green-700 uppercase tracking-wider">Business Profile Details</span>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Password *</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Business Name *</label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      <Building className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
                     </div>
-                    <input type={showSignupPwd ? 'text' : 'password'} required value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      className={`${inputCls} pr-9`} placeholder="Min 6 chars" />
-                    <button type="button" onClick={() => setShowSignupPwd(!showSignupPwd)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
-                      {showSignupPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
+                    <input type="text" required value={signupBusinessName} onChange={(e) => setSignupBusinessName(e.target.value)}
+                      className={inputCls} placeholder="e.g. Acme Corporation" />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User Position *</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Briefcase className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="text" required value={signupPosition} onChange={(e) => setSignupPosition(e.target.value)}
+                        className={inputCls} placeholder="e.g. Director" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User Role *</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Shield className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="text" required value={signupRole} onChange={(e) => setSignupRole(e.target.value)}
+                        className={inputCls} placeholder="e.g. Administrator" />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Confirm *</label>
+                  <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Contact Number *</label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      <Phone className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
                     </div>
-                    <input type="password" required value={signupConfirm} onChange={(e) => setSignupConfirm(e.target.value)}
-                      className={`${inputCls} ${signupConfirm && signupPassword !== signupConfirm ? 'border-rose-300 focus:border-rose-400' : ''}`}
-                      placeholder="Repeat password" />
+                    <input type="text" required value={signupContact} 
+                      onChange={(e) => setSignupContact(e.target.value.replace(/\D/g, ''))}
+                      className={inputCls} placeholder="Only numbers e.g. 9876543210" />
                   </div>
-                  {signupConfirm && signupPassword !== signupConfirm && (
-                    <p className="text-[10px] text-rose-500 font-semibold">Passwords don't match</p>
-                  )}
                 </div>
               </div>
 
