@@ -367,7 +367,8 @@ export const updateTask = async (taskId, taskPayload) => {
         description: taskPayload.description,
         duration: taskPayload.duration,
         category: taskPayload.category,
-        priority: taskPayload.priority || ''
+        priority: taskPayload.priority || '',
+        task_date: taskPayload.date !== undefined ? taskPayload.date : undefined
       })
       .eq('id', taskId)
       .select()

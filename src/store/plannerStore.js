@@ -154,6 +154,7 @@ const usePlannerStore = create((set, get) => ({
               duration: taskPayload.duration,
               category: taskPayload.category,
               priority: taskPayload.priority || '',
+              date: taskPayload.date !== undefined ? taskPayload.date : t.date,
               isRecurring: taskPayload.isRecurring !== undefined ? taskPayload.isRecurring : (taskPayload.date === null)
             }
           : t

@@ -56,6 +56,7 @@ export default function Planner() {
     duration: 'Morning',
     category: 'Work',
     priority: '',
+    date: '',
     isCreatingCategory: false,
     newCategoryText: ''
   });
@@ -144,6 +145,7 @@ export default function Planner() {
       duration: item.duration || 'Morning',
       category: item.category || customCategories[0] || 'Work',
       priority: item.priority || '',
+      date: item.date || selectedDate,
       isCreatingCategory: false,
       newCategoryText: ''
     });
@@ -185,7 +187,8 @@ export default function Planner() {
       description: editTaskData.description.trim(),
       duration: editTaskData.duration,
       category: editTaskData.category,
-      priority: editTaskData.priority
+      priority: editTaskData.priority,
+      date: editTaskData.date
     };
 
     const updatedTask = await usePlannerStore.getState().updateTask(editTaskData.id, payload);
@@ -1571,6 +1574,18 @@ export default function Planner() {
               placeholder="What needs to be done?"
               value={editTaskData.description}
               onChange={(e) => setEditTaskData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[32px] bg-white font-medium shadow-sm"
+            />
+          </div>
+
+          {/* Task Date Field */}
+          <div className="space-y-1">
+            <label className="block text-[9px] font-bold text-gray-555 uppercase tracking-wide">Task Date *</label>
+            <input
+              type="date"
+              required
+              value={editTaskData.date}
+              onChange={(e) => setEditTaskData(prev => ({ ...prev, date: e.target.value }))}
               className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[32px] bg-white font-medium shadow-sm"
             />
           </div>
