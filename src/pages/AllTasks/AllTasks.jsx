@@ -160,9 +160,6 @@ export default function AllTasks() {
     }
     setModalLoading(false);
   };
-
-
-
   // Get list of all date strings that have completions, explicit task dates, or represent today (overall data)
   const dateStrings = useMemo(() => {
     const keys = new Set(Object.keys(completions));
@@ -187,17 +184,18 @@ export default function AllTasks() {
     dateStrings.forEach(dStr => {
       const doneIds = completions[dStr] || [];
 
-      // Filter master tasks that are either recurring template (isRecurring is true) or explicitly for this date
-      // For recurring tasks, only activate them for today or in the past (not future dates)
+      // Filter master tasks that are explicitly for this date.
+      // We skip recurring templates since they are generated automatically into the tasks table by Supabase database jobs.
       const activeTasks = tasks.filter(t => {
         if (t.isRecurring) {
-          return dStr <= todayStr;
+          return false;
         }
         return t.date === dStr;
       });
 
       activeTasks.forEach(t => {
-        const isDone = doneIds.includes(t.id);
+        const isDone = doneIds.includes(t.id) || t.selectValue === 'Done';
+
         list.push({
           ...t,
           dateInstance: dStr,
@@ -208,7 +206,7 @@ export default function AllTasks() {
     return list;
   }, [tasks, completions, dateStrings, todayStr]);
 
-  // Compute overall KPI metrics
+
 
   const kpis = useMemo(() => {
     const activeInstances = taskInstances.filter(t => t.status === 'Completed' || t.selectValue !== 'Done');

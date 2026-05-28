@@ -31,16 +31,20 @@ const usePlannerStore = create((set, get) => ({
    */
   fetchPlannerData: async (userId, force = false) => {
     if (!userId) return;
+
+    const hasLoaded = get().hasLoaded;
+    const loadedUserId = get().loadedUserId;
     
-    if (get().hasLoaded && get().loadedUserId === userId && !force) {
-      return;
-    }
+    // Only show loading spinner on initial load or if explicitly forced
+    const isInitialLoad = !hasLoaded || loadedUserId !== userId || force;
 
     if (plannerFetchPromise && plannerFetchUserId === userId && !force) {
       return plannerFetchPromise;
     }
 
-    set({ loading: true, error: null });
+    if (isInitialLoad) {
+      set({ loading: true, error: null });
+    }
 
     const runFetch = async () => {
       try {
@@ -51,8 +55,8 @@ const usePlannerStore = create((set, get) => ({
           localStorage.setItem(`pcb_migrated_${userId}`, 'true');
           localStorage.setItem(`upcoming_tasks_migrated_${userId}`, 'true');
           localStorage.removeItem(skipLegacyMigrationKey);
-        } else {
-          // 1. Run legacy migrations in sequence
+        } else if (isInitialLoad) {
+          // Only run legacy migrations on initial load
           await migrateLegacyData(userId);
           await migrateUpcomingTasksLegacyData(userId);
         }
@@ -207,6 +211,7 @@ const usePlannerStore = create((set, get) => ({
 
     const previousCompletions = get().completions;
     const previousCompletionDates = get().completionDates;
+    const previousTasks = get().tasks;
 
     set((state) => {
       const currentComps = { ...state.completions };
@@ -227,15 +232,39 @@ const usePlannerStore = create((set, get) => ({
         delete currentDates[taskId];
       }
       currentComps[dateStr] = dateComps;
-      return { completions: currentComps, completionDates: currentDates };
+
+      // Synchronize the task selectValue in store memory
+      const updatedTasks = state.tasks.map(t => {
+        if (t.id === taskId) {
+          return { ...t, selectValue: isCompleted ? 'Done' : 'Select' };
+        }
+        return t;
+      });
+
+      return { 
+        completions: currentComps, 
+        completionDates: currentDates, 
+        tasks: updatedTasks 
+      };
     });
 
     const success = await toggleDbCompletion(userId, taskId, dateStr, isCompleted);
     if (!success) {
       // Rollback on failure
-      set({ completions: previousCompletions, completionDates: previousCompletionDates });
+      set({ 
+        completions: previousCompletions, 
+        completionDates: previousCompletionDates,
+        tasks: previousTasks 
+      });
       return false;
     }
+
+    // Persist select_value in tasks table for standard tasks in DB
+    const task = get().tasks.find(t => t.id === taskId);
+    if (task && !task.isRecurring) {
+      await updateDbTaskField(taskId, 'selectValue', isCompleted ? 'Done' : 'Select');
+    }
+
     return true;
   },
 

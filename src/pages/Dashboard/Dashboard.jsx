@@ -73,7 +73,7 @@ export default function Dashboard() {
   const { user } = useAuthStore();
   
   // Central state and actions from Zustand store
-  const { tasks, completions, loading, fetchPlannerData, toggleCompletion, updateTaskField } = usePlannerStore();
+  const { tasks, completions, loading, fetchPlannerData, toggleCompletion } = usePlannerStore();
 
   // Time-based greeting
   const getTimeGreeting = () => {
@@ -150,12 +150,8 @@ export default function Dashboard() {
     if (!user?.id) return;
     const currentCompleted = completions[selectedDateStr] || [];
     const isAdding = !currentCompleted.includes(id);
-
-    const success = await toggleCompletion(user.id, id, selectedDateStr, isAdding);
-    if (success) {
-      const newSelectVal = isAdding ? 'Done' : 'Select';
-      await updateTaskField(id, 'selectValue', newSelectVal);
-    }
+    // toggleCompletion already optimistically updates both completions and selectValue in the store
+    await toggleCompletion(user.id, id, selectedDateStr, isAdding);
   };
 
   // Navigates week view
@@ -197,13 +193,13 @@ export default function Dashboard() {
 
   // Statistics for selected range
   const totalCount = relevantDates.reduce((acc, dStr) => {
-    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
+    const dateTasks = tasks.filter(t => !t.isRecurring && t.date === dStr);
     return acc + dateTasks.length;
   }, 0);
 
   const completedCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
-    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
+    const dateTasks = tasks.filter(t => !t.isRecurring && t.date === dStr);
     return acc + dateTasks.filter(t => doneIds.includes(t.id) || t.selectValue === 'Done').length;
   }, 0);
 
@@ -212,21 +208,21 @@ export default function Dashboard() {
   // Active workload card calculation
   const activeCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
-    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
+    const dateTasks = tasks.filter(t => !t.isRecurring && t.date === dStr);
     return acc + dateTasks.filter(t => (t.duration === 'Morning' || t.duration === 'Afternoon') && !doneIds.includes(t.id) && t.selectValue !== 'Done').length;
   }, 0);
 
   // Delayed count heuristic (e.g. pending work tasks or explicitly set delayed)
   const delayedCount = relevantDates.reduce((acc, dStr) => {
     const doneIds = completions[dStr] || [];
-    const dateTasks = tasks.filter(t => t.isRecurring || t.date === dStr);
+    const dateTasks = tasks.filter(t => !t.isRecurring && t.date === dStr);
     return acc + dateTasks.filter(t => (t.category === 'Review' || t.category === 'Call') && !doneIds.includes(t.id) && t.selectValue !== 'Done').length;
   }, 0);
 
   // Today specific tasks lists (from selected Date)
   const selectedDayDoneIds = completions[selectedDateStr] || [];
   const selectedDayTasks = tasks
-    .filter(t => t.isRecurring || t.date === selectedDateStr)
+    .filter(t => !t.isRecurring && t.date === selectedDateStr)
     .map(t => ({
       ...t,
       status: (selectedDayDoneIds.includes(t.id) || t.selectValue === 'Done') ? 'Completed' : 'Pending'
@@ -247,10 +243,18 @@ export default function Dashboard() {
 
   // Alert tasks (pending tasks with Frog priority)
   const alertTasks = useMemo(() => {
+    // Alert tasks are always today's pending Frog tasks — not date-picker-relative
+    const todayStr = formatDateObj(new Date());
     return tasks
-      .filter(t => t.priority === 'Frog' && !completions[selectedDateStr]?.includes(t.id) && t.selectValue !== 'Done')
+      .filter(t =>
+        !t.isRecurring &&
+        t.date === todayStr &&
+        t.priority === 'Frog' &&
+        !completions[todayStr]?.includes(t.id) &&
+        t.selectValue !== 'Done'
+      )
       .slice(0, 3);
-  }, [tasks, completions, selectedDateStr]);
+  }, [tasks, completions]);
 
   const todayFrogTasks = useMemo(() => {
     return selectedDayTasks.filter(t => t.priority === 'Frog');
@@ -261,7 +265,7 @@ export default function Dashboard() {
     const tom = new Date(selectedDate);
     tom.setDate(tom.getDate() + 1);
     const tomStr = formatDateObj(tom);
-    return tasks.filter(t => t.isRecurring || t.date === tomStr).slice(0, 4);
+    return tasks.filter(t => !t.isRecurring && t.date === tomStr).slice(0, 4);
   }, [tasks, selectedDate]);
 
   // 7-Day Performance Chart Data based on selected date
@@ -272,7 +276,7 @@ export default function Dashboard() {
       const ds = formatDateObj(d);
       
       const doneIds = completions[ds] || [];
-      const dateTasks = tasks.filter(t => t.isRecurring || t.date === ds);
+      const dateTasks = tasks.filter(t => !t.isRecurring && t.date === ds);
       const total = dateTasks.length;
       const done = dateTasks.filter(t => doneIds.includes(t.id) || t.selectValue === 'Done').length;
       const score = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -438,7 +442,7 @@ export default function Dashboard() {
             const ds = formatDateObj(d);
             const isSelected = ds === selectedDateStr;
             const isCurrentToday = ds === getTodayStr();
-            const dayTasksCount = tasks.filter(t => t.isRecurring || t.date === ds).length;
+            const dayTasksCount = tasks.filter(t => !t.isRecurring && t.date === ds).length;
 
             return (
               <button
@@ -899,7 +903,7 @@ export default function Dashboard() {
               {relevantDates.map(dStr => {
                 const dateCompletedIds = completions[dStr] || [];
                 const dateTasks = tasks
-                  .filter(t => t.isRecurring || t.date === dStr)
+                  .filter(t => !t.isRecurring && t.date === dStr)
                   .sort((a, b) => {
                     if (a.priority === 'Frog' && b.priority !== 'Frog') return -1;
                     if (a.priority !== 'Frog' && b.priority === 'Frog') return 1;

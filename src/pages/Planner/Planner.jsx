@@ -262,7 +262,7 @@ export default function Planner() {
         return !isSavedDone;
       });
     } else {
-      tasksToMap = masterTasks.filter(task => task.date === selectedDate);
+      tasksToMap = masterTasks.filter(task => !task.isRecurring && task.date === selectedDate);
     }
 
     const mapped = tasksToMap.map(task => {
@@ -322,11 +322,10 @@ export default function Planner() {
     return result;
   }, [masterTasks, completions, selectedDate, activeFilter, searchQuery, filterDuration, filterCategory, filterFrog, isTaskCompletedForDate, isTaskLocallyCompletedPendingSubmit]);
 
-  // Compute stats for current day's KPI filter cards
   const stats = useMemo(() => {
     const todayStr = formatDateLocal(new Date());
-    const dayTasks = masterTasks.filter(task => task.date === selectedDate);
-    
+    const dayTasks = masterTasks.filter(task => !task.isRecurring && task.date === selectedDate);
+
     let completed = 0;
     let pending = 0;
     let pendingFrogs = 0;
@@ -355,7 +354,7 @@ export default function Planner() {
   // Get all Frog Tasks for selected date
   const allTodayFrogTasks = useMemo(() => {
     return masterTasks
-      .filter(t => t.date === selectedDate)
+      .filter(task => !task.isRecurring && task.date === selectedDate)
       .filter(t => t.priority === 'Frog')
       .map(t => ({
         ...t,
