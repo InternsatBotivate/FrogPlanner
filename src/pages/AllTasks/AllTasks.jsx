@@ -67,6 +67,8 @@ export default function AllTasks() {
     duration: 'Morning',
     category: 'Work',
     priority: '',
+    date: '',
+    isRecurring: false,
     isCreatingCategory: false,
     newCategoryText: ''
   });
@@ -101,6 +103,8 @@ export default function AllTasks() {
       duration: item.duration || 'Morning',
       category: item.category || customCategories[0] || 'Work',
       priority: item.priority || '',
+      date: item.date || item.dateInstance || '',
+      isRecurring: item.isRecurring || false,
       isCreatingCategory: false,
       newCategoryText: ''
     });
@@ -142,7 +146,9 @@ export default function AllTasks() {
       description: editTaskData.description.trim(),
       duration: editTaskData.duration,
       category: editTaskData.category,
-      priority: editTaskData.priority
+      priority: editTaskData.priority,
+      date: editTaskData.isRecurring ? null : editTaskData.date,
+      isRecurring: editTaskData.isRecurring
     };
 
     const updatedTask = await usePlannerStore.getState().updateTask(editTaskData.id, payload);
@@ -1052,6 +1058,20 @@ export default function AllTasks() {
               className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[32px] bg-white font-medium shadow-sm"
             />
           </div>
+
+          {/* Task Date Field (Only visible/editable if not recurring) */}
+          {!editTaskData.isRecurring && (
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Task Date *</label>
+              <input
+                type="date"
+                required
+                value={editTaskData.date}
+                onChange={(e) => setEditTaskData(prev => ({ ...prev, date: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[32px] bg-white font-medium shadow-sm"
+              />
+            </div>
+          )}
 
           {/* Grid Fields: Duration, Category, Priority */}
           <div className="grid grid-cols-3 gap-2.5">

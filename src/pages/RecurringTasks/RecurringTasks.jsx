@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Filter, Edit, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import DataTable from '../../components/DataTable';
 import ModalAlert from '../../components/ModalAlert';
 import ModalForm from '../../components/ModalForm';
@@ -21,6 +22,7 @@ export default function RecurringTasks() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // Custom categories state
   const [customCategories, setCustomCategories] = useState(() => {
@@ -114,15 +116,14 @@ export default function RecurringTasks() {
 
   const handleDelete = (id) => {
     showAlert('confirm', 'Delete Task?', 'Are you sure you want to delete this task?', async () => {
-      setLoading(true);
+      const toastId = toast.loading('Deleting task...');
       const success = await deleteRecurringTask(id);
       if (success) {
         setTasks(prev => prev.filter(t => t.id !== id));
-        showAlert('success', 'Deleted!', 'Task has been successfully removed.');
+        toast.success('Task has been successfully removed.', { id: toastId });
       } else {
-        showAlert('error', 'Database Error', 'Failed to delete task from Supabase.');
+        toast.error('Failed to delete task from Supabase.', { id: toastId });
       }
-      setLoading(false);
     });
   };
 
@@ -158,12 +159,13 @@ export default function RecurringTasks() {
 
     if (!user?.id) return;
 
-    setLoading(true);
+    setModalLoading(true);
     if (editingId) {
       const updatedTask = await updateRecurringTask(editingId, payload);
       if (updatedTask) {
         setTasks(prev => prev.map(t => t.id === editingId ? updatedTask : t));
         showAlert('success', 'Updated!', 'Task has been modified successfully.');
+        setShowModal(false);
       } else {
         showAlert('error', 'Database Error', 'Failed to update task in Supabase.');
       }
@@ -172,12 +174,12 @@ export default function RecurringTasks() {
       if (createdTasks && createdTasks.length > 0) {
         setTasks(prev => [...prev, ...createdTasks]);
         showAlert('success', 'Created!', 'New task has been added successfully.');
+        setShowModal(false);
       } else {
         showAlert('error', 'Database Error', 'Failed to add task to Supabase.');
       }
     }
-    setLoading(false);
-    setShowModal(false);
+    setModalLoading(false);
   };
 
   const renderRow = (item) => (
@@ -346,6 +348,7 @@ export default function RecurringTasks() {
         title={editingId ? 'Edit Task Template' : 'Add New Task Template'}
         onSubmit={handleSubmit}
         submitText={editingId ? 'Update' : 'Save'}
+        loading={modalLoading}
       >
         <div className="space-y-4 text-left font-medium text-gray-800">
 
