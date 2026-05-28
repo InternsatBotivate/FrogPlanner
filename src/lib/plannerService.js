@@ -4,9 +4,17 @@
  * Centralized service layer for managing Tasks and Completions in Supabase.
  * Enforces user ownership via custom user UUIDs.
  * Handles automatic, seamless legacy localStorage migrations.
+ * Delegates recurring task operations to recurringTasksService.js.
  * ──────────────────────────────────────────────────────────────────────────
  */
 import { supabase } from './supabaseClient';
+import {
+  fetchRecurringTasks,
+  addRecurringTasks,
+  updateRecurringTask,
+  updateRecurringTaskField,
+  deleteRecurringTask
+} from './recurringTasksService';
 
 /**
  * fetchPlannerData
@@ -26,7 +34,10 @@ export const fetchPlannerData = async (userId) => {
 
     if (tasksError) throw tasksError;
 
-    // 2. Fetch completions
+    // 2. Fetch recurring tasks
+    const recurringTasks = await fetchRecurringTasks(userId);
+
+    // 3. Fetch completions
     const { data: dbCompletions, error: completionsError } = await supabase
       .from('task_completions')
       .select('task_id, completion_date, created_at')
@@ -34,21 +45,24 @@ export const fetchPlannerData = async (userId) => {
 
     if (completionsError) throw completionsError;
 
-    // 3. Map tasks into frontend standard format
-    const tasks = dbTasks.map(t => ({
-      id: t.id,
-      description: t.description,
-      duration: t.duration,
-      category: t.category,
-      priority: t.priority,
-      date: t.task_date || null,
-      selectValue: t.select_value || 'Select',
-      remarks: t.remarks || '',
-      isRecurring: t.is_recurring || false,
-      timestamp: t.created_at
-    }));
+    // 4. Map tasks into frontend standard format
+    const tasks = [
+      ...dbTasks.map(t => ({
+        id: t.id,
+        description: t.description,
+        duration: t.duration,
+        category: t.category,
+        priority: t.priority,
+        date: t.task_date || null,
+        selectValue: t.select_value || 'Select',
+        remarks: t.remarks || '',
+        isRecurring: t.is_recurring || false,
+        timestamp: t.created_at
+      })),
+      ...recurringTasks
+    ];
 
-    // 4. Compile completions into standard YYYY-MM-DD -> [taskId1, taskId2] format
+    // 5. Compile completions into standard YYYY-MM-DD -> [taskId1, taskId2] format
     const completions = {};
     const completionDates = {};
     dbCompletions.forEach(c => {
@@ -76,37 +90,51 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
   try {
     if (!userId || newTasksArray.length === 0) return [];
 
-    const dbRows = newTasksArray.map(t => ({
-      user_id: userId,
-      description: t.description,
-      duration: t.duration,
-      category: t.category,
-      priority: t.priority || '',
-      task_date: t.date || null,
-      select_value: t.selectValue || 'Select',
-      remarks: t.remarks || '',
-      is_recurring: t.isRecurring !== undefined ? t.isRecurring : (t.date === null)
-    }));
+    const recurringTasksToInsert = newTasksArray.filter(t => t.isRecurring);
+    const regularTasksToInsert = newTasksArray.filter(t => !t.isRecurring);
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert(dbRows)
-      .select();
+    let insertedTasks = [];
 
-    if (error) throw error;
+    if (recurringTasksToInsert.length > 0) {
+      const createdRecTasks = await addRecurringTasks(userId, recurringTasksToInsert);
+      insertedTasks = [...insertedTasks, ...createdRecTasks];
+    }
 
-    return data.map(t => ({
-      id: t.id,
-      description: t.description,
-      duration: t.duration,
-      category: t.category,
-      priority: t.priority,
-      date: t.task_date || null,
-      selectValue: t.select_value || 'Select',
-      remarks: t.remarks || '',
-      isRecurring: t.is_recurring || false,
-      timestamp: t.created_at
-    }));
+    if (regularTasksToInsert.length > 0) {
+      const dbRows = regularTasksToInsert.map(t => ({
+        user_id: userId,
+        description: t.description,
+        duration: t.duration,
+        category: t.category,
+        priority: t.priority || '',
+        task_date: t.date || null,
+        select_value: t.selectValue || 'Select',
+        remarks: t.remarks || '',
+        is_recurring: false
+      }));
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert(dbRows)
+        .select();
+
+      if (error) throw error;
+
+      insertedTasks = [...insertedTasks, ...data.map(t => ({
+        id: t.id,
+        description: t.description,
+        duration: t.duration,
+        category: t.category,
+        priority: t.priority,
+        date: t.task_date || null,
+        selectValue: t.select_value || 'Select',
+        remarks: t.remarks || '',
+        isRecurring: false,
+        timestamp: t.created_at
+      }))];
+    }
+
+    return insertedTasks;
   } catch (error) {
     console.error('[Supabase Planner] Add Tasks Error:', error);
     return [];
@@ -120,13 +148,27 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
 export const updateTaskField = async (taskId, field, value) => {
   try {
     const dbField = field === 'selectValue' ? 'select_value' : field;
-    const { error } = await supabase
+
+    // First try updating in tasks table
+    const { data: standardTasks, error: standardError } = await supabase
       .from('tasks')
       .update({ [dbField]: value })
-      .eq('id', taskId);
+      .eq('id', taskId)
+      .select();
 
-    if (error) throw error;
-    return true;
+    if (standardError) {
+      // If column is missing (e.g. select_value in recurring_tasks) or not found, fall back to recurringTasksService
+      const success = await updateRecurringTaskField(taskId, field, value);
+      if (success) return true;
+      throw standardError;
+    }
+
+    if (standardTasks && standardTasks.length > 0) {
+      return true;
+    }
+
+    // Try updating in recurring tasks
+    return await updateRecurringTaskField(taskId, field, value);
   } catch (error) {
     console.error('[Supabase Planner] Update Task Field Error:', error);
     return false;
@@ -192,36 +234,62 @@ export const migrateLegacyData = async (userId) => {
 
     console.log(`[Migration] Starting legacy tasks migration for user ${userId}. Total tasks: ${legacyTasks.length}`);
 
-    // 1. Bulk insert tasks
-    const tasksToInsert = legacyTasks.map(t => ({
-      user_id: userId,
-      description: t.description,
-      duration: t.duration,
-      category: t.category,
-      priority: t.priority || '',
-      task_date: t.date || null,
-      select_value: t.selectValue || 'Select',
-      remarks: t.remarks || '',
-      is_recurring: t.isRecurring !== undefined ? t.isRecurring : (t.date === null)
-    }));
+    const legacyRecurring = legacyTasks.filter(t => t.isRecurring);
+    const legacyRegular = legacyTasks.filter(t => !t.isRecurring);
 
-    const { data: dbTasks, error: tasksError } = await supabase
-      .from('tasks')
-      .insert(tasksToInsert)
-      .select();
+    const dbTasks = [];
 
-    if (tasksError) throw tasksError;
+    // 1. Bulk insert regular tasks
+    if (legacyRegular.length > 0) {
+      const tasksToInsert = legacyRegular.map(t => ({
+        user_id: userId,
+        description: t.description,
+        duration: t.duration,
+        category: t.category,
+        priority: t.priority || '',
+        task_date: t.date || null,
+        select_value: t.selectValue || 'Select',
+        remarks: t.remarks || '',
+        is_recurring: false
+      }));
 
-    // 2. Map legacy mock string IDs (e.g. "TSK-1") to newly created Supabase UUIDs
+      const { data, error: tasksError } = await supabase
+        .from('tasks')
+        .insert(tasksToInsert)
+        .select();
+
+      if (tasksError) throw tasksError;
+      if (data) dbTasks.push(...data);
+    }
+
+    // 2. Bulk insert recurring tasks
+    if (legacyRecurring.length > 0) {
+      const createdRecs = await addRecurringTasks(userId, legacyRecurring);
+      createdRecs.forEach(r => {
+        dbTasks.push({
+          id: r.id,
+          description: r.description,
+          duration: r.duration,
+          category: r.category,
+          priority: r.priority,
+          task_date: null,
+          select_value: 'Select',
+          remarks: r.remarks,
+          is_recurring: true
+        });
+      });
+    }
+
+    // 3. Map legacy mock string IDs (e.g. "TSK-1") to newly created Supabase UUIDs
     const idMap = {};
     legacyTasks.forEach(oldTask => {
-      const match = dbTasks.find(n => n.description === oldTask.description && n.duration === oldTask.duration);
+      const match = dbTasks.find(n => n.description === oldTask.description && (n.duration === oldTask.duration || n.duration === oldTask.time_slot));
       if (match) {
         idMap[oldTask.id] = match.id;
       }
     });
 
-    // 3. Compile completions insertion records
+    // 4. Compile completions insertion records
     const completionsToInsert = [];
     Object.entries(legacyCompletions).forEach(([dateStr, oldIds]) => {
       if (Array.isArray(oldIds)) {
@@ -238,7 +306,7 @@ export const migrateLegacyData = async (userId) => {
       }
     });
 
-    // 4. Bulk insert completions (chunked to prevent Postgres payload size limits)
+    // 5. Bulk insert completions (chunked to prevent Postgres payload size limits)
     if (completionsToInsert.length > 0) {
       console.log(`[Migration] Inserting ${completionsToInsert.length} completed records...`);
       const chunkSize = 200;
@@ -251,9 +319,7 @@ export const migrateLegacyData = async (userId) => {
       }
     }
 
-    // 5. Success - Set migration flag and clear legacy localStorage data
-    // Clearing prevents these tasks from being picked up by NEW user accounts
-    // created on the same browser in the future.
+    // 6. Success - Set migration flag and clear legacy localStorage data
     localStorage.setItem(migrationKey, 'true');
     localStorage.removeItem('pcb_tasks_v3');
     localStorage.removeItem('pcb_planner_completions_v1');
@@ -271,6 +337,11 @@ export const migrateLegacyData = async (userId) => {
  */
 export const deleteTask = async (taskId) => {
   try {
+    // Try to delete from recurring tasks first
+    const isDeletedRec = await deleteRecurringTask(taskId);
+    if (isDeletedRec) return true;
+
+    // Delete from standard tasks
     const { error } = await supabase
       .from('tasks')
       .delete()
@@ -289,6 +360,10 @@ export const deleteTask = async (taskId) => {
  */
 export const updateTask = async (taskId, taskPayload) => {
   try {
+    if (taskPayload.isRecurring) {
+      return await updateRecurringTask(taskId, taskPayload);
+    }
+
     const { data, error } = await supabase
       .from('tasks')
       .update({
@@ -296,7 +371,7 @@ export const updateTask = async (taskId, taskPayload) => {
         duration: taskPayload.duration,
         category: taskPayload.category,
         priority: taskPayload.priority || '',
-        is_recurring: taskPayload.isRecurring !== undefined ? taskPayload.isRecurring : (taskPayload.date === null)
+        is_recurring: false
       })
       .eq('id', taskId)
       .select()
@@ -313,7 +388,7 @@ export const updateTask = async (taskId, taskPayload) => {
       date: data.task_date || null,
       selectValue: data.select_value || 'Select',
       remarks: data.remarks || '',
-      isRecurring: data.is_recurring || false,
+      isRecurring: false,
       timestamp: data.created_at
     };
   } catch (error) {
@@ -321,4 +396,3 @@ export const updateTask = async (taskId, taskPayload) => {
     return null;
   }
 };
-

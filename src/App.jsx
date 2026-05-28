@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
-import Index from './pages/Index/Index';
+import RecurringTasks from './pages/RecurringTasks/RecurringTasks';
 import Planner from './pages/Planner/Planner';
 import AllTasks from './pages/AllTasks/AllTasks';
 import Calendar from './pages/Calendar/Calendar';
@@ -42,7 +42,7 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="index" element={<Index />} />
+            <Route path="recurring-tasks" element={<RecurringTasks />} />
             <Route path="planner" element={<Planner />} />
             <Route path="next-day-planner" element={<UpcomingPlanner />} />
             <Route path="all-tasks" element={<AllTasks />} />

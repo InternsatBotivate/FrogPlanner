@@ -11,9 +11,12 @@ CREATE OR REPLACE FUNCTION public.create_recurring_tasks_for_all_users()
 RETURNS JSON AS $$
 DECLARE
     v_count INT := 0;
+    v_today DATE := (timezone('Asia/Kolkata', now()))::date;
+
 BEGIN
-    -- Insert new tasks for ALL users from active recurring templates (is_recurring = true, task_date IS NULL)
-    -- checking for duplicate rows to prevent double insertion on the same day.
+    -- Insert new tasks for ALL users from active recurring templates (from the recurring_tasks table)
+    -- Prevent duplicate insertion for the same IST date
+
     INSERT INTO public.tasks (
         user_id,
         description,
@@ -29,39 +32,43 @@ BEGIN
     SELECT 
         t.user_id,
         t.description,
-        t.duration,
+        t.time_slot::text::public.task_duration, -- cast to public.task_duration for tasks.duration
         t.category,
         t.priority,
-        CURRENT_DATE, -- Creates the task for the current date (today)
-        'Select',     -- Default UI state in daily planner
+        v_today,          -- Correct IST date
+        'Select',         
         t.remarks,
-        false,        -- The generated task instances are not templates
-        t.time_slot
-    FROM public.tasks t
-    WHERE t.is_recurring = true 
-      AND t.task_date IS NULL
+        false,            
+        t.time_slot::text::public.task_time_slot -- cast to public.task_time_slot for tasks.time_slot
+
+    FROM public.recurring_tasks t
+
+    WHERE t.is_active = true
       AND NOT EXISTS (
-          SELECT 1 
+          SELECT 1
           FROM public.tasks e
           WHERE e.user_id = t.user_id
             AND e.description = t.description
-            AND e.duration = t.duration
+            AND e.duration::text = t.time_slot::text
             AND e.category = t.category
-            AND e.task_date = CURRENT_DATE
+            AND e.task_date = v_today
             AND e.is_recurring = false
       );
-      
+
     GET DIAGNOSTICS v_count = ROW_COUNT;
-    
+
     RETURN json_build_object(
         'success', true,
-        'date', CURRENT_DATE,
+        'date', v_today,
         'inserted_count', v_count
     );
+
 EXCEPTION WHEN OTHERS THEN
+
     RETURN json_build_object(
         'success', false,
         'error', SQLERRM
     );
+
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

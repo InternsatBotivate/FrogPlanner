@@ -137,7 +137,7 @@ export default function AIAssistant() {
         const createdTasks = await addPlannerTasks(user.id, [newTask]);
 
         if (createdTasks && createdTasks.length > 0) {
-          return `Sure! I have scheduled that task for you. 📅\n\n- **Task Details**: "${desc}"\n- **Time**: ${duration}\n- **Category**: ${category}\n\nIt is now successfully added to your planner schedule database! You will see it listed on the Index page and across all days on the Planner.`;
+          return `Sure! I have scheduled that task for you. 📅\n\n- **Task Details**: "${desc}"\n- **Time**: ${duration}\n- **Category**: ${category}\n\nIt is now successfully added to your planner schedule database! You will see it listed on the Recurring Tasks page and across all days on the Planner.`;
         } else {
           return `Sorry, I encountered an issue adding that task to Supabase. Please try again.`;
         }
@@ -221,7 +221,7 @@ export default function AIAssistant() {
     }
 
     if (cleanQuery.includes('task') || cleanQuery.includes('list') || cleanQuery.includes('show')) {
-      if (tasks.length === 0) return "Your task database is empty. You can add tasks on the Index page!";
+      if (tasks.length === 0) return "Your task database is empty. You can add tasks on the Recurring Tasks page!";
       return `You currently have **${tasks.length} total tasks** in your master schedule:\n` + tasks.map((t, i) => `${i + 1}. **${t.description}** (${t.duration})`).join('\n');
     }
 

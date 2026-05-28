@@ -37,7 +37,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
     { path: '/all-tasks', icon: ListTodo, label: 'All Tasks' },
     { path: '/my-projects', icon: FolderClosed, label: 'My Projects' },
     { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-    { path: '/index', icon: LayoutGrid, label: 'Recurring Tasks' },
+    { path: '/recurring-tasks', icon: LayoutGrid, label: 'Recurring Tasks' },
     { path: '/ai-assistant', icon: Sparkles, label: 'AI Assistant' },
     { path: '/about-frog-planner', icon: '🐸', label: 'About Frog Planner' },
     { path: '/settings', icon: Settings, label: 'Settings' },

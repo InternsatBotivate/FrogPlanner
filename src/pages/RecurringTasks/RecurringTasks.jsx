@@ -5,9 +5,14 @@ import ModalAlert from '../../components/ModalAlert';
 import ModalForm from '../../components/ModalForm';
 import { getCategoryEmoji } from '../../utils/helpers';
 import { useAuthStore } from '../../store/authStore';
-import { usePlannerStore } from '../../store/plannerStore';
+import {
+  fetchRecurringTasks,
+  addRecurringTasks,
+  updateRecurringTask,
+  deleteRecurringTask
+} from '../../lib/recurringTasksService';
 
-export default function Index() {
+export default function RecurringTasks() {
   const [tasks, setTasks] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -15,6 +20,7 @@ export default function Index() {
   const [itemsPerPage, setItemsPerPage] = useState(100);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Custom categories state
   const [customCategories, setCustomCategories] = useState(() => {
@@ -33,35 +39,23 @@ export default function Index() {
     description: '',
     duration: 'Morning',
     category: 'Work',
-    priority: ''
+    priority: '',
+    remarks: '',
+    isActive: true
   });
 
-  const headers = ['Action', 'Task Description', 'Time', 'Category'];
+  const headers = ['Action', 'Task Description', 'Time', 'Category', 'Remarks', 'Status'];
 
   const { user } = useAuthStore();
-  const storeTasks = usePlannerStore(state => state.tasks);
-  const storeLoading = usePlannerStore(state => state.loading);
-  const [loading, setLoading] = useState(true);
 
-  // Sync tasks from store
-  useEffect(() => {
-    const recurringTasks = (storeTasks || []).filter(t => t.isRecurring);
-    setTasks(recurringTasks);
-  }, [storeTasks]);
-
-  // Sync loading state
-  useEffect(() => {
-    if (!usePlannerStore.getState().hasLoaded) {
-      setLoading(storeLoading);
-    } else {
-      setLoading(false);
-    }
-  }, [storeLoading]);
-
+  // Load recurring tasks directly from the recurring tasks service
   useEffect(() => {
     const initData = async () => {
       if (user?.id) {
-        await usePlannerStore.getState().fetchPlannerData(user.id);
+        setLoading(true);
+        const data = await fetchRecurringTasks(user.id);
+        setTasks(data);
+        setLoading(false);
       }
     };
     initData();
@@ -74,6 +68,7 @@ export default function Index() {
         t.description?.toLowerCase().includes(q) ||
         t.category?.toLowerCase().includes(q) ||
         t.duration?.toLowerCase().includes(q) ||
+        (t.remarks && t.remarks.toLowerCase().includes(q)) ||
         (t.priority && t.priority.toLowerCase().includes(q))
       );
     });
@@ -90,7 +85,9 @@ export default function Index() {
       description: '',
       duration: 'Morning',
       category: customCategories[0] || 'Work',
-      priority: ''
+      priority: '',
+      remarks: '',
+      isActive: true
     });
     setCustomCategoryText('');
     setShowModal(true);
@@ -103,7 +100,9 @@ export default function Index() {
       description: task.description || '',
       duration: task.duration || 'Morning',
       category: isCustomCat ? 'custom' : (task.category || 'Work'),
-      priority: task.priority || ''
+      priority: task.priority || '',
+      remarks: task.remarks || '',
+      isActive: task.isActive !== undefined ? task.isActive : true
     });
     setCustomCategoryText(isCustomCat ? task.category : '');
     setShowModal(true);
@@ -116,8 +115,9 @@ export default function Index() {
   const handleDelete = (id) => {
     showAlert('confirm', 'Delete Task?', 'Are you sure you want to delete this task?', async () => {
       setLoading(true);
-      const success = await usePlannerStore.getState().deleteTask(id);
+      const success = await deleteRecurringTask(id);
       if (success) {
+        setTasks(prev => prev.filter(t => t.id !== id));
         showAlert('success', 'Deleted!', 'Task has been successfully removed.');
       } else {
         showAlert('error', 'Database Error', 'Failed to delete task from Supabase.');
@@ -151,27 +151,26 @@ export default function Index() {
       duration: formData.duration,
       category: finalCategory,
       priority: formData.priority,
-      isRecurring: true
+      isRecurring: true,
+      remarks: formData.remarks || '',
+      isActive: formData.isActive !== undefined ? formData.isActive : true
     };
 
     if (!user?.id) return;
 
     setLoading(true);
     if (editingId) {
-      const updatedTask = await usePlannerStore.getState().updateTask(editingId, payload);
+      const updatedTask = await updateRecurringTask(editingId, payload);
       if (updatedTask) {
+        setTasks(prev => prev.map(t => t.id === editingId ? updatedTask : t));
         showAlert('success', 'Updated!', 'Task has been modified successfully.');
       } else {
         showAlert('error', 'Database Error', 'Failed to update task in Supabase.');
       }
     } else {
-      const createdTasks = await usePlannerStore.getState().addPlannerTasks(user.id, [{
-        ...payload,
-        date: null, // baseline template task
-        selectValue: 'Select',
-        remarks: ''
-      }]);
+      const createdTasks = await addRecurringTasks(user.id, [payload]);
       if (createdTasks && createdTasks.length > 0) {
+        setTasks(prev => [...prev, ...createdTasks]);
         showAlert('success', 'Created!', 'New task has been added successfully.');
       } else {
         showAlert('error', 'Database Error', 'Failed to add task to Supabase.');
@@ -185,7 +184,7 @@ export default function Index() {
     <tr key={item.id} className="hover:bg-gray-50 transition-colors text-center text-sm border-b border-gray-100">
       <td className="px-4 py-3.5 whitespace-nowrap">
         <div className="flex items-center justify-center gap-2">
-          <button onClick={() => handleEdit(item)} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg" title="Edit">
+          <button onClick={() => handleEdit(item)} className="p-2 bg-indigo-50 text-indigo-605 rounded-lg" title="Edit">
             <Edit size={14} />
           </button>
           <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-50 text-red-500 rounded-lg" title="Delete">
@@ -193,7 +192,7 @@ export default function Index() {
           </button>
         </div>
       </td>
-      <td className="px-4 py-3.5 text-gray-900 font-bold text-left text-xs md:text-sm max-w-[300px] truncate" title={item.description}>
+      <td className="px-4 py-3.5 text-gray-900 font-bold text-left text-xs md:text-sm max-w-[250px] truncate" title={item.description}>
         <div className="flex items-center gap-2">
           {item.priority === 'Frog' && (
             <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
@@ -201,13 +200,27 @@ export default function Index() {
           <span>{item.description}</span>
         </div>
       </td>
-      <td className="px-4 py-3.5 text-gray-750 whitespace-nowrap text-xs md:text-sm font-bold">
+      <td className="px-4 py-3.5 text-gray-755 whitespace-nowrap text-xs md:text-sm font-bold">
         {item.duration}
       </td>
-      <td className="px-4 py-3.5 text-gray-700 whitespace-nowrap text-xs md:text-sm text-center">
+      <td className="px-4 py-3.5 text-gray-755 whitespace-nowrap text-xs md:text-sm text-center">
         <span className="px-2.5 py-1 bg-indigo-50 text-indigo-605 border border-indigo-100 rounded text-[11px] font-bold uppercase">
           {getCategoryEmoji(item.category)} {item.category}
         </span>
+      </td>
+      <td className="px-4 py-3.5 text-gray-700 text-left text-xs md:text-sm max-w-[200px] truncate" title={item.remarks}>
+        {item.remarks || <span className="text-gray-400 italic font-normal">No remarks</span>}
+      </td>
+      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+        {item.isActive ? (
+          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[10px] font-bold uppercase tracking-wider">
+            Active
+          </span>
+        ) : (
+          <span className="px-2.5 py-0.5 bg-gray-100 text-gray-550 border border-gray-200 rounded-full text-[10px] font-bold uppercase tracking-wider">
+            Paused
+          </span>
+        )}
       </td>
     </tr>
   );
@@ -219,13 +232,18 @@ export default function Index() {
           <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wider">
             {getCategoryEmoji(item.category)} {item.category}
           </span>
-          <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">{item.duration}</span>
+          <span className="text-[10px] font-bold text-gray-550 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">{item.duration}</span>
+          {item.isActive ? (
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase tracking-wider">Active</span>
+          ) : (
+            <span className="text-[10px] font-bold text-gray-555 bg-gray-100 px-2 py-0.5 rounded border border-gray-250 uppercase tracking-wider">Paused</span>
+          )}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => handleEdit(item)} className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg" title="Edit">
+          <button onClick={() => handleEdit(item)} className="p-1.5 bg-indigo-50 text-indigo-606 rounded-lg" title="Edit">
             <Edit size={14} />
           </button>
-          <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-red-50 text-red-500 rounded-lg" title="Delete">
+          <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-red-50 text-red-550 rounded-lg" title="Delete">
             <Trash2 size={14} />
           </button>
         </div>
@@ -234,6 +252,12 @@ export default function Index() {
         {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
         <span>{item.description}</span>
       </p>
+      {item.remarks && (
+        <p className="text-xs text-gray-500 bg-gray-55/60 p-2 rounded border border-gray-100 leading-relaxed font-normal">
+          <strong className="text-[9px] uppercase text-gray-400 block tracking-wider mb-0.5">Remarks</strong>
+          {item.remarks}
+        </p>
+      )}
     </div>
   );
 
@@ -258,7 +282,7 @@ export default function Index() {
             {/* Mobile Filter Button */}
             <button
               onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className={`lg:hidden flex items-center justify-center rounded-lg shadow-sm h-[32px] w-[32px] flex-shrink-0 transition ${showMobileFilters ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              className={`lg:hidden flex items-center justify-center rounded-lg shadow-sm h-[32px] w-[32px] flex-shrink-0 transition ${showMobileFilters ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-55'}`}
             >
               <Filter size={14} />
             </button>
@@ -294,8 +318,6 @@ export default function Index() {
         </button>
       </div>
 
-
-
       {/* Main Content Area */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col pt-1 mt-2 flex-1 min-h-0 overflow-hidden">
         <DataTable
@@ -321,11 +343,11 @@ export default function Index() {
       <ModalForm
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingId ? 'Edit Task' : 'Add New Task'}
+        title={editingId ? 'Edit Task Template' : 'Add New Task Template'}
         onSubmit={handleSubmit}
         submitText={editingId ? 'Update' : 'Save'}
       >
-        <div className="space-y-4 text-left">
+        <div className="space-y-4 text-left font-medium text-gray-800">
 
           <div className="space-y-1">
             <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Task Description *</label>
@@ -339,8 +361,18 @@ export default function Index() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Remarks</label>
+            <textarea
+              rows={2}
+              value={formData.remarks || ''}
+              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px]"
+              placeholder="Any additional templates instructions or notes..."
+            />
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Time select */}
             <div className="space-y-1">
               <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Time *</label>
@@ -371,7 +403,9 @@ export default function Index() {
                 <option value="custom">+ Add Custom Category</option>
               </select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Frog selector */}
             <div className="space-y-1">
               <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Frog Task?</label>
@@ -387,6 +421,20 @@ export default function Index() {
               </button>
             </div>
 
+            {/* Active selector */}
+            <div className="space-y-1">
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Template Status</label>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                className={`w-full border rounded px-2.5 py-1.5 text-[11px] md:text-[13px] h-[30px] md:h-[34px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm ${formData.isActive
+                    ? 'bg-emerald-50 border-emerald-355 text-emerald-700'
+                    : 'bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100'
+                  }`}
+              >
+                {formData.isActive ? '🟢 Active' : '⚪ Paused'}
+              </button>
+            </div>
           </div>
 
           {formData.category === 'custom' && (

@@ -24,6 +24,21 @@ CREATE TABLE public.projects (
   CONSTRAINT projects_pkey PRIMARY KEY (id),
   CONSTRAINT projects_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.recurring_tasks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  description text NOT NULL,
+  category character varying NOT NULL,
+  priority character varying DEFAULT ''::character varying,
+  remarks text DEFAULT ''::text,
+  time_slot USER-DEFINED DEFAULT 'Morning'::task_duration,
+  is_active boolean NOT NULL DEFAULT true,
+  last_generated_date date,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT recurring_tasks_pkey PRIMARY KEY (id),
+  CONSTRAINT recurring_tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.task_completions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -65,6 +80,16 @@ CREATE TABLE public.upcoming_tasks (
   CONSTRAINT upcoming_tasks_pkey PRIMARY KEY (id),
   CONSTRAINT upcoming_tasks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.user_google_connections (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  google_email text NOT NULL,
+  is_connected boolean NOT NULL DEFAULT true,
+  connected_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT user_google_connections_pkey PRIMARY KEY (id),
+  CONSTRAINT user_google_connections_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.user_sessions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -88,5 +113,7 @@ CREATE TABLE public.users (
   avatar_url text,
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  business_name text,
+  user_role text,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
