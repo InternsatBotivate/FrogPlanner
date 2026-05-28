@@ -33,8 +33,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
   const menuItems = [
     { path: '/dashboard', icon: BarChart2, label: 'Dashboard' },
     { path: '/planner', icon: Calendar, label: 'Today' },
-    { path: '/next-day-planner', icon: CalendarRange, label: 'Next Day Planner' },
     { path: '/all-tasks', icon: ListTodo, label: 'All Tasks' },
+    { path: '/next-day-planner', icon: CalendarRange, label: 'Next Day Planner' },
     { path: '/my-projects', icon: FolderClosed, label: 'My Projects' },
     { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
     { path: '/recurring-tasks', icon: LayoutGrid, label: 'Recurring Tasks' },
