@@ -20,7 +20,6 @@ export const fetchUpcomingTasks = async (userId) => {
       .from('tasks')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_recurring', false)
       .order('task_date', { ascending: true })
       .order('created_at', { ascending: true });
 
@@ -37,7 +36,7 @@ export const fetchUpcomingTasks = async (userId) => {
       status: t.select_value === 'Done' ? 'Completed' : 'Pending',
       selectValue: t.select_value || 'Select',
       remarks: t.remarks || '',
-      isRecurring: t.is_recurring || false,
+      isRecurring: false,
       timestamp: t.created_at
     }));
   } catch (error) {
@@ -62,8 +61,7 @@ export const createUpcomingTasks = async (userId, newTasksArray) => {
       priority: t.priority || '',
       task_date: t.date || null,
       select_value: t.status === 'Completed' ? 'Done' : 'Pending',
-      remarks: t.remarks || '',
-      is_recurring: false
+      remarks: t.remarks || ''
     }));
 
     const { data, error } = await supabase
@@ -83,7 +81,7 @@ export const createUpcomingTasks = async (userId, newTasksArray) => {
       status: t.select_value === 'Done' ? 'Completed' : 'Pending',
       selectValue: t.select_value || 'Select',
       remarks: t.remarks || '',
-      isRecurring: t.is_recurring || false,
+      isRecurring: false,
       timestamp: t.created_at
     }));
   } catch (error) {
@@ -149,7 +147,7 @@ export const updateUpcomingTask = async (taskId, taskPayload) => {
       status: data.select_value === 'Done' ? 'Completed' : 'Pending',
       selectValue: data.select_value || 'Select',
       remarks: data.remarks || '',
-      isRecurring: data.is_recurring || false,
+      isRecurring: false,
       timestamp: data.created_at
     };
   } catch (error) {
@@ -211,7 +209,6 @@ export const migrateUpcomingTasksLegacyData = async (userId) => {
       task_date: t.date || null,
       select_value: t.status === 'Completed' ? 'Done' : 'Pending',
       remarks: t.remarks || '',
-      is_recurring: false,
       created_at: t.timestamp || new Date().toISOString()
     }));
 

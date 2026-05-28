@@ -26,7 +26,6 @@ BEGIN
         task_date,
         select_value,
         remarks,
-        is_recurring,
         time_slot
     )
     SELECT 
@@ -38,7 +37,6 @@ BEGIN
         v_today,          -- Correct IST date
         'Select',         
         t.remarks,
-        false,            
         t.time_slot::text::public.task_time_slot -- cast to public.task_time_slot for tasks.time_slot
 
     FROM public.recurring_tasks t
@@ -52,7 +50,6 @@ BEGIN
             AND e.duration::text = t.time_slot::text
             AND e.category = t.category
             AND e.task_date = v_today
-            AND e.is_recurring = false
       );
 
     GET DIAGNOSTICS v_count = ROW_COUNT;

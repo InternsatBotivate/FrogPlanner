@@ -56,7 +56,7 @@ export const fetchPlannerData = async (userId) => {
         date: t.task_date || null,
         selectValue: t.select_value || 'Select',
         remarks: t.remarks || '',
-        isRecurring: t.is_recurring || false,
+        isRecurring: false, // Standard tasks are never template recurring tasks
         timestamp: t.created_at
       })),
       ...recurringTasks
@@ -109,8 +109,7 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
         priority: t.priority || '',
         task_date: t.date || null,
         select_value: t.selectValue || 'Select',
-        remarks: t.remarks || '',
-        is_recurring: false
+        remarks: t.remarks || ''
       }));
 
       const { data, error } = await supabase
@@ -249,17 +248,16 @@ export const migrateLegacyData = async (userId) => {
         priority: t.priority || '',
         task_date: t.date || null,
         select_value: t.selectValue || 'Select',
-        remarks: t.remarks || '',
-        is_recurring: false
+        remarks: t.remarks || ''
       }));
 
-      const { data, error: tasksError } = await supabase
+      const { data: dbRegularInserted, error: tasksError } = await supabase
         .from('tasks')
         .insert(tasksToInsert)
         .select();
 
       if (tasksError) throw tasksError;
-      if (data) dbTasks.push(...data);
+      if (dbRegularInserted) dbTasks.push(...dbRegularInserted);
     }
 
     // 2. Bulk insert recurring tasks
@@ -274,8 +272,7 @@ export const migrateLegacyData = async (userId) => {
           priority: r.priority,
           task_date: null,
           select_value: 'Select',
-          remarks: r.remarks,
-          is_recurring: true
+          remarks: r.remarks
         });
       });
     }
@@ -370,8 +367,7 @@ export const updateTask = async (taskId, taskPayload) => {
         description: taskPayload.description,
         duration: taskPayload.duration,
         category: taskPayload.category,
-        priority: taskPayload.priority || '',
-        is_recurring: false
+        priority: taskPayload.priority || ''
       })
       .eq('id', taskId)
       .select()
