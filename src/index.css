@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 :root {
   --primary: #16a34a;        /* green-600 */
@@ -73,11 +73,11 @@ body {
 }
 
 .hr-input {
-  @apply w-full px-3 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all;
+  @apply w-full px-3 py-1.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all;
 }
 
 .hr-button-primary {
-  @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3.5 rounded-lg transition-colors shadow-sm active:transform active:scale-95;
+  @apply bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3.5 rounded-lg transition-colors shadow-sm active:transform active:scale-95;
 }
 
 .hr-button-secondary {

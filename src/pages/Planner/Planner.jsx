@@ -38,7 +38,7 @@ const getCategoryColorClass = (cat) => {
 };
 
 export default function Planner() {
-  const { user } = useAuthStore();
+  const { user, updateCustomCategories } = useAuthStore();
   const storeTasks = usePlannerStore(state => state.tasks);
   const storeCompletions = usePlannerStore(state => state.completions);
   const storeCompletionDates = usePlannerStore(state => state.completionDates);
@@ -112,11 +112,8 @@ export default function Planner() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [submittingFrogIds, setSubmittingFrogIds] = useState([]);
 
-  // Custom categories list loaded from localStorage if it exists
-  const [customCategories, setCustomCategories] = useState(() => {
-    const saved = localStorage.getItem('index_custom_categories');
-    return saved ? JSON.parse(saved) : ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
-  });
+  // Custom categories list derived from user profile
+  const customCategories = user?.custom_categories || ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
 
   const durationOptions = ['Morning', 'Afternoon', 'Evening', 'Night'];
   const priorityOptions = ['Low', 'Medium', 'High'];
@@ -160,7 +157,7 @@ export default function Planner() {
     }
   };
 
-  const handleAddEditCategoryInline = () => {
+  const handleAddEditCategoryInline = async () => {
     const text = (editTaskData.newCategoryText || '').trim();
     if (!text) return;
     if (customCategories.includes(text)) {
@@ -168,8 +165,7 @@ export default function Planner() {
       return;
     }
     const updated = [...customCategories, text];
-    localStorage.setItem('index_custom_categories', JSON.stringify(updated));
-    setCustomCategories(updated);
+    await updateCustomCategories(updated);
     setEditTaskData(prev => ({ ...prev, category: text, isCreatingCategory: false, newCategoryText: '' }));
   };
 
@@ -728,7 +724,7 @@ export default function Planner() {
     }
   };
 
-  const handleAddCategoryInline = (idx) => {
+  const handleAddCategoryInline = async (idx) => {
     const text = (tasksList[idx].newCategoryText || '').trim();
     if (!text) return;
     if (customCategories.includes(text)) {
@@ -737,8 +733,7 @@ export default function Planner() {
       return;
     }
     const updated = [...customCategories, text];
-    localStorage.setItem('index_custom_categories', JSON.stringify(updated));
-    setCustomCategories(updated);
+    await updateCustomCategories(updated);
     handleFieldChange(idx, 'category', text);
     handleFieldChange(idx, 'isCreatingCategory', false);
     handleFieldChange(idx, 'newCategoryText', '');

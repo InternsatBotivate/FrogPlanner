@@ -44,7 +44,7 @@ const getDurationEmoji = (dur) => {
 };
 
 export default function AllTasks() {
-  const { user } = useAuthStore();
+  const { user, updateCustomCategories } = useAuthStore();
   const { tasks, completions, loading, fetchPlannerData, toggleCompletion } = usePlannerStore();
 
   // Tabs & filters state
@@ -83,10 +83,7 @@ export default function AllTasks() {
   const todayStr = useMemo(() => formatDateStr(today), [today]);
 
   // Custom Categories & Durations
-  const [customCategories, setCustomCategories] = useState(() => {
-    const saved = localStorage.getItem('index_custom_categories');
-    return saved ? JSON.parse(saved) : ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
-  });
+  const customCategories = user?.custom_categories || ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
   const durationOptions = ['Morning', 'Afternoon', 'Evening', 'Night'];
 
   // Load database data with legacy localStorage migration
@@ -119,7 +116,7 @@ export default function AllTasks() {
     }
   };
 
-  const handleAddEditCategoryInline = () => {
+  const handleAddEditCategoryInline = async () => {
     const text = (editTaskData.newCategoryText || '').trim();
     if (!text) return;
     if (customCategories.includes(text)) {
@@ -127,8 +124,7 @@ export default function AllTasks() {
       return;
     }
     const updated = [...customCategories, text];
-    localStorage.setItem('index_custom_categories', JSON.stringify(updated));
-    setCustomCategories(updated);
+    await updateCustomCategories(updated);
     setEditTaskData(prev => ({ ...prev, category: text, isCreatingCategory: false, newCategoryText: '' }));
   };
 

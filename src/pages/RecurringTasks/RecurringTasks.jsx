@@ -24,11 +24,10 @@ export default function RecurringTasks() {
   const [loading, setLoading] = useState(true);
   const [modalLoading, setModalLoading] = useState(false);
 
-  // Custom categories state
-  const [customCategories, setCustomCategories] = useState(() => {
-    const saved = localStorage.getItem('index_custom_categories');
-    return saved ? JSON.parse(saved) : ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
-  });
+  const { user, updateCustomCategories } = useAuthStore();
+
+  // Custom categories derived from user profile
+  const customCategories = user?.custom_categories || ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
 
   const [customCategoryText, setCustomCategoryText] = useState('');
 
@@ -47,8 +46,6 @@ export default function RecurringTasks() {
   });
 
   const headers = ['Action', 'Task Description', 'Time', 'Category', 'Remarks', 'Status'];
-
-  const { user } = useAuthStore();
 
   // Load recurring tasks directly from the recurring tasks service
   useEffect(() => {
@@ -142,8 +139,7 @@ export default function RecurringTasks() {
       // Add to dropdown list if it's not already there
       if (!customCategories.includes(cleanCat)) {
         const updatedCats = [...customCategories, cleanCat];
-        setCustomCategories(updatedCats);
-        localStorage.setItem('index_custom_categories', JSON.stringify(updatedCats));
+        await updateCustomCategories(updatedCats);
       }
     }
 

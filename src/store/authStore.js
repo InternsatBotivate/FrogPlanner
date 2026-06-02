@@ -6,7 +6,7 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 import { create } from 'zustand';
-import { signIn, signUp, signOut, getSessionUser, updateUserProfile } from '../lib/authService';
+import { signIn, signUp, signOut, getSessionUser, updateUserProfile, updateCustomCategories } from '../lib/authService';
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -77,6 +77,21 @@ const useAuthStore = create((set) => ({
     if (!state.user?.id) return { error: new Error('Not authenticated') };
     
     const { user, error } = await updateUserProfile(state.user.id, updatedData);
+    if (user) {
+      set({ user });
+    }
+    return { error };
+  },
+
+  /**
+   * updateCustomCategories
+   * Updates the authenticated user's custom categories list in Supabase and local store.
+   */
+  updateCustomCategories: async (categories) => {
+    const state = useAuthStore.getState();
+    if (!state.user?.id) return { error: new Error('Not authenticated') };
+
+    const { user, error } = await updateCustomCategories(state.user.id, categories);
     if (user) {
       set({ user });
     }

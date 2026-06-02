@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import ModalForm from '../../components/ModalForm';
+import { useAuthStore } from '../../store/authStore';
 
 const STORAGE_KEY = 'upcoming_planner_tasks';
 
@@ -22,10 +23,9 @@ const getTasks = () => {
  *  - onSaved: (newTasks) => void  — callback after tasks are saved
  */
 export default function UpcomingPlannerForm({ isOpen, onClose, onSaved }) {
-  const [customCategories, setCustomCategories] = useState(() => {
-    const saved = localStorage.getItem('index_custom_categories');
-    return saved ? JSON.parse(saved) : ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
-  });
+  const { user, updateCustomCategories } = useAuthStore();
+
+  const customCategories = user?.custom_categories || ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
 
   const durationOptions = ['Morning', 'Afternoon', 'Evening', 'Night'];
 
@@ -66,13 +66,12 @@ export default function UpcomingPlannerForm({ isOpen, onClose, onSaved }) {
     }
   };
 
-  const handleAddCategoryInline = (idx) => {
+  const handleAddCategoryInline = async (idx) => {
     const text = (tasksList[idx].newCategoryText || '').trim();
     if (!text) return;
     const updated = customCategories.includes(text) ? customCategories : [...customCategories, text];
     if (!customCategories.includes(text)) {
-      localStorage.setItem('index_custom_categories', JSON.stringify(updated));
-      setCustomCategories(updated);
+      await updateCustomCategories(updated);
     }
     handleFieldChange(idx, 'category', text);
     handleFieldChange(idx, 'isCreatingCategory', false);

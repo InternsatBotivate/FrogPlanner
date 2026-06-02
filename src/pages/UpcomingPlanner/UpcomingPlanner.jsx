@@ -12,7 +12,7 @@ import { getCategoryEmoji } from '../../utils/helpers';
 import ModalAlert from '../../components/ModalAlert';
 
 export default function UpcomingPlanner() {
-  const { user } = useAuthStore();
+  const { user, updateCustomCategories } = useAuthStore();
   const storeTasks = usePlannerStore(state => state.tasks);
   const storeLoading = usePlannerStore(state => state.loading);
   
@@ -84,11 +84,8 @@ export default function UpcomingPlanner() {
     }
   }, [storeLoading]);
   
-  // Custom Categories
-  const [customCategories, setCustomCategories] = useState(() => {
-    const saved = localStorage.getItem('index_custom_categories');
-    return saved ? JSON.parse(saved) : ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
-  });
+  // Custom Categories derived from user profile
+  const customCategories = user?.custom_categories || ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
 
   // Inline Single Task Form State
   const [inlineTask, setInlineTask] = useState({
@@ -152,7 +149,7 @@ export default function UpcomingPlanner() {
     }
   };
 
-  const handleConfirmInlineCategory = () => {
+  const handleConfirmInlineCategory = async () => {
     const text = (inlineTask.newCategoryText || '').trim();
     if (!text) {
       setInlineTask(prev => ({ ...prev, isCreatingCategory: false }));
@@ -164,8 +161,7 @@ export default function UpcomingPlanner() {
       : [...customCategories, text];
       
     if (!customCategories.includes(text)) {
-      setCustomCategories(updatedCategories);
-      localStorage.setItem('index_custom_categories', JSON.stringify(updatedCategories));
+      await updateCustomCategories(updatedCategories);
     }
     
     setInlineTask(prev => ({

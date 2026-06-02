@@ -115,5 +115,6 @@ CREATE TABLE public.users (
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   business_name text,
   user_role text,
+  custom_categories text[] NOT NULL DEFAULT '{Work, Meeting, Call, Personal, Review, Break, Health}'::text[],
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
