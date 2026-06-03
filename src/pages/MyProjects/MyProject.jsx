@@ -78,7 +78,7 @@ const MyProject = () => {
     <div className="p-4 md:p-6 space-y-5 flex flex-col h-full min-h-0 bg-white">
 
       {/* Creation form */}
-      <div className="bg-gradient-to-r from-slate-50 to-indigo-50/20 p-4 rounded-xl border border-gray-200/80 shadow-sm max-w-xl">
+      <div className="bg-gradient-to-r from-slate-50 to-indigo-50/20 p-4 rounded-xl border border-gray-200/80 shadow-sm">
         <form onSubmit={handleCreateProject} className="flex gap-2.5 items-center">
           <div className="relative flex-1">
             <input
@@ -157,7 +157,7 @@ const MyProject = () => {
                       </span>
                       <span className="font-bold text-gray-700">{percent}%</span>
                     </div>
-                    
+
                     {/* Gradient Progress Bar */}
                     <div className="w-full bg-slate-100 rounded-full h-[6px] overflow-hidden border border-slate-200/20">
                       <div

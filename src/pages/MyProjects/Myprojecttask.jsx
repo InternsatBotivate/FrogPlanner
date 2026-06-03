@@ -15,7 +15,7 @@ const Myprojecttask = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const inputRef = useRef(null);
-  
+
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [newTaskDesc, setNewTaskDesc] = useState('');
@@ -50,7 +50,7 @@ const Myprojecttask = () => {
     } else {
       toast.error('Failed to create task. Please try again.');
     }
-    
+
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -67,7 +67,7 @@ const Myprojecttask = () => {
   const handlePersistTaskChange = async (taskId) => {
     const taskToSave = tasks.find(t => t.id === taskId);
     if (!taskToSave) return;
-    
+
     const trimmedDesc = taskToSave.description.trim();
     if (!trimmedDesc) {
       // If description is empty, delete it
@@ -183,7 +183,7 @@ const Myprojecttask = () => {
 
       {/* Lined Notebook Paper Card */}
       <div className="flex-1 bg-white border border-gray-250/90 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.03)] max-w-2xl flex flex-col overflow-hidden relative">
-        
+
         {/* Paper top binder decoration */}
         <div className="h-6 bg-slate-50 border-b border-gray-200/80 flex items-center px-4 gap-1.5 select-none">
           <div className="w-2 h-2 rounded-full bg-gray-300"></div>
@@ -198,10 +198,33 @@ const Myprojecttask = () => {
           {/* Vertical Red Margin Line (matches physical legal pad layout) */}
           <div className="absolute left-[44px] top-0 bottom-0 border-l-[1.5px] border-red-300/60 pointer-events-none z-10"></div>
 
-          {/* Ruled lines sheet */}
-          <div 
-            className="flex-1 overflow-y-auto pr-1"
-            style={{ 
+          {/* Notepad Input Line (Direct Typing) - Fixed/Sticky at the top */}
+          <div className="flex items-center h-[40px] relative group hover:bg-slate-50/40 transition-colors duration-150 border-b border-slate-200/70 flex-shrink-0 z-20">
+            <div className="w-[44px] flex items-center justify-center flex-shrink-0 text-gray-300">
+              <Plus size={16} />
+            </div>
+            <div className="flex-1 flex items-center pl-3.5 pr-2 h-full min-w-0">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newTaskDesc}
+                onChange={(e) => setNewTaskDesc(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateTaskInline();
+                  }
+                }}
+                onBlur={handleCreateTaskInline}
+                placeholder="Type a new task here and press Enter..."
+                className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm font-semibold text-gray-400 placeholder-gray-300 p-0 w-full h-[40px] leading-[40px]"
+              />
+            </div>
+          </div>
+
+          {/* Ruled lines sheet (Scrollable task list) */}
+          <div
+            className="flex-1 overflow-y-auto pr-1 min-h-0"
+            style={{
               backgroundImage: 'linear-gradient(rgba(226, 232, 240, 0.7) 1px, transparent 1px)',
               backgroundSize: '100% 40px',
             }}
@@ -216,9 +239,8 @@ const Myprojecttask = () => {
                   <button
                     type="button"
                     onClick={() => handleToggleTask(task.id)}
-                    className={`focus:outline-none flex-shrink-0 transition-all duration-200 active:scale-90 ${
-                      task.isCompleted ? 'text-indigo-600' : 'text-gray-450 hover:text-indigo-650'
-                    }`}
+                    className={`focus:outline-none flex-shrink-0 transition-all duration-200 active:scale-90 ${task.isCompleted ? 'text-indigo-600' : 'text-gray-450 hover:text-indigo-650'
+                      }`}
                   >
                     {task.isCompleted ? (
                       <CheckSquare size={19} className="fill-indigo-50" />
@@ -227,7 +249,7 @@ const Myprojecttask = () => {
                     )}
                   </button>
                 </div>
-                
+
                 {/* Editable Task Description input (Right of margin line) */}
                 <div className="flex-1 flex items-center pl-3.5 pr-2 h-full z-20 min-w-0">
                   <input
@@ -240,9 +262,8 @@ const Myprojecttask = () => {
                         e.target.blur();
                       }
                     }}
-                    className={`flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm font-semibold p-0 w-full h-[40px] leading-[40px] ${
-                      task.isCompleted ? 'line-through text-gray-400 font-normal decoration-gray-300' : 'text-gray-800'
-                    }`}
+                    className={`flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm font-semibold p-0 w-full h-[40px] leading-[40px] ${task.isCompleted ? 'line-through text-gray-400 font-normal decoration-gray-300' : 'text-gray-800'
+                      }`}
                   />
                 </div>
 
@@ -257,29 +278,6 @@ const Myprojecttask = () => {
                 </button>
               </div>
             ))}
-            
-            {/* Notepad Input Line (Direct Typing) */}
-            <div className="flex items-center h-[40px] relative group hover:bg-slate-50/40 transition-colors duration-150">
-              <div className="w-[44px] flex items-center justify-center flex-shrink-0 z-20 text-gray-300">
-                <Plus size={16} />
-              </div>
-              <div className="flex-1 flex items-center pl-3.5 pr-2 h-full z-20 min-w-0">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={newTaskDesc}
-                  onChange={(e) => setNewTaskDesc(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateTaskInline();
-                    }
-                  }}
-                  onBlur={handleCreateTaskInline}
-                  placeholder="Type a new task here and press Enter..."
-                  className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm font-semibold text-gray-400 placeholder-gray-300 p-0 w-full h-[40px] leading-[40px]"
-                />
-              </div>
-            </div>
           </div>
         </div>
       </div>
