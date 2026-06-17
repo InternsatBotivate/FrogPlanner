@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Clock, Plus, Trash2, Lock, Calendar, Sparkles, 
-  Send, RefreshCw, AlertCircle, CalendarRange, Info, ListTodo, 
+import {
+  Clock, Plus, Trash2, Lock, Calendar, Sparkles,
+  Send, RefreshCw, AlertCircle, CalendarRange, Info, ListTodo,
   CheckCircle2, PlusCircle, Check, HelpCircle, Flame, ArrowRight,
   Search
 } from 'lucide-react';
@@ -15,12 +15,12 @@ export default function UpcomingPlanner() {
   const { user, updateCustomCategories } = useAuthStore();
   const storeTasks = usePlannerStore(state => state.tasks);
   const storeLoading = usePlannerStore(state => state.loading);
-  
+
   // Loading & Alerts
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({ isOpen: false, type: 'success', title: '', message: '', onConfirm: () => {} });
-  
+  const [alertConfig, setAlertConfig] = useState({ isOpen: false, type: 'success', title: '', message: '', onConfirm: () => { } });
+
   // Target Planning Date (Defaults to Tomorrow)
   const getTomorrowStr = () => {
     const tomorrow = new Date();
@@ -83,7 +83,7 @@ export default function UpcomingPlanner() {
       setLoading(false);
     }
   }, [storeLoading]);
-  
+
   // Custom Categories derived from user profile
   const customCategories = user?.custom_categories || ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
 
@@ -97,7 +97,7 @@ export default function UpcomingPlanner() {
     newCategoryText: ''
   });
 
-  
+
   const durationOptions = ['Morning', 'Afternoon', 'Evening', 'Night'];
 
   // Initial Load (triggers preloader once in store)
@@ -111,7 +111,7 @@ export default function UpcomingPlanner() {
   }, [user?.id]);
 
   // Alert Modal helper
-  const showAlert = (type, title, message, onConfirm = () => {}) => {
+  const showAlert = (type, title, message, onConfirm = () => { }) => {
     setAlertConfig({ isOpen: true, type, title, message, onConfirm });
   };
 
@@ -156,14 +156,14 @@ export default function UpcomingPlanner() {
       return;
     }
 
-    const updatedCategories = customCategories.includes(text) 
-      ? customCategories 
+    const updatedCategories = customCategories.includes(text)
+      ? customCategories
       : [...customCategories, text];
-      
+
     if (!customCategories.includes(text)) {
       await updateCustomCategories(updatedCategories);
     }
-    
+
     setInlineTask(prev => ({
       ...prev,
       category: text,
@@ -195,7 +195,7 @@ export default function UpcomingPlanner() {
 
     setUnsavedTasks(prev => [...prev, tempTask]);
     toast.success('Task added to draft! Click Submit to save.');
-    
+
     setInlineTask({
       description: '',
       duration: inlineTask.duration,
@@ -209,7 +209,7 @@ export default function UpcomingPlanner() {
   // --- Saved Tasks Real-Time Handlers ---
   const handleToggleSavedTaskStatus = async (item) => {
     const newStatus = item.status === 'Completed' ? 'Pending' : 'Completed';
-    
+
     // If it's a draft task, update locally
     if (String(item.id).startsWith('temp-')) {
       setUnsavedTasks(prev =>
@@ -364,9 +364,8 @@ export default function UpcomingPlanner() {
                 {alreadyPlannedTasks.map(t => (
                   <div
                     key={t.id}
-                    className={`flex flex-col gap-1.5 bg-white border rounded-xl px-3 py-2.5 shadow-sm ${
-                      t.priority === 'Frog' ? 'border-emerald-200 bg-emerald-50/40' : 'border-gray-100'
-                    }`}
+                    className={`flex flex-col gap-1.5 bg-white border rounded-xl px-3 py-2.5 shadow-sm ${t.priority === 'Frog' ? 'border-emerald-200 bg-emerald-50/40' : 'border-gray-100'
+                      }`}
                   >
                     {/* Top row: frog badge + description */}
                     <div className="flex items-start gap-2">
@@ -422,7 +421,7 @@ export default function UpcomingPlanner() {
 
   return (
     <div className="p-3 sm:p-5 lg:p-6 space-y-5 lg:space-y-6 text-left flex flex-col min-h-0 h-full overflow-y-auto bg-gray-50/50 pb-20">
-      
+
       {/* 1. Header with Title & Planning Date Badge */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-green-100 shadow-sm">
         <div className="space-y-1">
@@ -433,7 +432,7 @@ export default function UpcomingPlanner() {
             Plan your tasks for tomorrow. Add everything you need and hit Submit to lock it in.
           </p>
         </div>
-        
+
         {/* Fixed tomorrow date badge */}
         <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 shrink-0">
           <Calendar size={16} className="text-emerald-600 shrink-0" />
@@ -460,15 +459,14 @@ export default function UpcomingPlanner() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-            <button 
+            <button
               type="button"
               onClick={handleSaveAllUpcomingTasks}
               disabled={unsavedTasks.length === 0 || submitting}
-              className={`px-3.5 py-1.5 text-xs font-extrabold shadow-sm transition-all duration-150 active:scale-95 h-[32px] rounded-lg flex items-center gap-1.5 ${
-                unsavedTasks.length > 0 
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-400 ring-offset-1 animate-pulse cursor-pointer' 
+              className={`px-3.5 py-1.5 text-xs font-extrabold shadow-sm transition-all duration-150 active:scale-95 h-[32px] rounded-lg flex items-center gap-1.5 ${unsavedTasks.length > 0
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-400 ring-offset-1 animate-pulse cursor-pointer'
                   : 'bg-slate-100 text-slate-400 border border-slate-205 cursor-not-allowed shadow-none'
-              }`}
+                }`}
             >
               {submitting ? <RefreshCw size={13} className="animate-spin" /> : <Send size={13} />}
               <span>Submit {unsavedTasks.length > 0 ? `(${unsavedTasks.length})` : ''}</span>
@@ -477,7 +475,7 @@ export default function UpcomingPlanner() {
 
         {/* MOBILE & TABLET CARD VIEW (Visible only on mobile/tablet) */}
         <div className="lg:hidden p-3 bg-slate-50/50 flex flex-col gap-3 min-h-[200px]">
-          
+
           {/* Add custom task card */}
           <div className="bg-gradient-to-r from-emerald-50 to-white p-4 rounded-2xl border border-emerald-100 shadow-sm space-y-3.5">
             <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
@@ -487,17 +485,16 @@ export default function UpcomingPlanner() {
               <button
                 type="button"
                 onClick={() => setInlineTask(prev => ({ ...prev, priority: prev.priority === 'Frog' ? '' : 'Frog' }))}
-                className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 shadow-sm ${
-                  inlineTask.priority === 'Frog' 
-                    ? 'bg-emerald-650 border-emerald-700 text-white font-extrabold' 
+                className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 shadow-sm ${inlineTask.priority === 'Frog'
+                    ? 'bg-emerald-650 border-emerald-700 text-white font-extrabold'
                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                }`}
+                  }`}
                 title="Toggle Frog Task"
               >
                 🐸 Frog Task
               </button>
             </div>
-            
+
             {/* Description */}
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-gray-450 uppercase tracking-wider text-left block">Task Description *</span>
@@ -536,16 +533,16 @@ export default function UpcomingPlanner() {
                       className="w-full border border-gray-300 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] h-[36px] bg-white font-medium"
                       autoFocus
                     />
-                    <button 
-                      type="button" 
-                      onClick={handleConfirmInlineCategory} 
+                    <button
+                      type="button"
+                      onClick={handleConfirmInlineCategory}
                       className="h-[36px] w-[30px] flex items-center justify-center bg-indigo-600 text-white rounded-lg font-bold shrink-0 text-xs shadow-sm"
                     >
                       ✓
                     </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setInlineTask(prev => ({ ...prev, isCreatingCategory: false }))} 
+                    <button
+                      type="button"
+                      onClick={() => setInlineTask(prev => ({ ...prev, isCreatingCategory: false }))}
                       className="h-[36px] w-[30px] flex items-center justify-center bg-gray-200 text-gray-500 rounded-lg shrink-0 text-xs"
                     >
                       ✕
@@ -601,16 +598,16 @@ export default function UpcomingPlanner() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <input 
+                        <input
                           type="checkbox"
                           checked={task.status === 'Completed'}
                           onChange={() => handleToggleSavedTaskStatus(task)}
                           className="w-[20px] h-[20px] text-emerald-605 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
                           title="Toggle status"
                         />
-                        <button 
+                        <button
                           onClick={() => handleDeleteSavedTask(task.id)}
-                          className="text-red-405 hover:text-red-650 hover:bg-rose-50 p-1.5 rounded transition" 
+                          className="text-red-405 hover:text-red-650 hover:bg-rose-50 p-1.5 rounded transition"
                           title="Delete draft task"
                         >
                           <Trash2 size={15} />
@@ -731,16 +728,16 @@ export default function UpcomingPlanner() {
                 <tr key={`cust-${task.id}`} className="hover:bg-gray-50/50 transition-colors bg-amber-50/10">
                   <td className="py-3.5 text-center align-middle">
                     <div className="flex items-center justify-center gap-2">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={task.status === 'Completed'}
                         onChange={() => handleToggleSavedTaskStatus(task)}
                         className="w-4 h-4 text-emerald-605 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
                         title="Toggle status"
                       />
-                      <button 
+                      <button
                         onClick={() => handleDeleteSavedTask(task.id)}
-                        className="text-red-400 hover:text-red-650 hover:bg-rose-50 p-1 rounded transition" 
+                        className="text-red-400 hover:text-red-650 hover:bg-rose-50 p-1 rounded transition"
                         title="Delete temporary task"
                       >
                         <Trash2 size={13} />
@@ -795,11 +792,10 @@ export default function UpcomingPlanner() {
                     <button
                       type="button"
                       onClick={() => setInlineTask(prev => ({ ...prev, priority: prev.priority === 'Frog' ? '' : 'Frog' }))}
-                      className={`p-1.5 rounded-lg border text-xs transition-all flex items-center justify-center shadow-sm shrink-0 h-[34px] w-[34px] ${
-                        inlineTask.priority === 'Frog' 
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-extrabold scale-105' 
+                      className={`p-1.5 rounded-lg border text-xs transition-all flex items-center justify-center shadow-sm shrink-0 h-[34px] w-[34px] ${inlineTask.priority === 'Frog'
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-extrabold scale-105'
                           : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
+                        }`}
                       title="Toggle Frog Task"
                     >
                       🐸
@@ -842,23 +838,23 @@ export default function UpcomingPlanner() {
                         onChange={(e) => setInlineTask(prev => ({ ...prev, newCategoryText: e.target.value }))}
                         className="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs h-[34px] bg-white font-medium"
                         autoFocus
-                        onKeyDown={(e) => { 
-                          if (e.key === 'Enter') { 
-                            e.preventDefault(); 
-                            handleConfirmInlineCategory(); 
-                          } 
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleConfirmInlineCategory();
+                          }
                         }}
                       />
-                      <button 
-                        type="button" 
-                        onClick={handleConfirmInlineCategory} 
+                      <button
+                        type="button"
+                        onClick={handleConfirmInlineCategory}
                         className="h-[34px] w-[30px] flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shrink-0 shadow-sm"
                       >
                         ✓
                       </button>
-                      <button 
-                        type="button" 
-                        onClick={() => setInlineTask(prev => ({ ...prev, isCreatingCategory: false }))} 
+                      <button
+                        type="button"
+                        onClick={() => setInlineTask(prev => ({ ...prev, isCreatingCategory: false }))}
                         className="h-[34px] w-[30px] flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-500 rounded-lg text-xs shrink-0"
                       >
                         ✕

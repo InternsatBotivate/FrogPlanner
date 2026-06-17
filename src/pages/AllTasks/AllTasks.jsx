@@ -159,7 +159,7 @@ export default function AllTasks() {
   // Get list of all date strings that have completions, explicit task dates, or represent today (overall data)
   const dateStrings = useMemo(() => {
     const keys = new Set(Object.keys(completions));
-    
+
     // Include all explicit dates from user's tasks
     tasks.forEach(t => {
       if (t.date) {
@@ -310,8 +310,8 @@ export default function AllTasks() {
           <button
             onClick={() => handleToggleStatus(item.id, item.dateInstance)}
             className={`px-3.5 py-1.5 text-xs font-bold rounded-lg border transition-all shadow-sm flex items-center justify-center gap-1.5 ${item.priority === 'Frog'
-                ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
-                  : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-550 hover:text-white'
+              ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+              : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-550 hover:text-white'
               }`}
           >
             {item.priority === 'Frog' ? '🐸 Eat Frog' : 'Done'}
@@ -536,11 +536,10 @@ export default function AllTasks() {
             setKpiFilter('All');
             setActiveTab('All');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
-            kpiFilter === 'All'
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${kpiFilter === 'All'
               ? 'bg-slate-800 border-slate-900 text-white ring-2 ring-slate-400/30'
               : 'bg-white border-gray-200 text-gray-550 hover:bg-slate-50'
-          }`}
+            }`}
         >
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'All' ? 'text-slate-300' : 'text-gray-400'}`}>Total Tasks</span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'All' ? 'text-white' : 'text-gray-800'}`}>{kpis.total}</span>
@@ -553,11 +552,10 @@ export default function AllTasks() {
             setKpiFilter('Completed');
             setActiveTab('History');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
-            kpiFilter === 'Completed'
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${kpiFilter === 'Completed'
               ? 'bg-emerald-600 border-emerald-700 text-white ring-2 ring-emerald-400/30'
               : 'bg-white border-emerald-500/25 text-gray-500 hover:bg-emerald-50/50'
-          }`}
+            }`}
         >
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Completed' ? 'text-emerald-100' : 'text-emerald-600'}`}>Completed</span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Completed' ? 'text-white' : 'text-emerald-600'}`}>{kpis.completed}</span>
@@ -570,11 +568,10 @@ export default function AllTasks() {
             setKpiFilter('Pending');
             setActiveTab('Pending');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
-            kpiFilter === 'Pending'
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${kpiFilter === 'Pending'
               ? 'bg-amber-500 border-amber-600 text-white ring-2 ring-amber-400/30'
               : 'bg-white border-amber-500/25 text-gray-500 hover:bg-amber-50/50'
-          }`}
+            }`}
         >
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Pending' ? 'text-amber-100' : 'text-amber-600'}`}>Pending</span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Pending' ? 'text-white' : 'text-amber-650'}`}>{kpis.pending}</span>
@@ -587,11 +584,10 @@ export default function AllTasks() {
             setKpiFilter('Frog');
             setActiveTab('Pending');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
-            kpiFilter === 'Frog'
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${kpiFilter === 'Frog'
               ? 'bg-green-700 border-green-800 text-white ring-2 ring-green-400/30'
               : 'bg-white border-green-600/25 text-gray-500 hover:bg-green-50/50'
-          }`}
+            }`}
         >
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${kpiFilter === 'Frog' ? 'text-green-100' : 'text-green-650'}`}>
             <span>🐸 Frogs</span>
@@ -606,11 +602,10 @@ export default function AllTasks() {
             setKpiFilter('Overdue');
             setActiveTab('Pending');
           }}
-          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${
-            kpiFilter === 'Overdue'
+          className={`rounded-xl p-2 sm:p-2.5 border transition-all duration-150 active:scale-95 text-left flex flex-col justify-between shadow-sm cursor-pointer w-[110px] min-w-[110px] sm:w-auto sm:min-w-0 flex-shrink-0 ${kpiFilter === 'Overdue'
               ? 'bg-rose-600 border-rose-700 text-white ring-2 ring-rose-400/30'
               : 'bg-white border-rose-500/25 text-gray-500 hover:bg-rose-50/50'
-          }`}
+            }`}
         >
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${kpiFilter === 'Overdue' ? 'text-rose-100' : 'text-rose-600'}`}>Overdue</span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Overdue' ? 'text-white' : 'text-rose-600'}`}>{kpis.overdue}</span>
@@ -627,8 +622,8 @@ export default function AllTasks() {
               <span
                 key={cat}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${count > 0
-                    ? 'bg-indigo-50 border-indigo-150 text-indigo-700'
-                    : 'bg-gray-50 border-gray-205 text-gray-400'
+                  ? 'bg-indigo-50 border-indigo-150 text-indigo-700'
+                  : 'bg-gray-50 border-gray-205 text-gray-400'
                   }`}
               >
                 {cat}: {count}
@@ -653,11 +648,10 @@ export default function AllTasks() {
           </div>
           <button
             onClick={() => setShowMobileFilters(prev => !prev)}
-            className={`p-2 rounded-xl border flex items-center justify-center h-[36px] w-[36px] shadow-sm transition-all ${
-              showMobileFilters
+            className={`p-2 rounded-xl border flex items-center justify-center h-[36px] w-[36px] shadow-sm transition-all ${showMobileFilters
                 ? 'bg-emerald-50 border-emerald-250 text-emerald-700'
                 : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-            }`}
+              }`}
           >
             <SlidersHorizontal size={18} />
           </button>
@@ -727,11 +721,10 @@ export default function AllTasks() {
               {/* Frog Tasks filter button */}
               <button
                 onClick={() => setFilterFrog(prev => prev === 'Frog' ? '' : 'Frog')}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[38px] w-full ${
-                  filterFrog === 'Frog'
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[38px] w-full ${filterFrog === 'Frog'
                     ? 'bg-emerald-50 border-emerald-250 text-emerald-700 shadow-sm'
                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 <span>🐸 Filter Frog Tasks</span>
                 {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
@@ -784,8 +777,8 @@ export default function AllTasks() {
                 setKpiFilter('Pending');
               }}
               className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-[11px] md:text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'Pending'
-                  ? 'bg-white text-gray-800 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-800'
                 }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -797,8 +790,8 @@ export default function AllTasks() {
                 setKpiFilter('Completed');
               }}
               className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-[11px] md:text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'History'
-                  ? 'bg-white text-gray-800 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-800'
                 }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -810,8 +803,8 @@ export default function AllTasks() {
                 setKpiFilter('All');
               }}
               className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-[11px] md:text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'All'
-                  ? 'bg-white text-gray-800 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-800'
                 }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
@@ -881,8 +874,8 @@ export default function AllTasks() {
             <button
               onClick={() => setFilterFrog(prev => prev === 'Frog' ? '' : 'Frog')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[32px] w-full sm:w-auto ${filterFrog === 'Frog'
-                  ? 'bg-emerald-50 border-emerald-250 text-emerald-700 shadow-sm'
-                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                ? 'bg-emerald-50 border-emerald-250 text-emerald-700 shadow-sm'
+                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                 }`}
             >
               <span>🐸 Frog Tasks</span>
@@ -1141,11 +1134,10 @@ export default function AllTasks() {
               <button
                 type="button"
                 onClick={() => setEditTaskData(prev => ({ ...prev, priority: prev.priority === 'Frog' ? '' : 'Frog' }))}
-                className={`w-full border rounded text-[10px] md:text-[11px] h-[32px] font-bold transition-all flex items-center justify-center gap-1 shadow-sm ${
-                  editTaskData.priority === 'Frog'
+                className={`w-full border rounded text-[10px] md:text-[11px] h-[32px] font-bold transition-all flex items-center justify-center gap-1 shadow-sm ${editTaskData.priority === 'Frog'
                     ? 'bg-emerald-50 border-emerald-355 text-emerald-700 font-extrabold'
                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 {editTaskData.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
               </button>
