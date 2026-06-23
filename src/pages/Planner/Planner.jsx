@@ -111,6 +111,8 @@ export default function Planner() {
   const [dirtyTasks, setDirtyTasks] = useState({});
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [submittingFrogIds, setSubmittingFrogIds] = useState([]);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditDate, setBulkEditDate] = useState(selectedDate);
 
   // Custom categories list derived from user profile
   const customCategories = user?.custom_categories || ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
@@ -361,7 +363,7 @@ export default function Planner() {
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
   const paginatedTasks = filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const headers = ['Action', 'Status', 'Remarks', 'Time', 'Date', 'Task Description', 'Category', 'Edit'];
+
 
   const getDayName = (date) => {
     return date.toLocaleDateString('en-US', { weekday: 'short' });
@@ -509,6 +511,84 @@ export default function Planner() {
     }
   };
 
+  const handleToggleSelectTask = (taskId) => {
+    setSelectedTaskIds(prev => {
+      if (prev.includes(taskId)) {
+        return prev.filter(id => id !== taskId);
+      } else {
+        return [...prev, taskId];
+      }
+    });
+  };
+
+  const handleSelectAllToggle = () => {
+    const visibleIds = paginatedTasks.map(t => t.id);
+    const isAllSelected = visibleIds.length > 0 && visibleIds.every(id => selectedTaskIds.includes(id));
+    if (isAllSelected) {
+      setSelectedTaskIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedTaskIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const handleBulkEditClick = () => {
+    setBulkEditDate(selectedDate);
+    setShowBulkEditModal(true);
+  };
+
+  const handleBulkEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!bulkEditDate) {
+      toast.error('Please select a date.');
+      return;
+    }
+
+    if (!user?.id || selectedTaskIds.length === 0) return;
+
+    setModalLoading(true);
+    const toastId = toast.loading('Submitting date changes to database...');
+
+    try {
+      // 1. Prepare updates for tasks table in Supabase
+      const taskPromises = selectedTaskIds.map(taskId => {
+        return supabase
+          .from('tasks')
+          .update({ task_date: bulkEditDate })
+          .eq('id', taskId);
+      });
+
+      const results = await Promise.all(taskPromises);
+
+      // Verify errors
+      for (const res of results) {
+        if (res.error) throw res.error;
+      }
+
+      // 2. Clear from selectedTaskIds
+      const count = selectedTaskIds.length;
+      setSelectedTaskIds([]);
+
+      // 3. Clear from dirtyTasks if any of these tasks were dirty (we just saved them)
+      setDirtyTasks(prev => {
+        const updated = { ...prev };
+        selectedTaskIds.forEach(id => delete updated[id]);
+        return updated;
+      });
+
+      toast.success(`Successfully updated date for ${count} tasks!`, { id: toastId });
+      setShowBulkEditModal(false);
+
+      // 4. Force refetch Central store data to synchronize local state
+      await usePlannerStore.getState().fetchPlannerData(user.id, true);
+    } catch (error) {
+      console.error('[Bulk Edit Submit Error]', error);
+      toast.error('Failed to update task dates in the database.', { id: toastId });
+      await usePlannerStore.getState().fetchPlannerData(user.id, true);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   // Bulk Actions
   const handleBulkComplete = () => {
     if (!user?.id || selectedTaskIds.length === 0) return;
@@ -589,7 +669,9 @@ export default function Planner() {
   const handleSaveAll = async () => {
     if (!user?.id) return;
     const dirtyList = Object.values(dirtyTasks);
-    if (dirtyList.length === 0) {
+    const selectedTasksToSubmit = masterTasks.filter(t => selectedTaskIds.includes(t.id));
+
+    if (dirtyList.length === 0 && selectedTasksToSubmit.length === 0) {
       toast.success('No changes to submit.');
       return;
     }
@@ -597,13 +679,45 @@ export default function Planner() {
     const toastId = toast.loading('Submitting changes to database...');
     try {
       // 1. Prepare updates for tasks table
-      const taskPromises = dirtyList.map(item => {
-        const dbFieldVal = item.selectValue || 'Select';
+      const updatesMap = {};
+
+      dirtyList.forEach(item => {
+        updatesMap[item.id] = {
+          id: item.id,
+          select_value: item.selectValue || 'Select',
+          remarks: item.remarks || '',
+          task_date: item.date
+        };
+      });
+
+      selectedTasksToSubmit.forEach(task => {
+        const taskDate = task.date || selectedDate;
+        const currentCompleted = completions[taskDate] || [];
+        const hasCompleted = currentCompleted.includes(task.id);
+
+        if (updatesMap[task.id]) {
+          updatesMap[task.id].select_value = 'Done';
+        } else {
+          updatesMap[task.id] = {
+            id: task.id,
+            select_value: 'Done',
+            remarks: task.remarks || '',
+            task_date: taskDate,
+            isNewCompletion: !hasCompleted,
+            date: taskDate
+          };
+        }
+      });
+
+      const finalUpdatesList = Object.values(updatesMap);
+
+      const taskPromises = finalUpdatesList.map(item => {
         return supabase
           .from('tasks')
           .update({
-            select_value: dbFieldVal,
-            remarks: item.remarks || ''
+            select_value: item.select_value,
+            remarks: item.remarks,
+            task_date: item.task_date
           })
           .eq('id', item.id);
       });
@@ -622,6 +736,23 @@ export default function Planner() {
           });
         } else if (!isCurrentlyDone && item.originalDone) {
           completionsToDelete.push(item.id);
+        }
+      });
+
+      selectedTasksToSubmit.forEach(task => {
+        const taskDate = task.date || selectedDate;
+        const currentCompleted = completions[taskDate] || [];
+        const hasCompleted = currentCompleted.includes(task.id);
+        
+        if (!hasCompleted) {
+          const alreadyAdded = completionsToInsert.some(c => c.task_id === task.id && c.completion_date === taskDate);
+          if (!alreadyAdded) {
+            completionsToInsert.push({
+              user_id: user.id,
+              task_id: task.id,
+              completion_date: taskDate
+            });
+          }
         }
       });
 
@@ -649,9 +780,10 @@ export default function Planner() {
         if (deleteErr) throw deleteErr;
       }
 
-      // Success! Clear dirty state
+      // Success! Clear dirty and selection states
       setDirtyTasks({});
-      toast.success(`Successfully submitted ${dirtyList.length} change(s) to database!`, { id: toastId });
+      setSelectedTaskIds([]);
+      toast.success('Successfully submitted all changes to database!', { id: toastId });
       await usePlannerStore.getState().fetchPlannerData(user.id, true);
     } catch (error) {
       console.error('[Planner Submit Error]', error);
@@ -784,26 +916,47 @@ export default function Planner() {
     setShowModal(false);
   };
 
+  const totalDirtyAndSelectedCount = useMemo(() => {
+    const uniqueIds = new Set([
+      ...Object.keys(dirtyTasks),
+      ...selectedTaskIds
+    ]);
+    return uniqueIds.size;
+  }, [dirtyTasks, selectedTaskIds]);
+
+  const isAllSelected = paginatedTasks.length > 0 && paginatedTasks.every(t => selectedTaskIds.includes(t.id));
+
+  const headers = [
+    <div className="flex items-center justify-center">
+      <input
+        type="checkbox"
+        checked={isAllSelected}
+        onChange={handleSelectAllToggle}
+        className="w-[16px] h-[16px] text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+      />
+    </div>,
+    'Status', 'Remarks', 'Time', 'Date', 'Task Description', 'Category', 'Edit'
+  ];
+
   const renderRow = (item) => {
     const isCompleted = isTaskCompletedForDate(item, item.date || selectedDate);
     const isSavedCompleted = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
     const isDisabled = activeFilter === 'Completed' || (isCompleted && isSavedCompleted);
+    const isSelected = selectedTaskIds.includes(item.id);
     return (
       <tr key={item.id} className="hover:bg-gray-50/80 transition-colors text-center text-sm border-b border-gray-100">
-        {/* Action Checkbox */}
-        <td className="px-2 py-2 w-[60px] whitespace-nowrap">
+        {/* Bulk Selection Checkbox */}
+        <td className="px-2 py-2 w-[40px] whitespace-nowrap">
           <div className="flex items-center justify-center">
             <input
               type="checkbox"
-              checked={item.status === 'Completed'}
-              onChange={() => handleToggleStatus(item.id)}
-              disabled={isDisabled}
-              className={`w-[18px] h-[18px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
-                isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-              }`}
+              checked={isSelected}
+              onChange={() => handleToggleSelectTask(item.id)}
+              className="w-[16px] h-[16px] text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
             />
           </div>
         </td>
+
         {/* Status Column (Dropdown Done/Pending/Select) */}
         <td className="px-2 py-2 w-[110px] whitespace-nowrap text-center">
           <select
@@ -891,16 +1044,25 @@ export default function Planner() {
     const isCompleted = isTaskCompletedForDate(item, item.date || selectedDate);
     const isSavedCompleted = (storeCompletions[item.date || selectedDate] || []).includes(item.id);
     const isDisabled = activeFilter === 'Completed' || (isCompleted && isSavedCompleted);
+    const isSelected = selectedTaskIds.includes(item.id);
     return (
       <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-150 shadow-sm space-y-2 transition-all duration-200 hover:shadow-md">
         {/* Row 1: Description + Edit + Checkbox */}
         <div className="flex justify-between items-start gap-2">
-          <h3 className="text-sm font-bold text-gray-800 leading-snug text-left flex items-start gap-1">
-            {item.priority === 'Frog' && (
-              <span className="text-sm select-none flex-shrink-0" title="Frog Task">🐸</span>
-            )}
-            <span>{item.description}</span>
-          </h3>
+          <div className="flex items-start gap-2 flex-1">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => handleToggleSelectTask(item.id)}
+              className="w-[16px] h-[16px] text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer mt-1 shrink-0"
+            />
+            <h3 className="text-sm font-bold text-gray-800 leading-snug text-left flex items-start gap-1">
+              {item.priority === 'Frog' && (
+                <span className="text-sm select-none flex-shrink-0" title="Frog Task">🐸</span>
+              )}
+              <span>{item.description}</span>
+            </h3>
+          </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => handleEditTaskClick(item)}
@@ -909,15 +1071,6 @@ export default function Planner() {
             >
               <Edit size={14} />
             </button>
-            <input
-              type="checkbox"
-              checked={item.status === 'Completed'}
-              onChange={() => handleToggleStatus(item.id)}
-              disabled={isDisabled}
-              className={`w-[18px] h-[18px] text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ${
-                isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-              }`}
-            />
           </div>
         </div>
 
@@ -1214,16 +1367,26 @@ export default function Planner() {
               )}
             </button>
 
+            {/* Bulk Edit Button beside View Frog Tasks */}
+            {selectedTaskIds.length > 0 && (
+              <button
+                onClick={handleBulkEditClick}
+                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg flex items-center justify-center gap-1.5 h-[28px] text-[11px] font-bold shadow-sm transition active:scale-95 border border-amber-600 animate-in slide-in-from-top-1 duration-150"
+              >
+                <span>📅 Bulk Edit ({selectedTaskIds.length})</span>
+              </button>
+            )}
+
             <button 
               onClick={handleSaveAll}
-              disabled={Object.keys(dirtyTasks).length === 0}
+              disabled={totalDirtyAndSelectedCount === 0}
               className={`rounded-lg flex items-center justify-center px-3.5 py-1 text-xs font-extrabold shadow-sm transition-all duration-150 active:scale-95 h-[28px] ${
-                Object.keys(dirtyTasks).length > 0 
+                totalDirtyAndSelectedCount > 0
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-400 ring-offset-1 animate-pulse' 
                   : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
               }`}
             >
-              Submit {Object.keys(dirtyTasks).length > 0 ? `(${Object.keys(dirtyTasks).length})` : ''}
+              Submit {totalDirtyAndSelectedCount > 0 ? `(${totalDirtyAndSelectedCount})` : ''}
             </button>
 
             <button 
@@ -1276,12 +1439,23 @@ export default function Planner() {
               )}
             </button>
 
+            {/* Bulk Edit Button beside View Frog Tasks for Mobile */}
+            {selectedTaskIds.length > 0 && (
+              <button
+                onClick={handleBulkEditClick}
+                className="p-2 border border-amber-300 rounded-lg flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white transition-all h-[34px] w-[34px] shadow-sm text-sm active:scale-95 shrink-0 animate-in slide-in-from-top-1 duration-150"
+                title={`Bulk Edit Date (${selectedTaskIds.length})`}
+              >
+                <span>📅</span>
+              </button>
+            )}
+
             {/* Save/Submit Button */}
             <button 
               onClick={handleSaveAll}
-              disabled={Object.keys(dirtyTasks).length === 0}
+              disabled={totalDirtyAndSelectedCount === 0}
               className={`rounded-lg flex items-center justify-center h-[34px] w-[34px] transition-all duration-150 active:scale-95 ${
-                Object.keys(dirtyTasks).length > 0 
+                totalDirtyAndSelectedCount > 0
                   ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 ring-offset-1 animate-pulse border border-emerald-700 shadow-sm' 
                   : 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
               }`}
@@ -1675,6 +1849,30 @@ export default function Planner() {
         {...alertConfig} 
         onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })} 
       />
+
+      {/* BULK EDIT POPUP MODAL */}
+      <ModalForm
+        isOpen={showBulkEditModal}
+        onClose={() => setShowBulkEditModal(false)}
+        title="Bulk Edit Task Date"
+        onSubmit={handleBulkEditSubmit}
+        submitText="Apply Date Change"
+        loading={modalLoading}
+      >
+        <div className="space-y-4 text-left">
+          {/* Date Selector */}
+          <div className="space-y-1">
+            <label className="block text-[10px] md:text-[11px] text-gray-650 font-bold uppercase tracking-wider">Select New Date *</label>
+            <input 
+              type="date"
+              required 
+              value={bulkEditDate} 
+              onChange={(e) => setBulkEditDate(e.target.value)} 
+              className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[34px] bg-white" 
+            />
+          </div>
+        </div>
+      </ModalForm>
 
       {showFrogModal && (() => {
         const frogTasks = allTodayFrogTasks.filter(t => !t.isCompleted);
