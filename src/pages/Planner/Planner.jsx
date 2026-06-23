@@ -1373,7 +1373,7 @@ export default function Planner() {
                 onClick={handleBulkEditClick}
                 className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg flex items-center justify-center gap-1.5 h-[28px] text-[11px] font-bold shadow-sm transition active:scale-95 border border-amber-600 animate-in slide-in-from-top-1 duration-150"
               >
-                <span>📅 Bulk Edit ({selectedTaskIds.length})</span>
+                <span>📅 Date Transfer ({selectedTaskIds.length})</span>
               </button>
             )}
 
