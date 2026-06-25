@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { usePlannerStore } from '../store/plannerStore';
+import FrogLogo from './FrogLogo';
 
 const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
     { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
     { path: '/recurring-tasks', icon: LayoutGrid, label: 'Recurring Tasks' },
     { path: '/ai-assistant', icon: Sparkles, label: 'AI Assistant' },
-    { path: '/about-frog-planner', icon: '🐸', label: 'About Frog Planner' },
+    { path: '/about-frog-planner', icon: 'frog-logo', label: 'About Frog Planner' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -61,8 +62,8 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
           {/* Logo Section */}
           <div className={`p-4 border-b border-green-100 flex ${isCollapsed ? 'lg:flex-col lg:items-center' : 'items-center justify-between'} gap-3`}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
-                🐸
+              <div className="w-8 h-8 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <FrogLogo className="w-full h-full object-cover" />
               </div>
               {!isCollapsed && (
                 <span className="text-xl font-bold text-green-700 tracking-tight animate-in fade-in duration-200">
@@ -105,7 +106,9 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
                 title={isCollapsed ? item.label : undefined}
               >
                 <div className="flex items-center gap-3">
-                  {typeof item.icon === 'string' ? (
+                  {item.icon === 'frog-logo' ? (
+                    <FrogLogo className="w-5 h-5 object-contain group-hover:scale-110 transition-transform flex-shrink-0 animate-in fade-in duration-200 select-none" />
+                  ) : typeof item.icon === 'string' ? (
                     <span className="text-[17px] w-5 h-5 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0 animate-in fade-in duration-200 select-none">
                       {item.icon}
                     </span>

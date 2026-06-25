@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bell, Settings, Menu } from 'lucide-react';
+import FrogLogo from './FrogLogo';
 
 const Header = ({ onMenuClick, user }) => {
   return (
@@ -33,8 +34,8 @@ const Header = ({ onMenuClick, user }) => {
               </p>
             </div>
             {/* Frog avatar with yellow ring for accent */}
-            <div className="w-9 h-9 rounded-full bg-yellow-50 border-2 border-yellow-300 flex items-center justify-center group-hover:border-green-400 transition-all overflow-hidden shadow-sm text-lg select-none">
-              🐸
+            <div className="w-9 h-9 rounded-full bg-yellow-50 border-2 border-yellow-300 flex items-center justify-center group-hover:border-green-400 transition-all overflow-hidden shadow-sm select-none">
+              <FrogLogo className="w-full h-full object-cover" />
             </div>
           </div>
         </div>

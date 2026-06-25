@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Clock, AlertTriangle, TrendingUp, Droplets,
@@ -446,7 +447,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
-        <div className="text-5xl animate-bounce">🐸</div>
+        <FrogLogo className="w-16 h-16 animate-bounce" />
         <div className="text-gray-500 font-bold tracking-wide animate-pulse">Loading Dashboard Metrics from Supabase...</div>
       </div>
     );
@@ -461,7 +462,7 @@ export default function Dashboard() {
           <span className="text-3xl select-none">{greeting.emoji}</span>
           <div>
             <h2 className="text-base font-extrabold text-white leading-tight">
-              {greeting.wish}, {user?.name?.split(' ')[0] || 'Friend'}! 🐸
+              {greeting.wish}, {user?.name?.split(' ')[0] || 'Friend'}! <FrogLogo className="w-5 h-5 inline-block ml-1 align-middle" />
             </h2>
             <p className="text-xs text-green-100/80 font-medium mt-0.5">{greeting.sub}</p>
           </div>
@@ -605,7 +606,7 @@ export default function Dashboard() {
                   <div className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0 mt-1.5" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-gray-800 flex items-center gap-1 truncate">
-                      <span className="select-none">🐸</span>
+                      <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />
                       <span>{task.description}</span>
                     </p>
                     <p className="text-[9px] text-gray-400 mt-0.5">{task.duration} • {getCategoryEmoji(task.category)} {task.category}</p>
@@ -652,7 +653,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping"></span>
-              <h3 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">🐸 Frog Tasks for Today ({todayFrogTasks.filter(t => t.status !== 'Completed').length} Pending)</h3>
+              <h3 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Frog Tasks for Today ({todayFrogTasks.filter(t => t.status !== 'Completed').length} Pending)</h3>
             </div>
             <p className="text-[10px] text-emerald-700 font-semibold italic bg-emerald-50 border border-emerald-100 rounded-md px-2 py-0.5 hidden sm:block">
               "Eat a live frog first thing in the morning..."
@@ -678,14 +679,14 @@ export default function Dashboard() {
                           ? 'bg-emerald-100 border-emerald-200 text-emerald-800' 
                           : 'bg-emerald-50 border-emerald-150 text-emerald-700'
                       }`}>
-                        {isCompleted ? '✓ Completed' : '🐸 Active Frog'}
+                        {isCompleted ? '✓ Completed' : <span className="flex items-center gap-1"><FrogLogo className="w-3 h-3" />Active Frog</span>}
                       </span>
                       <span className="text-[9px] text-gray-500 font-semibold uppercase">
                         ⏰ {t.duration}
                       </span>
                     </div>
                     <h4 className={`text-xs md:text-sm font-bold text-gray-800 leading-snug flex items-start gap-1.5 ${isCompleted ? 'line-through text-gray-400 font-medium' : ''}`}>
-                      <span className="select-none flex-shrink-0">🐸</span>
+                      <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />
                       <span>{t.description}</span>
                     </h4>
                   </div>
@@ -701,7 +702,7 @@ export default function Dashboard() {
                           : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
                       }`}
                     >
-                      {isCompleted ? 'Undo' : '🐸 Eat Frog'}
+                      {isCompleted ? 'Undo' : <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Eat Frog</span>}
                     </button>
                   </div>
                 </div>
@@ -817,7 +818,7 @@ export default function Dashboard() {
                       <div className="w-1.5 h-8 bg-indigo-500 rounded-full flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-gray-800 flex items-center gap-1 truncate">
-                          {task.priority === 'Frog' && <span className="select-none flex-shrink-0">🐸</span>}
+                          {task.priority === 'Frog' && <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />}
                           <span>{task.description}</span>
                         </p>
                         <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">⏰ {task.duration} • {getCategoryEmoji(task.category)} {task.category}</p>
@@ -974,7 +975,7 @@ export default function Dashboard() {
                     <div className="w-1.5 h-6 bg-emerald-500 rounded-full flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-gray-800 flex items-center gap-1 truncate">
-                        {t.priority === 'Frog' && <span className="select-none flex-shrink-0">🐸</span>}
+                        {t.priority === 'Frog' && <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />}
                         <span>{t.description}</span>
                       </p>
                       <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">⏰ {t.duration} • {getCategoryEmoji(t.category)} {t.category}</p>
@@ -1045,7 +1046,7 @@ export default function Dashboard() {
                       <td className="px-4 py-3 text-gray-900 font-bold text-left">
                         <div className="flex items-center gap-1.5">
                           {t.priority === 'Frog' && (
-                            <span className="text-base select-none" title="Frog Task">🐸</span>
+                            <FrogLogo className="w-5 h-5 select-none" title="Frog Task" />
                           )}
                           <span>{t.description}</span>
                         </div>
@@ -1226,7 +1227,7 @@ export default function Dashboard() {
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                         }`}
                       >
-                        {row.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+                        {row.priority === 'Frog' ? <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Frog!</> : <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Mark Frog</>}
                       </button>
                     </div>
                   </div>

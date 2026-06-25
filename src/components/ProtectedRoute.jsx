@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { usePlannerStore } from '../store/plannerStore';
+import FrogLogo from './FrogLogo';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading: authLoading } = useAuthStore();
@@ -19,7 +20,7 @@ const ProtectedRoute = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
-          <span className="text-5xl animate-bounce select-none">🐸</span>
+          <FrogLogo className="w-16 h-16 animate-bounce select-none" />
           <p className="text-sm font-semibold text-gray-400 tracking-wide">Loading Frog Planner…</p>
         </div>
       </div>

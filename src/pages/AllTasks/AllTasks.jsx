@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import {
   CheckCircle2, Clock, Calendar, CheckSquare, Search, AlertCircle,
   Trash2, Edit, ListTodo, ChevronLeft, ChevronRight, Zap, SlidersHorizontal
@@ -314,7 +315,7 @@ export default function AllTasks() {
               : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-550 hover:text-white'
               }`}
           >
-            {item.priority === 'Frog' ? '🐸 Eat Frog' : 'Done'}
+            {item.priority === 'Frog' ? <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Eat Frog</> : 'Done'}
           </button>
         </div>
       </td>
@@ -324,7 +325,7 @@ export default function AllTasks() {
       <td className="px-4 py-3.5 text-gray-900 font-medium text-center max-w-[200px] md:max-w-xs truncate" title={item.description}>
         <div className="flex items-center justify-center gap-2">
           {item.priority === 'Frog' && (
-            <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+            <FrogLogo className="w-5 h-5 flex-shrink-0 select-none" title="Frog Task" />
           )}
           <span>{item.description}</span>
         </div>
@@ -364,7 +365,7 @@ export default function AllTasks() {
       {/* Row 1: Description + Edit + Check Toggle */}
       <div className="flex justify-between items-start gap-2">
         <p className="text-sm font-extrabold text-gray-800 tracking-tight leading-snug flex items-start gap-1">
-          {item.priority === 'Frog' && <span className="text-sm select-none flex-shrink-0">🐸</span>}
+          {item.priority === 'Frog' && <FrogLogo className="w-4 h-4 flex-shrink-0 select-none" />}
           <span>{item.description}</span>
         </p>
         <div className="flex items-center gap-2 shrink-0">
@@ -424,7 +425,7 @@ export default function AllTasks() {
       <td className="px-4 py-3.5 text-gray-400 font-normal text-center max-w-[200px] md:max-w-xs truncate line-through" title={item.description}>
         <div className="flex items-center justify-center gap-2">
           {item.priority === 'Frog' && (
-            <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+            <FrogLogo className="w-5 h-5 flex-shrink-0 select-none" title="Frog Task" />
           )}
           <span>{item.description}</span>
         </div>
@@ -464,7 +465,7 @@ export default function AllTasks() {
       {/* Row 1: Description + Edit + Undo Toggle */}
       <div className="flex justify-between items-start gap-2">
         <p className="text-sm font-extrabold text-gray-400 tracking-tight leading-snug line-through flex items-start gap-1">
-          {item.priority === 'Frog' && <span className="text-sm select-none flex-shrink-0">🐸</span>}
+          {item.priority === 'Frog' && <FrogLogo className="w-4 h-4 flex-shrink-0 select-none" />}
           <span>{item.description}</span>
         </p>
         <div className="flex items-center gap-2 shrink-0">
@@ -518,7 +519,7 @@ export default function AllTasks() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
-        <div className="text-5xl animate-bounce">🐸</div>
+        <FrogLogo className="w-16 h-16 animate-bounce" />
         <div className="text-gray-500 font-bold tracking-wide animate-pulse">Loading Task History from Supabase...</div>
       </div>
     );
@@ -590,7 +591,7 @@ export default function AllTasks() {
             }`}
         >
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${kpiFilter === 'Frog' ? 'text-green-100' : 'text-green-650'}`}>
-            <span>🐸 Frogs</span>
+            <span className="flex items-center gap-1"><FrogLogo className="w-3 h-3" />Frogs</span>
           </span>
           <span className={`text-base sm:text-lg font-black mt-0.5 ${kpiFilter === 'Frog' ? 'text-white' : 'text-emerald-800'}`}>{kpis.pendingFrog}</span>
         </button>
@@ -726,7 +727,7 @@ export default function AllTasks() {
                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                   }`}
               >
-                <span>🐸 Filter Frog Tasks</span>
+                <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Filter Frog Tasks</span>
                 {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
               </button>
 
@@ -738,7 +739,7 @@ export default function AllTasks() {
                 }}
                 className="px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[38px] w-full bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm active:scale-95"
               >
-                <span>🐸 View Frog Tasks Dialog</span>
+                <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />View Frog Tasks Dialog</span>
                 {kpis.pendingFrog > 0 && (
                   <span className="bg-white text-emerald-700 font-black text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">{kpis.pendingFrog}</span>
                 )}
@@ -878,7 +879,7 @@ export default function AllTasks() {
                 : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                 }`}
             >
-              <span>🐸 Frog Tasks</span>
+              <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Frog Tasks</span>
               {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
             </button>
 
@@ -887,7 +888,7 @@ export default function AllTasks() {
               onClick={() => setShowFrogModal(true)}
               className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 h-[32px] w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm active:scale-95"
             >
-              <span>🐸 View Frog Tasks</span>
+              <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />View Frog Tasks</span>
               {kpis.pendingFrog > 0 && (
                 <span className="bg-white text-emerald-700 font-black text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">{kpis.pendingFrog}</span>
               )}
@@ -948,7 +949,7 @@ export default function AllTasks() {
               <div className="p-5 pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-white">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="text-4xl select-none leading-none">🐸</div>
+                    <FrogLogo className="w-10 h-10 select-none" />
                     <div>
                       <h2 className="text-base font-black text-gray-800 tracking-tight">Today's Frog Tasks</h2>
                       <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">High priority tasks that must be accomplished first</p>
@@ -1001,7 +1002,7 @@ export default function AllTasks() {
                           onClick={() => handleToggleStatus(t.id, t.dateInstance)}
                           className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1"
                         >
-                          🐸 Eat Frog
+                          <FrogLogo className="w-3.5 h-3.5" />Eat Frog
                         </button>
                       </div>
                     </div>
@@ -1139,7 +1140,7 @@ export default function AllTasks() {
                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                   }`}
               >
-                {editTaskData.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+                {editTaskData.priority === 'Frog' ? <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Frog!</> : <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Mark Frog</>}
               </button>
             </div>
           </div>

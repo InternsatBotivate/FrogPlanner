@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { Plus, Trash2 } from 'lucide-react';
 import ModalForm from '../../components/ModalForm';
 import { useAuthStore } from '../../store/authStore';
@@ -233,7 +234,7 @@ export default function UpcomingPlannerForm({ isOpen, onClose, onSaved }) {
                       onClick={() => handleFieldChange(idx, 'priority', row.priority === 'Frog' ? '' : 'Frog')}
                       className={`w-full border rounded text-[10px] md:text-[11px] h-[32px] font-bold transition-all flex items-center justify-center gap-1 shadow-sm ${row.priority === 'Frog' ? 'bg-emerald-50 border-emerald-355 text-emerald-700 font-extrabold' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}
                     >
-                      {row.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+                      {row.priority === 'Frog' ? <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Frog!</> : <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Mark Frog</>}
                     </button>
                   </div>
                 </div>

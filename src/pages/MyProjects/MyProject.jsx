@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { useNavigate } from 'react-router-dom';
 import { FolderPlus, Trash2, ArrowRight, FolderClosed } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -104,7 +105,7 @@ const MyProject = () => {
       <div className="flex-1 overflow-y-auto pr-1">
         {loading ? (
           <div className="text-center py-16 bg-gray-50/50 rounded-2xl border border-gray-100 max-w-xl">
-            <span className="text-4xl animate-bounce select-none block mb-3">🐸</span>
+            <FrogLogo className="w-14 h-14 animate-bounce select-none block mb-3 mx-auto" />
             <p className="text-sm font-semibold text-gray-400">Loading projects…</p>
           </div>
         ) : projects.length === 0 ? (

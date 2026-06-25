@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import frogLogo from '../Assets/frog_planner_logo.avif';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus, Building, Briefcase, Shield, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -47,7 +48,7 @@ const Login = () => {
         toast.error(error.message || 'Invalid User ID or Password.');
         return;
       }
-      toast.success(`Welcome back! 🐸`);
+      toast.success(`Welcome back!`);
       navigate('/', { replace: true });
     } catch {
       toast.error('Login error. Please try again.');
@@ -109,7 +110,7 @@ const Login = () => {
         toast.error(error.message || 'Sign up failed. Please try again.');
         return;
       }
-      toast.success(`Account created! Welcome, ${signupName.trim()}! 🐸`);
+      toast.success(`Account created! Welcome, ${signupName.trim()}!`);
       setShowSignupModal(false);
       navigate('/', { replace: true });
     } catch {
@@ -141,8 +142,8 @@ const Login = () => {
             <div className="absolute bottom-[-15%] right-[-15%] w-60 h-60 rounded-full bg-yellow-50/60 pointer-events-none" />
 
             <div className="relative z-10 flex flex-col items-center text-center space-y-5 flex-1 justify-center w-full">
-              <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full border-4 border-green-400 bg-green-50 flex items-center justify-center shadow-lg text-6xl lg:text-7xl select-none">
-                🐸
+              <div className="w-24 h-24 lg:w-28 lg:h-28 flex items-center justify-center select-none drop-shadow-lg">
+                <img src={frogLogo} alt="Frog Planner" className="w-full h-full object-contain" />
               </div>
               <div className="space-y-2">
                 <h1 className="text-3xl lg:text-4xl font-black text-green-700 tracking-tight">Frog Planner</h1>
@@ -175,18 +176,18 @@ const Login = () => {
 
             {/* Mobile logo */}
             <div className="flex flex-col items-center gap-2 md:hidden">
-              <div className="w-16 h-16 rounded-full border-4 border-green-400 bg-green-50 flex items-center justify-center shadow-md text-4xl select-none">
-                🐸
+              <div className="w-16 h-16 flex items-center justify-center select-none drop-shadow-md">
+                <img src={frogLogo} alt="Frog Planner" className="w-full h-full object-contain" />
               </div>
               <h1 className="text-xl font-extrabold text-gray-900 flex items-center gap-1.5">
-                <span>🐸</span> Frog <span className="text-green-600">Planner</span>
+                <img src={frogLogo} alt="" className="w-5 h-5 object-contain" /> Frog <span className="text-green-600">Planner</span>
               </h1>
             </div>
 
             {/* Heading (md+) */}
             <div className="hidden md:block">
               <h2 className="text-2xl lg:text-3xl font-extrabold text-gray-900 flex items-center gap-2">
-                🐸 <span>Sign In</span>
+                <img src={frogLogo} alt="" className="w-8 h-8 object-contain" /> <span>Sign In</span>
               </h2>
               <p className="text-sm text-gray-400 mt-1">Enter your credentials to access Frog Planner.</p>
             </div>
@@ -247,7 +248,7 @@ const Login = () => {
             <div className="pt-3 border-t border-gray-100 space-y-2 mt-auto">
               <button type="button" onClick={() => setShowAbout(true)}
                 className="w-full text-center text-[11px] font-bold text-green-700 hover:text-green-900 hover:underline flex items-center justify-center gap-1 select-none transition-colors">
-                <span>🐸</span> About Frog Planner
+                <img src={frogLogo} alt="" className="w-4 h-4 object-contain" /> About Frog Planner
               </button>
             </div>
           </div>
@@ -265,7 +266,7 @@ const Login = () => {
                 <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
                   <UserPlus size={18} className="text-green-600" /> Create Account
                 </h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Join Frog Planner and start today 🐸</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Join Frog Planner and start today</p>
               </div>
               <button type="button" onClick={() => setShowSignupModal(false)}
                 className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-green-100 rounded-lg transition-colors">
@@ -424,7 +425,7 @@ const Login = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-4xl max-h-[92vh] sm:max-h-[85vh] rounded-xl sm:rounded-2xl shadow-xl flex flex-col overflow-hidden border border-green-100 animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-green-100 flex items-center justify-between bg-green-50/40">
-              <span className="text-sm font-bold text-green-800 flex items-center gap-1.5"><span>🐸</span> About Frog Planner</span>
+              <span className="text-sm font-bold text-green-800 flex items-center gap-1.5"><img src={frogLogo} alt="" className="w-4 h-4 object-contain" /> About Frog Planner</span>
               <button type="button" onClick={() => setShowAbout(false)}
                 className="p-1 text-gray-400 hover:text-gray-700 hover:bg-green-50 rounded-lg transition-colors">
                 <X size={18} />

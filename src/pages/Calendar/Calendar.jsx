@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { ChevronLeft, ChevronRight, LogIn, LogOut, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Daily from './Daily';
 import Weekly from './Weekly';
@@ -146,7 +147,7 @@ export default function Calendar() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
-        <div className="text-5xl animate-bounce">🐸</div>
+        <FrogLogo className="w-16 h-16 animate-bounce" />
         <div className="text-gray-500 font-bold tracking-wide animate-pulse">Loading Calendar Data from Supabase...</div>
       </div>
     );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import {
   Clock, Plus, Trash2, Lock, Calendar, Sparkles,
   Send, RefreshCw, AlertCircle, CalendarRange, Info, ListTodo,
@@ -280,7 +281,7 @@ export default function UpcomingPlanner() {
           newCategoryText: ''
         });
         setActiveFilter('Recurring');
-        toast.success('Tasks added for your next day successfully! 🐸', {
+        toast.success('Tasks added for your next day successfully!', {
           duration: 4000,
           style: {
             background: '#065f46',
@@ -326,7 +327,7 @@ export default function UpcomingPlanner() {
           <div className="bg-white rounded-3xl border border-emerald-100 shadow-lg p-8 flex flex-col items-center text-center gap-5">
             {/* Big frog + check badge */}
             <div className="relative">
-              <div className="text-6xl select-none">🐸</div>
+              <FrogLogo className="w-20 h-20 select-none" />
               <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
                 <CheckCircle2 size={16} className="text-white" strokeWidth={3} />
               </div>
@@ -370,7 +371,7 @@ export default function UpcomingPlanner() {
                     {/* Top row: frog badge + description */}
                     <div className="flex items-start gap-2">
                       {t.priority === 'Frog' ? (
-                        <span className="text-base shrink-0 leading-none mt-0.5">🐸</span>
+                        <FrogLogo className="w-5 h-5 shrink-0 mt-0.5 select-none" />
                       ) : (
                         <span className="shrink-0 mt-0.5 text-emerald-400"><CheckCircle2 size={13} /></span>
                       )}
@@ -392,7 +393,7 @@ export default function UpcomingPlanner() {
                       )}
                       {t.priority === 'Frog' && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-md text-[9px] font-bold text-emerald-600 uppercase tracking-wide">
-                          🐸 Frog Task
+                          <FrogLogo className="w-3 h-3" />Frog Task
                         </span>
                       )}
                     </div>
@@ -426,7 +427,7 @@ export default function UpcomingPlanner() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-green-100 shadow-sm">
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-bold text-green-700 tracking-tight flex items-center gap-2">
-            <span>🐸</span> Next Day Planner
+            <FrogLogo className="w-7 h-7 select-none" /> Next Day Planner
           </h1>
           <p className="text-xs sm:text-sm text-gray-500">
             Plan your tasks for tomorrow. Add everything you need and hit Submit to lock it in.
@@ -491,7 +492,7 @@ export default function UpcomingPlanner() {
                   }`}
                 title="Toggle Frog Task"
               >
-                🐸 Frog Task
+                <FrogLogo className="w-3.5 h-3.5" />Frog Task
               </button>
             </div>
 
@@ -617,7 +618,7 @@ export default function UpcomingPlanner() {
 
                     <h3 className={`text-sm font-bold leading-snug text-left flex items-start gap-1.5 pt-0.5 ${task.status === 'Completed' ? 'text-gray-400 line-through opacity-70' : 'text-gray-805'}`}>
                       {task.priority === 'Frog' && (
-                        <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+                        <FrogLogo className="w-5 h-5 flex-shrink-0 select-none" title="Frog Task" />
                       )}
                       <span>{task.description}</span>
                     </h3>
@@ -650,7 +651,7 @@ export default function UpcomingPlanner() {
 
                     <h3 className="text-sm font-bold text-gray-855 leading-snug text-left flex items-start gap-1.5 pt-0.5">
                       {task.priority === 'Frog' && (
-                        <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+                        <FrogLogo className="w-5 h-5 flex-shrink-0 select-none" title="Frog Task" />
                       )}
                       <span>{task.description}</span>
                     </h3>
@@ -699,7 +700,7 @@ export default function UpcomingPlanner() {
                   </td>
                   <td className="py-3.5 text-left font-bold text-slate-800 align-middle">
                     <div className="flex items-center gap-1.5">
-                      {task.priority === 'Frog' && <span className="select-none text-sm shrink-0" title="Frog Task">🐸</span>}
+                      {task.priority === 'Frog' && <FrogLogo className="w-4 h-4 shrink-0 select-none" title="Frog Task" />}
                       <span className="truncate">{task.description}</span>
                     </div>
                   </td>
@@ -746,7 +747,7 @@ export default function UpcomingPlanner() {
                   </td>
                   <td className={`py-3.5 text-left font-bold align-middle ${task.status === 'Completed' ? 'text-gray-400 line-through opacity-70' : 'text-slate-850'}`}>
                     <div className="flex items-center gap-1.5">
-                      {task.priority === 'Frog' && <span className="select-none text-sm shrink-0" title="Frog Task">🐸</span>}
+                      {task.priority === 'Frog' && <FrogLogo className="w-4 h-4 shrink-0 select-none" title="Frog Task" />}
                       <span className="truncate">{task.description}</span>
                     </div>
                   </td>
@@ -798,7 +799,7 @@ export default function UpcomingPlanner() {
                         }`}
                       title="Toggle Frog Task"
                     >
-                      🐸
+                      <FrogLogo className="w-5 h-5 select-none" />
                     </button>
                     <input
                       type="text"

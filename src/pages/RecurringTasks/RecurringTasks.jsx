@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { Search, Plus, Filter, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DataTable from '../../components/DataTable';
@@ -193,7 +194,7 @@ export default function RecurringTasks() {
       <td className="px-4 py-3.5 text-gray-900 font-bold text-left text-xs md:text-sm max-w-[250px] truncate" title={item.description}>
         <div className="flex items-center gap-2">
           {item.priority === 'Frog' && (
-            <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+            <FrogLogo className="w-5 h-5 flex-shrink-0 select-none" title="Frog Task" />
           )}
           <span>{item.description}</span>
         </div>
@@ -247,7 +248,7 @@ export default function RecurringTasks() {
         </div>
       </div>
       <p className="text-sm md:text-base font-bold text-gray-800 leading-tight flex items-start gap-1.5">
-        {item.priority === 'Frog' && <span className="text-base select-none flex-shrink-0">🐸</span>}
+        {item.priority === 'Frog' && <FrogLogo className="w-5 h-5 flex-shrink-0 select-none" />}
         <span>{item.description}</span>
       </p>
       {item.remarks && (
@@ -262,7 +263,7 @@ export default function RecurringTasks() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
-        <div className="text-5xl animate-bounce">🐸</div>
+        <FrogLogo className="w-16 h-16 animate-bounce" />
         <div className="text-gray-500 font-bold tracking-wide animate-pulse">Loading Recurring Tasks from Supabase...</div>
       </div>
     );
@@ -416,7 +417,7 @@ export default function RecurringTasks() {
                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                   }`}
               >
-                {formData.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+                {formData.priority === 'Frog' ? <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Frog!</> : <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Mark Frog</>}
               </button>
             </div>
 

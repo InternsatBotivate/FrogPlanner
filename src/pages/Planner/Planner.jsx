@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, SlidersHorizontal, Save, Edit } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 import ModalForm from '../../components/ModalForm';
@@ -1012,7 +1013,7 @@ export default function Planner() {
         <td className="px-4 py-2 text-gray-800 text-xs md:text-sm text-center font-medium">
           <div className="flex items-center justify-center gap-2">
             {item.priority === 'Frog' && (
-              <span className="text-base select-none flex-shrink-0" title="Frog Task">🐸</span>
+              <FrogLogo className="w-5 h-5 flex-shrink-0 select-none" title="Frog Task" />
             )}
             <span>{item.description}</span>
           </div>
@@ -1058,7 +1059,7 @@ export default function Planner() {
             />
             <h3 className="text-sm font-bold text-gray-800 leading-snug text-left flex items-start gap-1">
               {item.priority === 'Frog' && (
-                <span className="text-sm select-none flex-shrink-0" title="Frog Task">🐸</span>
+                <FrogLogo className="w-4 h-4 flex-shrink-0 select-none" title="Frog Task" />
               )}
               <span>{item.description}</span>
             </h3>
@@ -1138,7 +1139,7 @@ export default function Planner() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
-        <div className="text-5xl animate-bounce">🐸</div>
+        <FrogLogo className="w-16 h-16 animate-bounce" />
         <div className="text-gray-500 font-bold tracking-wide animate-pulse">Loading Planner Data from Supabase...</div>
       </div>
     );
@@ -1197,7 +1198,7 @@ export default function Planner() {
               : 'bg-green-50 border-green-150 text-green-800 hover:bg-green-100/50'
           }`}
         >
-          <span className="text-sm sm:text-base md:text-lg leading-none font-extrabold flex items-center gap-0.5">🐸{stats.pendingFrogs}</span>
+          <span className="text-sm sm:text-base md:text-lg leading-none font-extrabold flex items-center gap-0.5"><FrogLogo className="w-4 h-4 sm:w-5 sm:h-5" />{stats.pendingFrogs}</span>
           <span className="text-[8px] sm:text-[9px] uppercase tracking-wider mt-0.5 opacity-90">Frogs</span>
         </button>
 
@@ -1332,7 +1333,7 @@ export default function Planner() {
                   : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
               }`}
             >
-              <span>🐸 Frog Tasks</span>
+              <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Frog Tasks</span>
               {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
             </button>
 
@@ -1359,7 +1360,7 @@ export default function Planner() {
               onClick={() => setShowFrogModal(true)}
               className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-1.5 h-[28px] text-[11px] font-bold shadow-sm transition active:scale-95 border border-emerald-700"
             >
-              <span>🐸 View Frog Tasks</span>
+              <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />View Frog Tasks</span>
               {allTodayFrogTasks.filter(t => !t.isCompleted).length > 0 && (
                 <span className="bg-white text-emerald-700 font-black text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
                   {allTodayFrogTasks.filter(t => !t.isCompleted).length}
@@ -1431,7 +1432,7 @@ export default function Planner() {
               className="relative p-2 border border-gray-300 rounded-lg flex items-center justify-center bg-white hover:bg-emerald-50 hover:border-emerald-300 transition-all h-[34px] w-[34px] shadow-sm text-sm active:scale-95 shrink-0"
               title="View Frog Tasks"
             >
-              <span>🐸</span>
+              <FrogLogo className="w-5 h-5" />
               {allTodayFrogTasks.filter(t => !t.isCompleted).length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-emerald-600 text-white font-extrabold text-[8px] rounded-full w-4 h-4 flex items-center justify-center leading-none ring-1 ring-white">
                   {allTodayFrogTasks.filter(t => !t.isCompleted).length}
@@ -1517,7 +1518,7 @@ export default function Planner() {
                       : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                   }`}
                 >
-                  <span>🐸 Frog Tasks Only</span>
+                  <span className="flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Frog Tasks Only</span>
                   {filterFrog === 'Frog' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>}
                 </button>
               </div>
@@ -1710,7 +1711,7 @@ export default function Planner() {
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                         }`}
                       >
-                        {row.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+                        {row.priority === 'Frog' ? <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Frog!</> : <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Mark Frog</>}
                       </button>
                     </div>
                   </div>
@@ -1838,7 +1839,7 @@ export default function Planner() {
                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                 }`}
               >
-                {editTaskData.priority === 'Frog' ? '🐸 Frog!' : '🐸 Mark Frog'}
+                {editTaskData.priority === 'Frog' ? <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Frog!</> : <><FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Mark Frog</>}
               </button>
             </div>
           </div>
@@ -1890,7 +1891,7 @@ export default function Planner() {
               <div className="p-5 pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-white">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="text-4xl select-none leading-none">🐸</div>
+                    <FrogLogo className="w-10 h-10 select-none" />
                     <div>
                       <h2 className="text-base font-black text-gray-800 tracking-tight">Today's Frog Tasks</h2>
                       <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">High priority tasks that must be accomplished first</p>
@@ -1948,7 +1949,7 @@ export default function Planner() {
                               : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
                           }`}
                         >
-                          🐸 Eat Frog
+                          <FrogLogo className="w-3.5 h-3.5 inline-block mr-1" />Eat Frog
                         </button>
                       </div>
                     </div>

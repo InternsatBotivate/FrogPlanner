@@ -1,6 +1,7 @@
 import React from 'react';
 import DragScrollTable from '../../components/DragScrollTable';
 import { Clock, CheckSquare, Square } from 'lucide-react';
+import FrogLogo from '../../components/FrogLogo';
 
 export default function Weekly({ events, currentDate, onToggleStatus }) {
   const startOfWeek = new Date(currentDate);
@@ -49,18 +50,16 @@ export default function Weekly({ events, currentDate, onToggleStatus }) {
                         : evt.priority === 'Frog'
                           ? 'bg-emerald-50 border-emerald-100 text-emerald-800 hover:bg-emerald-100'
                           : 'bg-indigo-50 border-indigo-100 text-indigo-805 hover:bg-indigo-100';
-                      const icon = evt.priority === 'Frog' ? '🐸' : '📋';
-                      
                       return (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           onClick={() => onToggleStatus && onToggleStatus(evt.id, evt.dateStr)}
                           className={`border text-[9px] md:text-[10px] px-2 py-1.5 rounded-lg font-bold cursor-pointer transition-colors shadow-sm ${colors}`}
                           title="Click to toggle status"
                         >
                           <div className="flex items-center justify-between gap-1 mb-0.5">
                             <span className="text-[8px] md:text-[9px] opacity-70">{evt.time}</span>
-                            <span className="text-[10px]">{icon}</span>
+                            {evt.priority === 'Frog' ? <FrogLogo className="w-3 h-3 select-none" /> : <span className="text-[10px]">📋</span>}
                           </div>
                           <div className="leading-tight break-words">{evt.title}</div>
                         </div>
@@ -115,7 +114,6 @@ export default function Weekly({ events, currentDate, onToggleStatus }) {
                       : evt.priority === 'Frog'
                         ? 'bg-emerald-50 border-emerald-100 text-emerald-805'
                         : 'bg-indigo-50 border-indigo-100 text-indigo-805';
-                    const icon = evt.priority === 'Frog' ? '🐸' : '📋';
 
                     return (
                       <div 
@@ -124,7 +122,7 @@ export default function Weekly({ events, currentDate, onToggleStatus }) {
                         className={`p-2.5 border rounded-xl flex items-center justify-between gap-3 shadow-sm cursor-pointer transition-all active:scale-[0.99] ${colors}`}
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="text-sm select-none">{icon}</span>
+                          {evt.priority === 'Frog' ? <FrogLogo className="w-4 h-4 select-none flex-shrink-0" /> : <span className="text-sm select-none">📋</span>}
                           <span className="text-xs font-bold truncate flex-1 text-left">{evt.title}</span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">

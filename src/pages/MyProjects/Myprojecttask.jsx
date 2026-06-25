@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, CheckSquare, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -152,7 +153,7 @@ const Myprojecttask = () => {
           </div>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center py-16 bg-gray-50/50 rounded-2xl border border-gray-100 max-w-2xl">
-          <span className="text-4xl animate-bounce select-none block mb-3">🐸</span>
+          <FrogLogo className="w-14 h-14 animate-bounce select-none block mb-3 mx-auto" />
           <p className="text-sm font-semibold text-gray-400">Loading project checklist…</p>
         </div>
       </div>

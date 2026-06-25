@@ -1,9 +1,10 @@
 import React from 'react';
+import FrogLogo from '../../components/FrogLogo';
 import { BookOpen, Milestone, HelpCircle, Award, Play, Star, ArrowRight } from 'lucide-react';
 
 const AboutFrogPlanner = () => {
   const rules = [
-    { num: 1, title: 'Eat Your Frog First', text: 'Complete your most important task before distractions begin.', icon: '🐸' },
+    { num: 1, title: 'Eat Your Frog First', text: 'Complete your most important task before distractions begin.', icon: null },
     { num: 2, title: 'Top 3 Priorities Only', text: "Don't overload your day. More tasks rarely means more impact.", icon: '🎯' },
     { num: 3, title: 'Avoid Busy Work', text: 'Staying busy and being productive are not the same thing.', icon: '🚫' },
     { num: 4, title: 'One Task at a Time', text: 'Multitasking reduces quality. Finish before moving on.', icon: '✅' },
@@ -11,7 +12,7 @@ const AboutFrogPlanner = () => {
   ];
 
   const steps = [
-    { step: 1, title: 'Pick your frog 🐸', desc: 'Identify the single most important task for today. If everything feels urgent, ask: what has the biggest consequence if left undone?' },
+    { step: 1, title: 'Pick your frog', desc: 'Identify the single most important task for today. If everything feels urgent, ask: what has the biggest consequence if left undone?' },
     { step: 2, title: 'Add your top priorities 🎯', desc: 'List 2–3 supporting tasks that still matter. Keep the list short by design.' },
     { step: 3, title: 'Block your day ⏰', desc: 'Assign time for your frog before anything else — meetings, messages, or admin.' },
     { step: 4, title: 'Work through tasks one by one ✅', desc: 'Complete each task fully before moving to the next. Resist the urge to context-switch.' },
@@ -24,14 +25,14 @@ const AboutFrogPlanner = () => {
       {/* ── Hero Banner ── */}
       <div className="relative bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-6 overflow-hidden shadow-lg">
         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/10 pointer-events-none">
-          <span className="text-[120px] leading-none select-none">🐸</span>
+          <FrogLogo className="w-32 h-32 opacity-10 select-none" />
         </div>
         <div className="relative z-10 space-y-2.5">
           <span className="inline-block bg-yellow-400/20 border border-yellow-400/40 text-yellow-300 text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full">
             Productivity Guide
           </span>
           <h1 className="text-2xl md:text-3xl font-black text-white leading-tight">
-            🐸 Welcome to Frog Planner
+            <FrogLogo className="w-8 h-8 inline-block mr-2 align-middle" />Welcome to Frog Planner
           </h1>
           <p className="text-sm text-green-100/90 max-w-xl font-medium leading-relaxed">
             Inspired by the <span className="font-bold text-yellow-300">"Eat The Frog"</span> concept — designed to help you focus on high-impact results rather than constant busyness.
@@ -163,7 +164,7 @@ const AboutFrogPlanner = () => {
                 <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-[10px] font-black flex-shrink-0">
                   {rule.num}
                 </span>
-                <span className="text-lg">{rule.icon}</span>
+                {rule.icon ? <span className="text-lg">{rule.icon}</span> : <FrogLogo className="w-5 h-5" />}
               </div>
               <h4 className="text-[11.5px] font-extrabold text-gray-800 leading-tight">{rule.title}</h4>
               <p className="text-[10.5px] text-gray-400 font-semibold leading-relaxed">{rule.text}</p>
@@ -203,7 +204,7 @@ const AboutFrogPlanner = () => {
         <p className="text-xs text-gray-500 max-w-lg mx-auto leading-relaxed font-medium">
           Don't just complete tasks — <span className="text-green-700 font-bold">complete the right ones first.</span> Every day you eat your frog, you move one step closer to your goals.
         </p>
-        <p className="text-[11px] text-amber-600 font-extrabold pt-1">🐸 Eat the Frog. Every. Single. Day.</p>
+        <p className="text-[11px] text-amber-600 font-extrabold pt-1 flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Eat the Frog. Every. Single. Day.</p>
       </div>
 
     </div>

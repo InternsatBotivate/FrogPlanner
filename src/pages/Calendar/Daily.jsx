@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, CheckCircle2 } from 'lucide-react';
+import FrogLogo from '../../components/FrogLogo';
 
 export default function Daily({ events, onToggleStatus }) {
   return (
@@ -22,7 +23,6 @@ export default function Daily({ events, onToggleStatus }) {
                    ? 'bg-emerald-100 text-emerald-700' 
                    : 'bg-indigo-100 text-indigo-700';
                
-               const icon = isFrog ? '🐸' : '📋';
                
                return (
                  <div key={evt.id || idx} className="relative group">
@@ -37,7 +37,7 @@ export default function Daily({ events, onToggleStatus }) {
                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badgeColors}`}>
                            {evt.type}
                          </span>
-                         <span className="text-sm select-none" title={isFrog ? 'Frog Task' : 'Normal Task'}>{icon}</span>
+                         {isFrog ? <FrogLogo className="w-4 h-4 select-none" title="Frog Task" /> : <span className="text-sm select-none" title="Normal Task">📋</span>}
                        </div>
                        <h3 className={`text-base md:text-lg font-bold leading-tight ${evt.isCompleted ? 'text-gray-400 font-semibold' : 'text-gray-900'}`}>{evt.title}</h3>
                      </div>
