@@ -26,3 +26,5 @@ dist-ssr
 
 # Database scripts (local only)
 db_scripts/
+CLAUDE.md
+AGENTS.md
