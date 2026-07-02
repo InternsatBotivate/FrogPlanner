@@ -572,6 +572,7 @@ const Myprojecttask = () => {
                 <StickyNote size={16} className="text-amber-500" />
                 Add Note
               </button>
+              {/* File upload module disabled for now
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -599,6 +600,7 @@ const Myprojecttask = () => {
                 <FileText size={16} className="text-emerald-500" />
                 Documents{files.length > 0 ? ` (${files.length})` : ''}
               </button>
+              */}
               <button
                 type="button"
                 onClick={openSettingsModal}
