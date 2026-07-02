@@ -93,6 +93,7 @@ export const fetchProjectWithTasks = async (userId, projectId) => {
       project: {
         id: project.id,
         name: project.name,
+        description: project.description,
         createdAt: project.created_at,
       },
       tasks: tasks.map((t) => ({
@@ -196,6 +197,43 @@ export const createProjectTask = async (projectId, description) => {
 };
 
 /**
+ * createProjectTasks
+ * Inserts multiple checklist tasks and returns the new frontend-friendly objects.
+ */
+export const createProjectTasks = async (projectId, descriptions) => {
+  try {
+    if (!projectId || !descriptions || !descriptions.length) return [];
+
+    const numericProjectId = parseInt(projectId, 10);
+    if (isNaN(numericProjectId)) return [];
+
+    const rows = descriptions.map(description => ({
+      project_id: numericProjectId,
+      description,
+      is_completed: false,
+    }));
+
+    const { data, error } = await supabase
+      .from('project_tasks')
+      .insert(rows)
+      .select();
+
+    if (error) throw error;
+
+    return data.map((t) => ({
+      id: t.id,
+      projectId: t.project_id,
+      description: t.description,
+      isCompleted: t.is_completed,
+      createdAt: t.created_at,
+    }));
+  } catch (error) {
+    console.error('[Supabase Projects] Create Tasks Error:', error);
+    return [];
+  }
+};
+
+/**
  * updateProjectTaskField
  * Patches a single field on a task row (description or isCompleted).
  */
@@ -242,6 +280,208 @@ export const deleteProjectTask = async (taskId) => {
     return true;
   } catch (error) {
     console.error('[Supabase Projects] Delete Task Error:', error);
+    return false;
+  }
+};
+
+/**
+ * updateProjectField
+ * Patches a project's name/description. Scoped narrowly to these two fields.
+ */
+export const updateProjectField = async (userId, projectId, { name, description }) => {
+  try {
+    if (!userId || !projectId) return false;
+
+    const numericProjectId = parseInt(projectId, 10);
+    if (isNaN(numericProjectId)) return false;
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ name, description })
+      .eq('id', numericProjectId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('[Supabase Projects] Update Project Error:', error);
+    return false;
+  }
+};
+
+/**
+ * fetchProjectNotes
+ * Loads all notes for a project, newest first.
+ */
+export const fetchProjectNotes = async (projectId) => {
+  try {
+    if (!projectId) return [];
+
+    const numericProjectId = parseInt(projectId, 10);
+    if (isNaN(numericProjectId)) return [];
+
+    const { data, error } = await supabase
+      .from('project_notes')
+      .select('*')
+      .eq('project_id', numericProjectId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map((n) => ({
+      id: n.id,
+      projectId: n.project_id,
+      content: n.content,
+      createdAt: n.created_at,
+    }));
+  } catch (error) {
+    console.error('[Supabase Projects] Fetch Notes Error:', error);
+    return [];
+  }
+};
+
+/**
+ * createProjectNote
+ * Inserts a new note for a project.
+ */
+export const createProjectNote = async (projectId, content) => {
+  try {
+    if (!projectId || !content) return null;
+
+    const numericProjectId = parseInt(projectId, 10);
+    if (isNaN(numericProjectId)) return null;
+
+    const { data, error } = await supabase
+      .from('project_notes')
+      .insert({ project_id: numericProjectId, content })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      projectId: data.project_id,
+      content: data.content,
+      createdAt: data.created_at,
+    };
+  } catch (error) {
+    console.error('[Supabase Projects] Create Note Error:', error);
+    return null;
+  }
+};
+
+/**
+ * fetchProjectFiles
+ * Loads all uploaded files for a project, newest first, with a public download URL.
+ */
+export const fetchProjectFiles = async (projectId) => {
+  try {
+    if (!projectId) return [];
+
+    const numericProjectId = parseInt(projectId, 10);
+    if (isNaN(numericProjectId)) return [];
+
+    const { data, error } = await supabase
+      .from('project_files')
+      .select('*')
+      .eq('project_id', numericProjectId)
+      .order('uploaded_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map((f) => ({
+      id: f.id,
+      projectId: f.project_id,
+      fileName: f.file_name,
+      filePath: f.file_path,
+      fileSize: f.file_size,
+      uploadedAt: f.uploaded_at,
+      url: supabase.storage.from('project-files').getPublicUrl(f.file_path).data.publicUrl,
+    }));
+  } catch (error) {
+    console.error('[Supabase Projects] Fetch Files Error:', error);
+    return [];
+  }
+};
+
+/**
+ * uploadProjectFile
+ * Uploads a file to the project-files storage bucket and records its metadata.
+ */
+export const uploadProjectFile = async (projectId, file) => {
+  try {
+    if (!projectId || !file) return null;
+
+    const numericProjectId = parseInt(projectId, 10);
+    if (isNaN(numericProjectId)) return null;
+
+    const path = `${numericProjectId}/${Date.now()}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('project-files')
+      .upload(path, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data, error: dbError } = await supabase
+      .from('project_files')
+      .insert({
+        project_id: numericProjectId,
+        file_name: file.name,
+        file_path: path,
+        file_size: file.size,
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      // Roll back the orphaned storage object since the DB row failed
+      await supabase.storage.from('project-files').remove([path]);
+      throw dbError;
+    }
+
+    return {
+      id: data.id,
+      projectId: data.project_id,
+      fileName: data.file_name,
+      filePath: data.file_path,
+      fileSize: data.file_size,
+      uploadedAt: data.uploaded_at,
+      url: supabase.storage.from('project-files').getPublicUrl(data.file_path).data.publicUrl,
+    };
+  } catch (error) {
+    console.error('[Supabase Projects] Upload File Error:', error);
+    return null;
+  }
+};
+
+/**
+ * deleteProjectFile
+ * Removes a file's storage object and its metadata row.
+ */
+export const deleteProjectFile = async (fileId, filePath) => {
+  try {
+    if (!fileId || !filePath) return false;
+
+    const numericFileId = parseInt(fileId, 10);
+    if (isNaN(numericFileId)) return false;
+
+    const { error: storageError } = await supabase.storage
+      .from('project-files')
+      .remove([filePath]);
+
+    if (storageError) throw storageError;
+
+    const { error: dbError } = await supabase
+      .from('project_files')
+      .delete()
+      .eq('id', numericFileId);
+
+    if (dbError) throw dbError;
+    return true;
+  } catch (error) {
+    console.error('[Supabase Projects] Delete File Error:', error);
     return false;
   }
 };

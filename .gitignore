@@ -23,6 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 *.env
-
+*.sql
 # Database scripts (local only)
 db_scripts/

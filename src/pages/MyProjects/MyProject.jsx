@@ -28,6 +28,9 @@ const MyProject = () => {
     { border: 'border-l-[5px] border-l-violet-500', bg: 'bg-violet-50/10', iconColor: 'text-violet-500', bar: 'from-violet-500 to-violet-650' },
   ];
 
+  const cardBaseClass =
+    'bg-white p-4 rounded-2xl border border-gray-200/70 hover:border-gray-300 hover:shadow-lg shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300 cursor-pointer group flex flex-col justify-between h-[172px] relative overflow-hidden';
+
   // Load projects from Supabase on mount (after migrating any legacy localStorage data)
   useEffect(() => {
     const loadData = async () => {
@@ -79,21 +82,21 @@ const MyProject = () => {
     <div className="p-4 md:p-6 space-y-5 flex flex-col h-full min-h-0 bg-white">
 
       {/* Creation form */}
-      <div className="bg-gradient-to-r from-slate-50 to-indigo-50/20 p-4 rounded-xl border border-gray-200/80 shadow-sm">
-        <form onSubmit={handleCreateProject} className="flex gap-2.5 items-center">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-200/70 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <form onSubmit={handleCreateProject} className="flex flex-col sm:flex-row gap-2.5 sm:items-center">
           <div className="relative flex-1">
             <input
               type="text"
               placeholder="Enter project name..."
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white font-semibold h-[38px] shadow-sm transition-all"
+              className="w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/60 font-semibold h-[40px] transition-all"
               required
             />
           </div>
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center px-4 py-2 text-xs font-semibold shadow-sm transition active:scale-95 duration-100 h-[38px] gap-1.5 shrink-0"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center px-4 py-2 text-xs font-semibold shadow-sm transition active:scale-95 duration-100 h-[40px] gap-1.5 shrink-0 w-full sm:w-auto"
           >
             <FolderPlus size={16} />
             Create Project
@@ -120,12 +123,14 @@ const MyProject = () => {
               const { total, completed } = project.stats;
               const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
               const theme = cardAccents[idx % cardAccents.length];
+              const statusLabel = total === 0 ? 'No Tasks' : percent === 100 ? 'Completed' : percent === 0 ? 'Not Started' : 'In Progress';
+              const statusColor = statusLabel === 'Completed' ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'In Progress' ? 'bg-indigo-100 text-indigo-650' : 'bg-gray-100 text-gray-500';
 
               return (
                 <div
                   key={project.id}
                   onClick={() => navigate(`/my-projects/${project.id}`)}
-                  className={`bg-white p-4 rounded-xl border border-gray-200/80 hover:border-gray-300 hover:shadow-md transition-all duration-300 cursor-pointer group flex flex-col justify-between h-[145px] relative overflow-hidden ${theme.border} ${theme.bg}`}
+                  className={`${cardBaseClass} ${theme.border} ${theme.bg}`}
                 >
                   {/* Decorative faint background icon */}
                   <div className="absolute -right-2 -bottom-2 text-gray-100/30 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none group-hover:scale-110">
@@ -134,8 +139,10 @@ const MyProject = () => {
 
                   {/* Top Line with Name and Delete */}
                   <div className="flex justify-between items-start gap-2 relative z-10">
-                    <div className="flex items-center gap-2">
-                      <FolderClosed className={`${theme.iconColor} shrink-0`} size={17} />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${theme.bg} bg-opacity-60`}>
+                        <FolderClosed className={`${theme.iconColor} shrink-0`} size={16} />
+                      </span>
                       <h3 className="font-extrabold text-gray-800 text-[15px] line-clamp-2 leading-snug group-hover:text-indigo-650 transition-colors">
                         {project.name}
                       </h3>
@@ -150,17 +157,21 @@ const MyProject = () => {
                     </button>
                   </div>
 
+                  <span className={`inline-block mt-2 w-fit text-[10px] font-bold px-2 py-0.5 rounded-full relative z-10 ${statusColor}`}>
+                    {statusLabel}
+                  </span>
+
                   {/* Tasks count / progress section */}
-                  <div className="mt-4 space-y-2 relative z-10">
-                    <div className="flex justify-between text-xs font-semibold text-gray-500">
-                      <span className="bg-slate-100/85 px-2 py-0.5 rounded-md text-[10px] text-gray-650 font-bold border border-slate-200/50">
+                  <div className="mt-3 space-y-2 relative z-10">
+                    <div className="flex justify-between items-center text-xs font-semibold text-gray-500">
+                      <span className="bg-slate-100/85 px-2.5 py-0.5 rounded-full text-[10px] text-gray-650 font-bold border border-slate-200/50">
                         {completed} / {total} Tasks
                       </span>
-                      <span className="font-bold text-gray-700">{percent}%</span>
+                      <span className="font-bold text-gray-700 text-[11px]">{percent}%</span>
                     </div>
 
                     {/* Gradient Progress Bar */}
-                    <div className="w-full bg-slate-100 rounded-full h-[6px] overflow-hidden border border-slate-200/20">
+                    <div className="w-full bg-slate-100 rounded-full h-[7px] overflow-hidden">
                       <div
                         className={`bg-gradient-to-r ${theme.bar} h-full rounded-full transition-all duration-300`}
                         style={{ width: `${percent}%` }}
