@@ -79,6 +79,10 @@ export default function AllTasks() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
+  // Bulk selection state (Pending tab only) - keyed by `${id}__${dateInstance}`
+  const [selectedTasks, setSelectedTasks] = useState(new Set());
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
   // Base reference date (today)
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => formatDateStr(today), [today]);
@@ -231,6 +235,51 @@ export default function AllTasks() {
     await toggleCompletion(user.id, taskId, dateStr, isAdding);
   };
 
+  // --- Bulk selection helpers (Pending tab) ---
+  const getTaskKey = (item) => `${item.id}__${item.dateInstance}`;
+  const isFutureTask = (item) => item.dateInstance > todayStr;
+
+  const toggleSelectTask = (item) => {
+    if (isFutureTask(item)) return; // Future tasks can never be selected
+    const key = getTaskKey(item);
+    setSelectedTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleSelectAllOnPage = (eligibleItems, checked) => {
+    setSelectedTasks(prev => {
+      const next = new Set(prev);
+      eligibleItems.forEach(item => {
+        const key = getTaskKey(item);
+        if (checked) next.add(key);
+        else next.delete(key);
+      });
+      return next;
+    });
+  };
+
+  const handleBulkComplete = async () => {
+    if (!user?.id || selectedTasks.size === 0) return;
+    setBulkSubmitting(true);
+    try {
+      const entries = Array.from(selectedTasks).map(key => {
+        const idx = key.lastIndexOf('__');
+        return { taskId: key.slice(0, idx), dateStr: key.slice(idx + 2) };
+      });
+      await Promise.all(entries.map(({ taskId, dateStr }) => toggleCompletion(user.id, taskId, dateStr, true)));
+      toast.success(`Marked ${entries.length} task${entries.length > 1 ? 's' : ''} as done.`);
+      setSelectedTasks(new Set());
+    } catch (err) {
+      toast.error('Failed to complete selected tasks.');
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
   // Filter & Search tasks based on activeTab, kpiFilter, and other filters
   const filteredTasks = useMemo(() => {
     return taskInstances
@@ -300,12 +349,55 @@ export default function AllTasks() {
     setCurrentPage(1);
   }, [activeTab, kpiFilter, searchQuery, filterDuration, filterCategory, filterFrog, fromDate, toDate]);
 
+  // Clear bulk selection whenever the visible task set changes (tab/filter/page switches)
+  useEffect(() => {
+    setSelectedTasks(new Set());
+  }, [activeTab, kpiFilter, searchQuery, filterDuration, filterCategory, filterFrog, fromDate, toDate, currentPage]);
+
+  // Eligible items on the current page for "Select All" (Pending tab only, no future-dated tasks)
+  const eligiblePendingOnPage = useMemo(() => {
+    if (activeTab !== 'Pending') return [];
+    return paginatedTasks.filter(item => item.status === 'Pending' && !isFutureTask(item));
+  }, [paginatedTasks, activeTab, todayStr]);
+
+  const isAllOnPageSelected = eligiblePendingOnPage.length > 0 &&
+    eligiblePendingOnPage.every(item => selectedTasks.has(getTaskKey(item)));
+
   // Table Headers
-  const tableHeaders = ['Action', 'Date', 'Task Description', 'Time', 'Category', 'Status', 'Edit'];
+  const tableHeaders = activeTab === 'Pending'
+    ? [
+        <input
+          key="select-all"
+          type="checkbox"
+          checked={isAllOnPageSelected}
+          disabled={eligiblePendingOnPage.length === 0}
+          onChange={(e) => handleSelectAllOnPage(eligiblePendingOnPage, e.target.checked)}
+          className="w-3.5 h-3.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed"
+          title="Select all on this page (today & past only)"
+        />,
+        'Action', 'Date', 'Task Description', 'Time', 'Category', 'Status', 'Edit'
+      ]
+    : ['Action', 'Date', 'Task Description', 'Time', 'Category', 'Status', 'Edit'];
 
   // Row Renderer for Pending
-  const renderPendingRow = (item) => (
+  const renderPendingRow = (item) => {
+    const future = isFutureTask(item);
+    return (
     <tr key={`pending-${item.id}-${item.dateInstance}`} className="hover:bg-gray-50 transition-colors text-center text-sm border-b border-gray-100">
+      {activeTab === 'Pending' && (
+        <td className="px-4 py-3.5 whitespace-nowrap">
+          <div className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={selectedTasks.has(getTaskKey(item))}
+              disabled={future}
+              onChange={() => toggleSelectTask(item)}
+              title={future ? 'Future tasks cannot be selected' : 'Select task'}
+              className="w-3.5 h-3.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            />
+          </div>
+        </td>
+      )}
       <td className="px-4 py-3.5 whitespace-nowrap">
         <div className="flex items-center justify-center">
           <button
@@ -357,17 +449,32 @@ export default function AllTasks() {
         </div>
       </td>
     </tr>
-  );
+    );
+  };
 
   // Card Renderer for Pending (Mobile)
-  const renderPendingCard = (item) => (
+  const renderPendingCard = (item) => {
+    const future = isFutureTask(item);
+    return (
     <div key={`pending-card-${item.id}-${item.dateInstance}`} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm space-y-2 text-left transition-all duration-150 hover:shadow-md">
-      {/* Row 1: Description + Edit + Check Toggle */}
+      {/* Row 1: Checkbox + Description + Edit + Check Toggle */}
       <div className="flex justify-between items-start gap-2">
+        <div className="flex items-start gap-2 flex-1">
+          {activeTab === 'Pending' && (
+            <input
+              type="checkbox"
+              checked={selectedTasks.has(getTaskKey(item))}
+              disabled={future}
+              onChange={() => toggleSelectTask(item)}
+              title={future ? 'Future tasks cannot be selected' : 'Select task'}
+              className="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 shrink-0"
+            />
+          )}
         <p className="text-sm font-extrabold text-gray-800 tracking-tight leading-snug flex items-start gap-1">
           {item.priority === 'Frog' && <FrogLogo className="w-4 h-4 flex-shrink-0 select-none" />}
           <span>{item.description}</span>
         </p>
+        </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => handleEditTaskClick(item)}
@@ -404,7 +511,8 @@ export default function AllTasks() {
         </span>
       </div>
     </div>
-  );
+    );
+  };
 
   // Row Renderer for History
   const renderHistoryRow = (item) => (
@@ -915,6 +1023,31 @@ export default function AllTasks() {
           </div>
         </div>
       </div>
+
+      {/* Bulk Selection Action Bar (Pending tab only) */}
+      {activeTab === 'Pending' && selectedTasks.size > 0 && (
+        <div className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 shadow-sm shrink-0">
+          <span className="text-xs font-bold text-emerald-800">
+            {selectedTasks.size} task{selectedTasks.size > 1 ? 's' : ''} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedTasks(new Set())}
+              className="text-xs font-bold text-gray-500 hover:text-gray-700 hover:underline px-2 py-1.5"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleBulkComplete}
+              disabled={bulkSubmitting}
+              className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <CheckSquare size={14} />
+              {bulkSubmitting ? 'Marking Done...' : `Mark Selected Done (${selectedTasks.size})`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Table Area (Shows Active Tab Table) */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col justify-between flex-1 min-h-[450px] md:min-h-0 overflow-hidden">
