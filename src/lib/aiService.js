@@ -37,7 +37,7 @@ export const ASSISTANT_TOOLS = [
     type: 'function',
     function: {
       name: 'get_tasks',
-      description: 'List planner tasks for this user. Optionally filter by date or range.',
+      description: 'List the user’s tasks. Optional date or range filter.',
       parameters: jsonObject({
         date: { type: 'string', description: 'YYYY-MM-DD date filter.' },
         range: { type: 'string', enum: ['today', 'tomorrow', 'week', 'all'] },
@@ -48,7 +48,7 @@ export const ASSISTANT_TOOLS = [
     type: 'function',
     function: {
       name: 'create_task',
-      description: 'Create one planner task for this user.',
+      description: 'Create one task.',
       parameters: jsonObject(
         {
           description: { type: 'string' },
@@ -65,7 +65,7 @@ export const ASSISTANT_TOOLS = [
     type: 'function',
     function: {
       name: 'complete_task',
-      description: 'Mark a planner task complete.',
+      description: 'Mark a task complete.',
       parameters: jsonObject(
         { taskId: { type: 'string' }, date: { type: 'string', description: 'YYYY-MM-DD completion date.' } },
         ['taskId', 'date'],
@@ -76,7 +76,7 @@ export const ASSISTANT_TOOLS = [
     type: 'function',
     function: {
       name: 'update_task',
-      description: 'Update a supported planner task field.',
+      description: 'Update one field of a task.',
       parameters: jsonObject(
         {
           taskId: { type: 'string' },
@@ -91,7 +91,7 @@ export const ASSISTANT_TOOLS = [
     type: 'function',
     function: {
       name: 'delete_task',
-      description: 'Delete a planner task. Only use after the user has explicitly confirmed deletion.',
+      description: 'Delete a task. Only after the user explicitly confirmed.',
       parameters: jsonObject({ taskId: { type: 'string' } }, ['taskId']),
     },
   },
@@ -107,7 +107,7 @@ export const ASSISTANT_TOOLS = [
     type: 'function',
     function: {
       name: 'add_project_task',
-      description: 'Add a checklist task to an existing project.',
+      description: 'Add a checklist item to a project.',
       parameters: jsonObject(
         { projectId: { type: 'number' }, description: { type: 'string' } },
         ['projectId', 'description'],
@@ -272,56 +272,32 @@ async function executeTool(userId, toolName, rawArgs) {
   }
 }
 
-const ABOUT_FROGPLANNER =
-  'ABOUT FROGPLANNER: FrogPlanner is a daily task and productivity planner built by Botivate ' +
-  '(botivate.in). Its philosophy is "Eat the Frog" — do your most important/hardest task (the ' +
-  '"Frog") first. Core features: a daily Planner, a Next-Day Planner, All Tasks, Recurring Tasks, ' +
-  'Projects with checklists, a Calendar with optional Google Calendar sync, health tracking, and ' +
-  'this AI Assistant. Tasks have a time slot (Morning/Afternoon/Evening/Night/All Day), a category, ' +
-  'and can be flagged as a Frog (top priority). It runs on web and as a mobile app sharing the same account.';
-
+// Compact system prompt — kept short to reduce tokens per request (Cerebras has
+// a tokens-per-minute limit and this loops for tool calls). Still tenant-aware.
 function buildSystemPrompt(user) {
-  const today = defaultDate();
   const firstName = (user.full_name || user.username || 'there').split(' ')[0];
   const categories = user.custom_categories?.length
     ? user.custom_categories.join(', ')
     : 'Work, Meeting, Call, Personal, Review, Break, Health';
   const role = user.user_role || user.role || 'USER';
-  const isAdmin = /admin/i.test(role);
-  const org = user.business_name ? ` at ${user.business_name}` : '';
-  const title = [user.designation, user.department].filter(Boolean).join(', ');
+  const org = user.business_name ? ` (${user.business_name})` : '';
 
   return [
-    'You are Frog Assistant, the built-in AI helper inside FrogPlanner.',
-    ABOUT_FROGPLANNER,
-    '',
-    'CURRENT USER:',
-    `- Name: ${user.full_name || user.username} (call them ${firstName}).`,
-    `- Role: ${role}${isAdmin ? ' (administrator)' : ''}.`,
-    title ? `- Title: ${title}${org}.` : org ? `- Organization:${org}.` : '',
-    `- Today's date: ${today}.`,
-    '',
-    'WHAT YOU CAN DO:',
-    '- Explain what FrogPlanner is and how to use it (use the ABOUT section above).',
-    '- Read, create, update, complete, and delete THIS user’s planner tasks via the tools.',
-    '- List projects and add checklist items to a project.',
-    "- Summarize the user's day.",
-    isAdmin
-      ? '- This user is an administrator; you may speak to team/organization-level planning, but you still only have tool access to THIS account’s own data.'
-      : '',
-    '',
-    'RULES:',
-    `- Available task time slots: ${DURATIONS.join(', ')}.`,
-    `- Available categories: ${categories}.`,
-    '- You can only see and modify this signed-in user’s data through the provided tools.',
-    '- Keep answers concise and friendly.',
-    '- Before deleting anything, ask for explicit confirmation. If the user has already clearly confirmed deletion in the latest message, you may call delete_task.',
-    '- When creating or updating dates, use YYYY-MM-DD format.',
-    '- When referencing tasks to complete or edit, prefer exact task IDs from get_tasks results.',
-  ]
-    .filter(Boolean)
-    .join('\n');
+    'You are Frog Assistant inside FrogPlanner, a daily planner by Botivate whose motto is ' +
+      '"Eat the Frog" — do your most important task first. Features: Planner, Next-Day Planner, ' +
+      'All Tasks, Recurring Tasks, Projects, Calendar (Google sync), health tracking. Tasks have a ' +
+      'time slot, a category, and can be flagged a "Frog" (top priority).',
+    `User: ${firstName}, role ${role}${org}. Today: ${defaultDate()}.`,
+    `Time slots: ${DURATIONS.join(', ')}. Categories: ${categories}.`,
+    'Use the tools to read/create/update/complete/delete THIS user’s tasks and projects, and to ' +
+      'summarize their day. You can only access this user’s own data. Keep replies short and friendly. ' +
+      'Use YYYY-MM-DD for dates. Prefer exact task IDs from get_tasks. Ask for confirmation before ' +
+      'deleting unless the user already clearly confirmed.',
+  ].join('\n');
 }
+
+// Only send recent turns to the model to keep requests small.
+const MAX_HISTORY = 8;
 
 async function chatCompletion(messages) {
   const token = localStorage.getItem(SESSION_KEY);
@@ -350,7 +326,7 @@ async function chatCompletion(messages) {
  * @param {{ user: object, messages: {role: string, content: string}[] }} args
  */
 export async function runAssistant({ user, messages }) {
-  const loopMessages = [{ role: 'system', content: buildSystemPrompt(user) }, ...messages];
+  const loopMessages = [{ role: 'system', content: buildSystemPrompt(user) }, ...messages.slice(-MAX_HISTORY)];
 
   for (let iteration = 0; iteration < 5; iteration += 1) {
     const completion = await chatCompletion(loopMessages);

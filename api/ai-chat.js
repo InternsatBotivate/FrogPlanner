@@ -86,24 +86,39 @@ export default async function handler(req, res) {
     const model = process.env.CEREBRAS_MODEL || DEFAULT_MODEL;
     const baseUrl = (process.env.CEREBRAS_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
 
-    const upstream = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${cerebrasKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        ...(Array.isArray(tools) && tools.length ? { tools, tool_choice: tool_choice || 'auto' } : {}),
-        ...(typeof temperature === 'number' ? { temperature } : {}),
-      }),
+    const payload = JSON.stringify({
+      model,
+      messages,
+      ...(Array.isArray(tools) && tools.length ? { tools, tool_choice: tool_choice || 'auto' } : {}),
+      ...(typeof temperature === 'number' ? { temperature } : {}),
     });
+
+    const callCerebras = () =>
+      fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cerebrasKey}` },
+        body: payload,
+      });
+
+    // Cerebras enforces a tokens-per-minute limit; a burst (or the multi-round
+    // tool loop) can trip a 429. Retry once, honoring Retry-After, before giving
+    // up with a friendly message rather than the raw upstream error.
+    let upstream = await callCerebras();
+    if (upstream.status === 429) {
+      const retryAfterSec = Number(upstream.headers.get('retry-after'));
+      const waitMs = Math.min(Number.isFinite(retryAfterSec) && retryAfterSec > 0 ? retryAfterSec * 1000 : 1200, 4000);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      upstream = await callCerebras();
+    }
 
     const json = await upstream.json().catch(() => null);
     if (!upstream.ok) {
-      const message =
-        json?.error?.message || json?.message || `AI request failed (${upstream.status}).`;
+      if (upstream.status === 429) {
+        return res.status(429).json({
+          error: 'The assistant is busy right now (rate limit). Please try again in a few seconds.',
+        });
+      }
+      const message = json?.error?.message || json?.message || `AI request failed (${upstream.status}).`;
       // Do not leak upstream key/details; surface a clean message.
       return res.status(upstream.status === 401 ? 502 : upstream.status).json({ error: message });
     }
