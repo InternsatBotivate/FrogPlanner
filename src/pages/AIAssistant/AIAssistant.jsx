@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles, Bot, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { runAssistant } from '../../lib/aiService';
+import MarkdownMessage from '../../components/MarkdownMessage';
 
 export default function AIAssistant() {
   const { user } = useAuthStore();
@@ -9,6 +10,23 @@ export default function AIAssistant() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const chatEndRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Auto-grow the textarea up to ~6 lines, then scroll internally.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  }, [input]);
+
+  const handleKeyDown = (e) => {
+    // Enter sends; Shift+Enter inserts a newline (ChatGPT-style).
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   // Greet on load — the assistant works immediately after login (no key setup).
   useEffect(() => {
@@ -135,7 +153,11 @@ export default function AIAssistant() {
                   ? 'bg-indigo-600 border-indigo-600 text-white rounded-tr-none' 
                   : 'bg-white border-gray-200 text-gray-700 rounded-tl-none'
               }`}>
-                <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
+                {msg.sender === 'user' ? (
+                  <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
+                ) : (
+                  <MarkdownMessage text={msg.text} />
+                )}
                 <span className={`block text-[8px] mt-1 text-right ${
                   msg.sender === 'user' ? 'text-indigo-200' : 'text-gray-400'
                 }`}>
@@ -175,27 +197,28 @@ export default function AIAssistant() {
           ))}
         </div>
 
-        {/* Input Text Form */}
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          className="p-3 border-t border-gray-200 bg-white flex gap-2"
-        >
-          <input
-            type="text"
+        {/* Input Bar — ChatGPT-style: Enter sends, Shift+Enter = newline */}
+        <div className="p-3 border-t border-gray-200 bg-white flex gap-2 items-end">
+          <textarea
+            ref={textareaRef}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
             disabled={sending}
             placeholder={sending ? 'Frog Assistant is thinking…' : 'Ask about FrogPlanner or your tasks…'}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 text-xs md:text-sm shadow-inner bg-gray-50/50 disabled:opacity-60"
+            className="flex-1 resize-none border border-gray-300 rounded-xl px-3 py-2 leading-relaxed focus:outline-none focus:border-indigo-500 text-xs md:text-sm shadow-inner bg-gray-50/50 disabled:opacity-60 max-h-[140px] overflow-y-auto"
           />
           <button
-            type="submit"
+            type="button"
+            onClick={() => handleSend()}
             disabled={sending || !input.trim()}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition active:scale-95 shadow-sm flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-xl transition active:scale-95 shadow-sm flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed h-9 w-9"
+            aria-label="Send message"
           >
             <Send size={16} />
           </button>
-        </form>
+        </div>
 
       </div>
 
