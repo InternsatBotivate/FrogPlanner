@@ -1,37 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, User, Bot, RefreshCw } from 'lucide-react';
+import { Send, Sparkles, Bot, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { usePlannerStore } from '../../store/plannerStore';
+import { runAssistant } from '../../lib/aiService';
 
 export default function AIAssistant() {
   const { user } = useAuthStore();
-  const { tasks, completions, addPlannerTasks } = usePlannerStore();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
   const chatEndRef = useRef(null);
 
-  // Initialize bot with a welcoming message and a dummy scheduling tutorial flow
+  // Greet on load — the assistant works immediately after login (no key setup).
   useEffect(() => {
     if (user) {
+      const firstName = (user.full_name || user.username || 'there').split(' ')[0];
       setMessages([
         {
           id: 'welcome',
           sender: 'bot',
-          text: `Hello ${user.full_name || user.username}! 👋 I am your Frog Planner AI Assistant. I can help you analyze your tasks, track your completions, and review your daily schedule. Ask me anything about your planner!`,
-          timestamp: new Date(Date.now() - 60000 * 5)
+          text: `Hi ${firstName}! 👋 I'm your Frog Assistant. I can tell you about FrogPlanner, read your planner, create and update tasks, manage your projects, and summarize your day. What would you like to do?`,
+          timestamp: new Date(),
         },
-        {
-          id: 'demo-user',
-          sender: 'user',
-          text: 'schedule Client Review at Afternoon under Work',
-          timestamp: new Date(Date.now() - 60000 * 4)
-        },
-        {
-          id: 'demo-bot',
-          sender: 'bot',
-          text: `Sure! I have scheduled that task for you. 📅\n\n- **Task Details**: "Client Review"\n- **Time**: Afternoon\n- **Category**: Work\n\nIt has been successfully added to your planner database!`,
-          timestamp: new Date(Date.now() - 60000 * 3)
-        }
       ]);
     }
   }, [user]);
@@ -39,208 +28,51 @@ export default function AIAssistant() {
   // Scroll to bottom on new messages
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, sending]);
 
   const handleSend = async (textToSend) => {
-    const query = textToSend || input;
-    if (!query.trim()) return;
+    const query = (textToSend || input).trim();
+    if (!query || sending || !user?.id) return;
 
-    // Add user message
-    const userMsg = {
-      id: `user-${Date.now()}`,
-      sender: 'user',
-      text: query,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMsg]);
+    const userMsg = { id: `user-${Date.now()}`, sender: 'user', text: query, timestamp: new Date() };
+    const history = [...messages, userMsg];
+    setMessages(history);
     if (!textToSend) setInput('');
+    setSending(true);
 
-    // Simulate AI thinking and reply asynchronously
-    const replyText = await generateBotReply(query);
-    const botMsg = {
-      id: `bot-${Date.now()}`,
-      sender: 'bot',
-      text: replyText,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, botMsg]);
-  };
-
-  // Rule-based NLP processor based on real Supabase data
-  const generateBotReply = async (query) => {
-    if (!user?.id) return "Please log in to use the AI Assistant.";
-    const cleanQuery = query.toLowerCase();
-    
-    // Read cached state directly from the outer lexical scope of usePlannerStore
-    
-    // Get today's date formatted local
-    const yyyy = new Date().getFullYear();
-    const mm = String(new Date().getMonth() + 1).padStart(2, '0');
-    const dd = String(new Date().getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-    const todayCompletedIds = completions[todayStr] || [];
-
-    // 1. DYNAMIC TASK CREATION / SCHEDULING COMMANDS
-    if (cleanQuery.includes('schedule') || cleanQuery.includes('add ') || cleanQuery.includes('create ') || cleanQuery.includes('plan ')) {
-      // Parse duration
-      let duration = 'Morning';
-      if (cleanQuery.includes('morning')) duration = 'Morning';
-      else if (cleanQuery.includes('afternoon')) duration = 'Afternoon';
-      else if (cleanQuery.includes('evening')) duration = 'Evening';
-      else if (cleanQuery.includes('night')) duration = 'Night';
-
-      // Parse category
-      let category = 'Work';
-      const categories = ['Work', 'Meeting', 'Call', 'Personal', 'Review', 'Break', 'Health'];
-      for (const cat of categories) {
-        if (cleanQuery.includes(cat.toLowerCase())) {
-          category = cat;
-          break;
-        }
-      }
-
-      // Extract description text
-      let desc = query
-        .replace(/schedule/gi, '')
-        .replace(/add/gi, '')
-        .replace(/create/gi, '')
-        .replace(/task/gi, '')
-        .replace(/plan/gi, '')
-        .replace(/at/gi, '')
-        .replace(/in/gi, '')
-        .replace(/to/gi, '')
-        .replace(/for/gi, '')
-        .replace(/under/gi, '')
-        .replace(/category/gi, '')
-        .replace(/morning/gi, '')
-        .replace(/afternoon/gi, '')
-        .replace(/evening/gi, '')
-        .replace(/night/gi, '')
-        .trim();
-
-      // Clean up leading dashes or special chars
-      desc = desc.replace(/^[^a-zA-Z0-9]+/, '').trim();
-
-      if (desc.length > 2) {
-        desc = desc.charAt(0).toUpperCase() + desc.slice(1);
-        const newTask = {
-          description: desc,
-          duration: duration,
-          category: category,
-          priority: 'High',
-          date: todayStr,
-          selectValue: 'Select',
-          remarks: ''
-        };
-
-        const createdTasks = await addPlannerTasks(user.id, [newTask]);
-
-        if (createdTasks && createdTasks.length > 0) {
-          return `Sure! I have scheduled that task for you. 📅\n\n- **Task Details**: "${desc}"\n- **Time**: ${duration}\n- **Category**: ${category}\n\nIt is now successfully added to your planner schedule database! You will see it listed on the Recurring Tasks page and across all days on the Planner.`;
-        } else {
-          return `Sorry, I encountered an issue adding that task to Supabase. Please try again.`;
-        }
-      }
+    try {
+      // Pass the running conversation so the model has context.
+      const replyText = await runAssistant({
+        user,
+        messages: history
+          .filter((m) => m.id !== 'welcome')
+          .map((m) => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })),
+      });
+      setMessages((prev) => [
+        ...prev,
+        { id: `bot-${Date.now()}`, sender: 'bot', text: replyText, timestamp: new Date() },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot-${Date.now()}`,
+          sender: 'bot',
+          text: err?.message || 'Sorry, the AI Assistant failed. Please try again.',
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setSending(false);
     }
-
-    // 2. HELP / GREETINGS
-    if (cleanQuery.includes('hello') || cleanQuery.includes('hi ') || cleanQuery.includes('hey') || cleanQuery.includes('greet')) {
-      return `Hi there! I am connected to your planner database. You can ask me questions like:\n- "Show my morning tasks"\n- "What is pending today?"\n- "Have I completed breakfast?"\n- "List all work tasks"\n\nOr schedule one: *"schedule Team Meeting at Afternoon under Work"*`;
-    }
-
-    if (cleanQuery.includes('help') || cleanQuery.includes('what can you do')) {
-      return `I can analyze your planner data in real time! Try asking:\n1. "List my tasks"\n2. "What tasks are pending?"\n3. "Show afternoon tasks"\n4. "Check status of standup"\n5. "schedule Gym workout at Evening"`;
-    }
-
-    // 3. BREAKFAST / LUNCH / DINNER STATUS
-    if (cleanQuery.includes('breakfast')) {
-      const t = tasks.find(x => x.description.toLowerCase().includes('breakfast'));
-      if (t) {
-        const isDone = todayCompletedIds.includes(t.id);
-        return `Your breakfast task is scheduled for the **Morning** under the **${t.category}** category. Status for today: **${isDone ? 'Completed ✅' : 'Pending ⏳'}**.`;
-      }
-    }
-
-    if (cleanQuery.includes('lunch')) {
-      const t = tasks.find(x => x.description.toLowerCase().includes('lunch'));
-      if (t) {
-        const isDone = todayCompletedIds.includes(t.id);
-        return `Your lunch break is scheduled for the **Afternoon** (${t.category}). Status for today: **${isDone ? 'Completed ✅' : 'Pending ⏳'}**.`;
-      }
-    }
-
-    if (cleanQuery.includes('dinner')) {
-      const t = tasks.find(x => x.description.toLowerCase().includes('dinner'));
-      if (t) {
-        const isDone = todayCompletedIds.includes(t.id);
-        return `Dinner is scheduled for the **Evening** (${t.category}). Status for today: **${isDone ? 'Completed ✅' : 'Pending ⏳'}**.`;
-      }
-    }
-
-    // 4. TASKS BY TIMING / DURATION
-    if (cleanQuery.includes('morning')) {
-      const morningTasks = tasks.filter(t => t.duration === 'Morning');
-      if (morningTasks.length === 0) return "You have no tasks scheduled for the morning.";
-      return `Here are your **Morning** tasks:\n` + morningTasks.map((t, i) => `${i + 1}. **${t.description}** [${t.category}]`).join('\n');
-    }
-
-    if (cleanQuery.includes('afternoon')) {
-      const afternoonTasks = tasks.filter(t => t.duration === 'Afternoon');
-      if (afternoonTasks.length === 0) return "You have no tasks scheduled for the afternoon.";
-      return `Here are your **Afternoon** tasks:\n` + afternoonTasks.map((t, i) => `${i + 1}. **${t.description}** [${t.category}]`).join('\n');
-    }
-
-    if (cleanQuery.includes('evening')) {
-      const eveningTasks = tasks.filter(t => t.duration === 'Evening');
-      if (eveningTasks.length === 0) return "You have no tasks scheduled for the evening.";
-      return `Here are your **Evening** tasks:\n` + eveningTasks.map((t, i) => `${i + 1}. **${t.description}** [${t.category}]`).join('\n');
-    }
-
-    if (cleanQuery.includes('night')) {
-      const nightTasks = tasks.filter(t => t.duration === 'Night');
-      if (nightTasks.length === 0) return "You have no tasks scheduled for the night.";
-      return `Here are your **Night** tasks:\n` + nightTasks.map((t, i) => `${i + 1}. **${t.description}** [${t.category}]`).join('\n');
-    }
-
-    // 5. GENERAL TASK LISTS & STATS
-    if (cleanQuery.includes('pending') || cleanQuery.includes('status') || cleanQuery.includes('today')) {
-      const pendingTasks = tasks.filter(t => !todayCompletedIds.includes(t.id));
-      if (pendingTasks.length === 0) {
-        return "Congratulations! You have completed all of your tasks for today! 🎉";
-      }
-      return `You have **${pendingTasks.length} pending tasks** left for today:\n` + pendingTasks.map((t, i) => `${i + 1}. **${t.description}** (${t.duration})`).join('\n');
-    }
-
-    if (cleanQuery.includes('complete') || cleanQuery.includes('done')) {
-      const completedTasks = tasks.filter(t => todayCompletedIds.includes(t.id));
-      if (completedTasks.length === 0) {
-        return "You haven't marked any tasks as completed today yet. You can mark them done on the Planner page! ⏳";
-      }
-      return `Here are the **${completedTasks.length} tasks** you completed today:\n` + completedTasks.map((t, i) => `${i + 1}. **${t.description}** ✅`).join('\n');
-    }
-
-    if (cleanQuery.includes('task') || cleanQuery.includes('list') || cleanQuery.includes('show')) {
-      if (tasks.length === 0) return "Your task database is empty. You can add tasks on the Recurring Tasks page!";
-      return `You currently have **${tasks.length} total tasks** in your master schedule:\n` + tasks.map((t, i) => `${i + 1}. **${t.description}** (${t.duration})`).join('\n');
-    }
-
-    // 6. SEARCH BY CUSTOM QUERY / KEYWORD
-    const matched = tasks.filter(t => t.description.toLowerCase().includes(cleanQuery) || t.category.toLowerCase().includes(cleanQuery));
-    if (matched.length > 0) {
-      return `I found **${matched.length} matching task(s)** in your schedule:\n` + matched.map((t, i) => `${i + 1}. **${t.description}** - Scheduled for **${t.duration}** under **${t.category}**`).join('\n');
-    }
-
-    // Fallback response
-    return `I am not sure I understand "${query}". I can help you search your planner tasks, check morning/afternoon schedules, or list pending items. Try typing "help" to see what I can do!`;
   };
 
   const quickPrompts = [
-    "What is pending today?",
-    "Show my morning tasks",
-    "List all tasks",
-    "schedule Coffee Break at Afternoon under Personal",
-    "schedule Quick Sync at Morning under Meeting"
+    'What is FrogPlanner?',
+    'What is pending today?',
+    'Show my morning tasks',
+    'Add "Coffee Break" tomorrow afternoon under Personal',
+    'Summarize my week',
   ];
 
   return (
@@ -257,17 +89,18 @@ export default function AIAssistant() {
             </div>
             <div>
               <h2 className="text-xs font-bold text-gray-800 uppercase tracking-tight">AI Planner Assistant</h2>
-              <p className="text-[10px] text-gray-400">Powered by Frog Planner Local Knowledge Base</p>
+              <p className="text-[10px] text-gray-400">Powered by FrogPlanner AI</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => {
               if (user) {
+                const firstName = (user.full_name || user.username || 'there').split(' ')[0];
                 setMessages([
                   {
                     id: 'welcome',
                     sender: 'bot',
-                    text: `Chat refreshed! How can I help you with your daily schedule today, ${user.name}?`,
+                    text: `Chat refreshed! How can I help you with your day, ${firstName}?`,
                     timestamp: new Date()
                   }
                 ]);
@@ -311,6 +144,20 @@ export default function AIAssistant() {
               </div>
             </div>
           ))}
+
+          {/* Thinking indicator */}
+          {sending && (
+            <div className="flex gap-3 max-w-[85%]">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border shadow-sm bg-white border-gray-200 text-gray-600">
+                <Bot size={16} className="text-indigo-600" />
+              </div>
+              <div className="rounded-xl rounded-tl-none p-3 border shadow-sm bg-white border-gray-200 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
           <div ref={chatEndRef} />
         </div>
 
@@ -320,7 +167,8 @@ export default function AIAssistant() {
             <button
               key={i}
               onClick={() => handleSend(p)}
-              className="px-3 py-1 border border-indigo-100 bg-indigo-50/30 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-full text-[10px] md:text-xs font-semibold transition active:scale-95 shadow-sm"
+              disabled={sending}
+              className="px-3 py-1 border border-indigo-100 bg-indigo-50/30 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-full text-[10px] md:text-xs font-semibold transition active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-50/30 disabled:hover:text-indigo-700"
             >
               {p}
             </button>
@@ -328,7 +176,7 @@ export default function AIAssistant() {
         </div>
 
         {/* Input Text Form */}
-        <form 
+        <form
           onSubmit={(e) => { e.preventDefault(); handleSend(); }}
           className="p-3 border-t border-gray-200 bg-white flex gap-2"
         >
@@ -336,12 +184,14 @@ export default function AIAssistant() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask AI Assistant about your tasks..."
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 text-xs md:text-sm shadow-inner bg-gray-50/50"
+            disabled={sending}
+            placeholder={sending ? 'Frog Assistant is thinking…' : 'Ask about FrogPlanner or your tasks…'}
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 text-xs md:text-sm shadow-inner bg-gray-50/50 disabled:opacity-60"
           />
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition active:scale-95 shadow-sm flex items-center justify-center flex-shrink-0"
+            disabled={sending || !input.trim()}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition active:scale-95 shadow-sm flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send size={16} />
           </button>
