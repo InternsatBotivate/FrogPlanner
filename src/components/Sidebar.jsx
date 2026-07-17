@@ -5,6 +5,7 @@ import {
   LogOut as LogOutIcon,
   X,
   Users,
+  Code2,
   LayoutGrid,
   Calendar,
   CalendarDays,
@@ -41,6 +42,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
     { path: '/recurring-tasks', icon: LayoutGrid, label: 'Recurring Tasks' },
     { path: '/ai-assistant', icon: Sparkles, label: 'AI Assistant' },
     { path: '/about-frog-planner', icon: 'frog-logo', label: 'About Frog Planner' },
+    { path: '/developers', icon: Code2, label: 'Developers' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
