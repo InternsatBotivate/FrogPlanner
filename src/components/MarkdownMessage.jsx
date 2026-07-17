@@ -77,6 +77,14 @@ export default function MarkdownMessage({ text }) {
         rows.push(splitCells(lines[i]));
         i += 1;
       }
+      // Normalize every row to the header's column count so a ragged row from
+      // the model never shifts cells into the wrong columns.
+      const colCount = header.length;
+      const normalize = (cells) => {
+        const out = cells.slice(0, colCount);
+        while (out.length < colCount) out.push('');
+        return out;
+      };
       blocks.push(
         <div key={key++} className="my-1.5 overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full text-xs border-collapse">
@@ -92,7 +100,7 @@ export default function MarkdownMessage({ text }) {
             <tbody>
               {rows.map((r, ri) => (
                 <tr key={ri} className="border-b border-gray-100 last:border-0">
-                  {r.map((c, ci) => (
+                  {normalize(r).map((c, ci) => (
                     <td key={ci} className="px-2.5 py-1.5 text-gray-700 align-top whitespace-nowrap">
                       {renderInline(c, `td-${key}-${ri}-${ci}`)}
                     </td>
