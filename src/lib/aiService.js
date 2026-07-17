@@ -11,6 +11,7 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 import { createProjectTask, fetchProjects } from './projectService';
+import { addRecurringTasks, fetchRecurringTasks } from './recurringTasksService';
 import { usePlannerStore } from '../store/plannerStore';
 
 // Same-origin by default (web app + proxy are one Vercel deployment). Override
@@ -53,6 +54,32 @@ export const ASSISTANT_TOOLS = [
         {
           description: { type: 'string' },
           date: { type: 'string', description: 'YYYY-MM-DD date.' },
+          duration: stringEnum(DURATIONS),
+          category: { type: 'string' },
+          isFrog: { type: 'boolean' },
+        },
+        ['description'],
+      ),
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_recurring_tasks',
+      description: 'List the user’s recurring task templates (tasks that repeat every day).',
+      parameters: jsonObject({}),
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_recurring_task',
+      description:
+        'Create a recurring task template. Use this — NOT create_task — whenever the user wants a task that ' +
+        'repeats (e.g. "every day", "daily", "recurring", "each morning"). It has no specific date.',
+      parameters: jsonObject(
+        {
+          description: { type: 'string' },
           duration: stringEnum(DURATIONS),
           category: { type: 'string' },
           isFrog: { type: 'boolean' },
@@ -211,6 +238,26 @@ async function executeTool(userId, toolName, rawArgs) {
       const created = await usePlannerStore.getState().addPlannerTasks(userId, [payload]);
       return { created: (created || []).map((t) => serializeTask(t)) };
     }
+    case 'get_recurring_tasks': {
+      const recurring = await fetchRecurringTasks(userId);
+      return { recurringTasks: recurring.map((t) => serializeTask(t)) };
+    }
+    case 'create_recurring_task': {
+      const description = typeof args.description === 'string' ? args.description.trim() : '';
+      if (!description) throw new Error('Recurring task description is required.');
+      const payload = {
+        description,
+        duration: typeof args.duration === 'string' && DURATIONS.includes(args.duration) ? args.duration : 'Morning',
+        category: typeof args.category === 'string' && args.category.trim() ? args.category.trim() : 'Work',
+        priority: args.isFrog ? 'Frog' : '',
+        remarks: '',
+        isRecurring: true,
+        isActive: true,
+      };
+      const created = await addRecurringTasks(userId, [payload]);
+      if (!created || created.length === 0) throw new Error('Failed to create recurring task.');
+      return { created: created.map((t) => serializeTask(t)) };
+    }
     case 'complete_task': {
       const taskId = typeof args.taskId === 'string' ? args.taskId : '';
       const date = typeof args.date === 'string' ? args.date : defaultDate();
@@ -299,6 +346,9 @@ function buildSystemPrompt(user) {
       'summarize their day. You can only access this user’s own data. Keep replies short and friendly. ' +
       'Use YYYY-MM-DD for dates. Prefer exact task IDs from get_tasks. Ask for confirmation before ' +
       'deleting unless the user already clearly confirmed.',
+    'Recurring tasks repeat every day and have no date — when the user asks for a task that repeats ' +
+      '("daily", "every day", "recurring", "each morning", etc.), use create_recurring_task, NOT create_task. ' +
+      'Use create_task only for a task on a specific single day.',
   ].join('\n');
 }
 
