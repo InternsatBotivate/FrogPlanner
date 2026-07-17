@@ -140,6 +140,21 @@ export default function MarkdownMessage({ text }) {
       continue;
     }
 
+    // ── Heading (#, ##, ###) ────────────────────────────────────────────
+    const headingMatch = /^(#{1,3})\s+(.*)$/.exec(line);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const content = headingMatch[2];
+      const sizeClass = level === 1 ? 'text-base' : level === 2 ? 'text-sm' : 'text-xs';
+      blocks.push(
+        <p key={key++} className={`${sizeClass} font-bold text-gray-800 mt-1.5 mb-0.5`}>
+          {renderInline(content, `h-${key}`)}
+        </p>,
+      );
+      i += 1;
+      continue;
+    }
+
     // ── Blank line → spacing ────────────────────────────────────────────
     if (line.trim() === '') {
       blocks.push(<div key={key++} className="h-2" />);
