@@ -191,7 +191,11 @@ export const toggleCompletion = async (userId, taskId, dateStr, isCompleted) => 
           task_id: taskId,
           completion_date: dateStr
         });
-      if (error && error.code !== '23505') throw error; // Ignore duplicate key violations
+      // 23505 = duplicate key (already completed). 23503 = FK violation: recurring
+      // task templates live in recurring_tasks, not tasks, so their id can't be
+      // stored in task_completions. Treat both as an optimistic (non-persisted)
+      // success rather than surfacing an error.
+      if (error && error.code !== '23505' && error.code !== '23503') throw error;
     } else {
       // Remove completion row
       const { error } = await supabase

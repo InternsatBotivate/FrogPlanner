@@ -36,10 +36,17 @@ function renderInline(text, keyPrefix) {
   return parts;
 }
 
-const isTableRow = (line) => line.trim().startsWith('|') && line.includes('|');
+// A pipe row is any non-blank line containing an interior "|" — leading/trailing
+// pipes are optional, since the model doesn't always emit them.
+const isTableRow = (line) => {
+  const t = line.trim();
+  if (!t) return false;
+  // Strip optional outer pipes, then require at least one remaining separator.
+  return t.replace(/^\|/, '').replace(/\|$/, '').includes('|');
+};
 const isTableSeparator = (line) => /^\s*\|?[\s:|-]+\|?\s*$/.test(line) && line.includes('-');
 const splitCells = (line) =>
-  line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map((c) => c.trim());
+  line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
 
 export default function MarkdownMessage({ text }) {
   const lines = String(text || '').split('\n');
@@ -50,12 +57,23 @@ export default function MarkdownMessage({ text }) {
   while (i < lines.length) {
     const line = lines[i];
 
-    // ── Table: a row followed by a |---| separator ──────────────────────
-    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+    // ── Table: a pipe row optionally followed by a |---| separator ──────
+    // We render a table when a pipe row is followed by either a separator
+    // (proper GFM) or another pipe row (model omitted the separator).
+    const nextIsSeparator = i + 1 < lines.length && isTableSeparator(lines[i + 1]);
+    const nextIsPipeRow =
+      i + 1 < lines.length && isTableRow(lines[i + 1]) && !isTableSeparator(lines[i + 1]);
+    if (isTableRow(line) && (nextIsSeparator || nextIsPipeRow)) {
       const header = splitCells(line);
       const rows = [];
-      i += 2;
+      // Skip the header; skip the separator too when present.
+      i += nextIsSeparator ? 2 : 1;
       while (i < lines.length && isTableRow(lines[i])) {
+        // A stray separator line inside the body is skipped, not shown as a row.
+        if (isTableSeparator(lines[i])) {
+          i += 1;
+          continue;
+        }
         rows.push(splitCells(lines[i]));
         i += 1;
       }

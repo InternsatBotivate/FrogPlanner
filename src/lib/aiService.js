@@ -349,6 +349,9 @@ function buildSystemPrompt(user) {
     'Recurring tasks repeat every day and have no date — when the user asks for a task that repeats ' +
       '("daily", "every day", "recurring", "each morning", etc.), use create_recurring_task, NOT create_task. ' +
       'Use create_task only for a task on a specific single day.',
+    'When you present tabular data, use proper GitHub-flavored Markdown tables: a header row, then a ' +
+      '|---|---| separator row, then one row per line, every row wrapped in pipes. Never use spaces or ' +
+      'plain text to align columns.',
   ].join('\n');
 }
 
