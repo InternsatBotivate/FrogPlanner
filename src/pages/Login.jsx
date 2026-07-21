@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import frogLogo from '../Assets/frog_planner_logo.avif';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus, Building, Briefcase, Shield, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
@@ -168,6 +168,9 @@ const Login = () => {
             </div>
             <div className="relative z-10 text-center mt-4">
               <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Powered By Botivate</p>
+              <Link to="/privacy-policy" className="text-gray-400 text-[10px] font-semibold hover:text-green-700 hover:underline">
+                Privacy Policy
+              </Link>
             </div>
           </div>
 
@@ -250,6 +253,10 @@ const Login = () => {
                 className="w-full text-center text-[11px] font-bold text-green-700 hover:text-green-900 hover:underline flex items-center justify-center gap-1 select-none transition-colors">
                 <img src={frogLogo} alt="" className="w-4 h-4 object-contain" /> About Frog Planner
               </button>
+              <Link to="/privacy-policy"
+                className="block w-full text-center text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline transition-colors">
+                Privacy Policy
+              </Link>
             </div>
           </div>
         </div>

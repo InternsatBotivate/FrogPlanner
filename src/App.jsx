@@ -15,6 +15,7 @@ import Myprojecttask from './pages/MyProjects/Myprojecttask';
 import AboutFrogPlanner from './pages/AboutFrogPlanner/AboutFrogPlanner';
 import Developers from './pages/Developers/Developers';
 import UpcomingPlanner from './pages/UpcomingPlanner/UpcomingPlanner';
+import PrivacyPolicy from './pages/PrivacyPolicy/PrivacyPolicy';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeStorage } from './utils/storageManager';
@@ -34,6 +35,8 @@ function App() {
         <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* Public — must be reachable without auth for Google OAuth verification */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           
           <Route path="/" element={
             <ProtectedRoute>
