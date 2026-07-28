@@ -21,27 +21,58 @@ import {
  * Loads all tasks and completions for the logged-in user.
  * Recompiles completions into a date-indexed map to remain compatible with existing UI states.
  */
-export const fetchPlannerData = async (userId) => {
+// Default load window. The Supabase/PostgREST API returns at most 1000 rows per
+// request, so an unbounded `select('*')` silently truncates once a user passes
+// 1000 tasks — new tasks still save but never appear (the account looks "full").
+// We instead load a bounded date window (recent past → all future), which keeps
+// every day-to-day view fast and well under the 1000-row cap. Older tasks are
+// reachable via the All Tasks date filter, which fetches its own range.
+const DEFAULT_WINDOW_DAYS = 180;
+
+const windowStartDate = (days = DEFAULT_WINDOW_DAYS) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+export const fetchPlannerData = async (userId, { windowDays = DEFAULT_WINDOW_DAYS } = {}) => {
   try {
     if (!userId) return { tasks: [], completions: {} };
 
-    // 1. Fetch tasks
-    const { data: dbTasks, error: tasksError } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
+    const startDate = windowStartDate(windowDays);
 
-    if (tasksError) throw tasksError;
+    // 1. Fetch tasks within the window, PAGINATED. PostgREST caps each response
+    // at 1000 rows, so we page through with .range() until fully loaded — a
+    // heavy account (e.g. 1000+ tasks) would otherwise silently truncate and new
+    // tasks would never appear. The window keeps this cheap for normal users.
+    const PAGE = 1000;
+    const dbTasks = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data: page, error: tasksError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('task_date', startDate)
+        .order('created_at', { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (tasksError) throw tasksError;
+      if (!page || page.length === 0) break;
+      dbTasks.push(...page);
+      if (page.length < PAGE) break;
+    }
 
     // 2. Fetch recurring tasks
     const recurringTasks = await fetchRecurringTasks(userId);
 
-    // 3. Fetch completions
+    // 3. Fetch completions within the same window.
     const { data: dbCompletions, error: completionsError } = await supabase
       .from('task_completions')
       .select('task_id, completion_date, created_at')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .gte('completion_date', startDate);
 
     if (completionsError) throw completionsError;
 
