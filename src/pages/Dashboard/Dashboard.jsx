@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePlannerStore } from '../../store/plannerStore';
 import ModalForm from '../../components/ModalForm';
 import ModalAlert from '../../components/ModalAlert';
+import VerifyEmailBanner from '../../components/VerifyEmailBanner';
 import toast from 'react-hot-toast';
 
 // Inline ProgressCircle component since we don't have separate ProgressCircle.jsx
@@ -455,6 +456,9 @@ export default function Dashboard() {
 
   return (
     <div className="p-1.5 sm:p-3 lg:p-4 space-y-3 lg:space-y-4 flex flex-col h-full min-h-0 overflow-y-auto text-left">
+
+      {/* ── Verify-email prompt (hidden once verified) ── */}
+      <VerifyEmailBanner />
 
       {/* ── Time-Based Greeting Banner ── */}
       <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 shadow-md flex-shrink-0">

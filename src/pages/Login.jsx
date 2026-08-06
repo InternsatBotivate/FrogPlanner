@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus, Building, Briefcase, Shield, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
+import { sendVerificationEmail } from '../lib/verificationService';
 import Footer from '../components/Footer';
 import AboutFrogPlanner from './AboutFrogPlanner/AboutFrogPlanner';
 
@@ -109,6 +110,16 @@ const Login = () => {
       if (error) {
         toast.error(error.message || 'Sign up failed. Please try again.');
         return;
+      }
+      // Send an email-verification link right away (best-effort; the Dashboard
+      // banner lets them resend if this fails or they missed it).
+      const newEmail = signupEmail.trim();
+      if (newEmail) {
+        sendVerificationEmail(newEmail)
+          .then((r) => {
+            if (r.ok) toast.success('Verification email sent — check your inbox to enable reminders.');
+          })
+          .catch(() => {});
       }
       toast.success(`Account created! Welcome, ${signupName.trim()}!`);
       setShowSignupModal(false);
