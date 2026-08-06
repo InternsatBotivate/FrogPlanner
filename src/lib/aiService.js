@@ -11,7 +11,12 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 import { checkInput } from './aiGuard';
-import { createProjectTask, fetchProjects } from './projectService';
+import {
+  createProject,
+  createProjectTask,
+  fetchProjects,
+  updateProjectField,
+} from './projectService';
 import { addRecurringTasks, fetchRecurringTasks } from './recurringTasksService';
 import { usePlannerStore } from '../store/plannerStore';
 
@@ -129,6 +134,17 @@ export const ASSISTANT_TOOLS = [
       name: 'get_projects',
       description: 'List projects for this user.',
       parameters: jsonObject({}),
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_project',
+      description: 'Create a new project. Optionally set a description/note on it.',
+      parameters: jsonObject(
+        { name: { type: 'string' }, note: { type: 'string', description: 'Optional project description/note.' } },
+        ['name'],
+      ),
     },
   },
   {
@@ -294,6 +310,18 @@ async function executeTool(userId, toolName, rawArgs) {
     }
     case 'get_projects': {
       return { projects: await fetchProjects(userId) };
+    }
+    case 'create_project': {
+      const name = typeof args.name === 'string' ? args.name.trim() : '';
+      if (!name) throw new Error('Project name is required.');
+      const project = await createProject(userId, name);
+      if (!project) throw new Error('Failed to create project.');
+      // Optional note → store as the project's description (shown on the card).
+      const note = typeof args.note === 'string' ? args.note.trim() : '';
+      if (note) {
+        await updateProjectField(userId, project.id, { name, description: note }).catch(() => {});
+      }
+      return { project: { ...project, description: note || project.description } };
     }
     case 'add_project_task': {
       const projectId = typeof args.projectId === 'number' ? args.projectId : Number(args.projectId);
