@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
+import ReminderEmails from '../components/ReminderEmails';
 
 export default function Settings() {
   const { user, updateProfile } = useAuthStore();
@@ -206,6 +207,9 @@ export default function Settings() {
         </div>
 
       </form>
+
+      {/* Reminder email management (Phase 2) */}
+      <ReminderEmails />
     </div>
   );
 }
