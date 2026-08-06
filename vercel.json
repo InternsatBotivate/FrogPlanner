@@ -9,6 +9,10 @@
     {
       "path": "/api/generate-reminders",
       "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/send-reminder-emails",
+      "schedule": "0 2 * * *"
     }
   ]
 }
