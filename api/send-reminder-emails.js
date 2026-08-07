@@ -86,7 +86,7 @@ export default async function handler(req, res) {
         if (overdue.length) parts.push(`${overdue.length} overdue`);
         const frogs = pendingToday.filter((t) => t.priority === 'Frog').length;
         let msg = `You have ${parts.join(' and ')}.`;
-        if (frogs) msg += ` ${frogs} 🐸 frog${plural(frogs)} to eat first!`;
+        if (frogs) msg += ` ${frogs} frog${plural(frogs)} to eat first!`;
 
         await supabase.from('reminders').insert({
           user_id: user.id,
@@ -138,7 +138,7 @@ export default async function handler(req, res) {
           await transporter.sendMail({
             from: `"FrogPlanner" <${gmailUser}>`,
             to,
-            subject: `🐸 Your FrogPlanner reminders — ${today}`,
+            subject: `Your FrogPlanner reminders — ${today}`,
             text,
             html,
           });
@@ -188,7 +188,7 @@ function digestHtml(firstName, reminders) {
     .join('');
   return `<!doctype html><html><body style="margin:0;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
     <div style="max-width:480px;margin:24px auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:20px 24px;color:#fff;font-size:19px;font-weight:800;">🐸 FrogPlanner reminders</div>
+      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:20px 24px;color:#fff;font-size:19px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />FrogPlanner reminders</div>
       <div style="padding:22px 24px;color:#374151;font-size:14px;line-height:1.6;">
         <p style="margin:0 0 14px;">Hi ${escapeHtml(firstName)}, here's what needs your attention today:</p>
         <ul style="list-style:none;padding:0;margin:0;">${items}</ul>

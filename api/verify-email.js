@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       .update({ email_verified: true, reminders_enabled: true })
       .eq('id', row.user_id);
 
-    return page(res, 200, 'ok', 'Your email is verified — FrogPlanner reminders are now enabled. 🐸');
+    return page(res, 200, 'ok', 'Your email is verified — FrogPlanner reminders are now enabled.');
   } catch (e) {
     console.error('[API verify-email] Error:', e);
     return page(res, 500, 'error', 'Something went wrong verifying your email.');
@@ -66,7 +66,7 @@ function page(res, status, kind, message) {
     <title>FrogPlanner — Email verification</title></head>
     <body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
       <div style="max-width:420px;margin:24px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;text-align:center;">
-        <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:26px;color:#fff;font-size:22px;font-weight:800;">🐸 FrogPlanner</div>
+        <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:26px;color:#fff;font-size:22px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="26" height="26" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;" />FrogPlanner</div>
         <div style="padding:28px 24px;">
           <div style="font-size:44px;margin-bottom:10px;">${ok ? '✅' : '⚠️'}</div>
           <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">${message}</p>
