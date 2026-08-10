@@ -133,7 +133,11 @@ export default function PrivacyPolicy() {
           <p>
             We keep your data for as long as your account is active. You can delete individual tasks,
             projects, or your Google Calendar connection at any time within the App. To delete your
-            account and all associated data, or to revoke Google Calendar access, contact us at{' '}
+            account and all associated data, see our{' '}
+            <Link to="/delete-account" className="font-semibold text-green-700 underline">
+              account deletion page
+            </Link>{' '}
+            or contact us at{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-green-700 underline">
               {CONTACT_EMAIL}
             </a>

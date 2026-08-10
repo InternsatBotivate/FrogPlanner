@@ -179,9 +179,15 @@ const Login = () => {
             </div>
             <div className="relative z-10 text-center mt-4">
               <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Powered By Botivate</p>
-              <Link to="/privacy-policy" className="text-gray-400 text-[10px] font-semibold hover:text-green-700 hover:underline">
-                Privacy Policy
-              </Link>
+              <div className="flex items-center justify-center gap-2">
+                <Link to="/privacy-policy" className="text-gray-400 text-[10px] font-semibold hover:text-green-700 hover:underline">
+                  Privacy Policy
+                </Link>
+                <span className="text-gray-300 text-[10px]">·</span>
+                <Link to="/delete-account" className="text-gray-400 text-[10px] font-semibold hover:text-green-700 hover:underline">
+                  Delete account
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -264,10 +270,17 @@ const Login = () => {
                 className="w-full text-center text-[11px] font-bold text-green-700 hover:text-green-900 hover:underline flex items-center justify-center gap-1 select-none transition-colors">
                 <img src={frogLogo} alt="" className="w-4 h-4 object-contain" /> About Frog Planner
               </button>
-              <Link to="/privacy-policy"
-                className="block w-full text-center text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline transition-colors">
-                Privacy Policy
-              </Link>
+              <div className="flex items-center justify-center gap-2">
+                <Link to="/privacy-policy"
+                  className="text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline transition-colors">
+                  Privacy Policy
+                </Link>
+                <span className="text-gray-300 text-[11px]">·</span>
+                <Link to="/delete-account"
+                  className="text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline transition-colors">
+                  Delete account
+                </Link>
+              </div>
             </div>
           </div>
         </div>
