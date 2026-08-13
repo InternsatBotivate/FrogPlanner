@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { Camera } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import ReminderEmails from '../components/ReminderEmails';
+import AvatarUploadModal from '../components/AvatarUploadModal';
 
 export default function Settings() {
   const { user, updateProfile } = useAuthStore();
@@ -14,6 +16,7 @@ export default function Settings() {
   const [designation, setDesignation] = useState('');
   const [department, setDepartment] = useState('');
   const [bio, setBio] = useState('');
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -71,10 +74,26 @@ export default function Settings() {
         {/* Banner with Profile Info (White Card style) */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 flex flex-col md:flex-row items-center md:items-start gap-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-sky-500 text-white flex items-center justify-center font-bold text-3xl shadow-md border-4 border-white">
-              {name ? name.charAt(0).toUpperCase() : user.id.charAt(0).toUpperCase()}
-            </div>
-            <span className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full" title="Active Session"></span>
+            {user.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt={name || 'Profile'}
+                className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-white"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-sky-500 text-white flex items-center justify-center font-bold text-3xl shadow-md border-4 border-white">
+                {name ? name.charAt(0).toUpperCase() : user.id.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="absolute top-1 right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" title="Active Session"></span>
+            <button
+              type="button"
+              onClick={() => setShowAvatarModal(true)}
+              className="absolute -bottom-1 -right-1 w-8 h-8 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center text-gray-500 hover:text-green-600 hover:border-green-300 transition-colors"
+              title="Change profile picture"
+            >
+              <Camera size={15} />
+            </button>
           </div>
 
           <div className="flex-1 text-center md:text-left space-y-1">
@@ -210,6 +229,8 @@ export default function Settings() {
 
       {/* Reminder email management (Phase 2) */}
       <ReminderEmails />
+
+      <AvatarUploadModal isOpen={showAvatarModal} onClose={() => setShowAvatarModal(false)} />
     </div>
   );
 }

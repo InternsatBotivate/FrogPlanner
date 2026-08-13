@@ -33,9 +33,13 @@ const Header = ({ onMenuClick, user }) => {
                 {user?.full_name || user?.username || 'User'}
               </p>
             </div>
-            {/* Frog avatar with yellow ring for accent */}
+            {/* User avatar, falling back to the frog mark when none is set */}
             <div className="w-9 h-9 rounded-full bg-yellow-50 border-2 border-yellow-300 flex items-center justify-center group-hover:border-green-400 transition-all overflow-hidden shadow-sm select-none">
-              <FrogLogo className="w-full h-full object-cover" />
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <FrogLogo className="w-full h-full object-cover" />
+              )}
             </div>
           </div>
         </div>

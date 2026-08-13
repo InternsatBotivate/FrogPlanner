@@ -470,7 +470,7 @@ export default function Dashboard() {
           <span className="text-3xl select-none">{greeting.emoji}</span>
           <div>
             <h2 className="text-base font-extrabold text-white leading-tight">
-              {greeting.wish}, {user?.name?.split(' ')[0] || 'Friend'}! <FrogLogo className="w-5 h-5 inline-block ml-1 align-middle" />
+              {greeting.wish}, {user?.full_name?.split(' ')[0] || 'Friend'}! <FrogLogo className="w-5 h-5 inline-block ml-1 align-middle" />
             </h2>
             <p className="text-xs text-green-100/80 font-medium mt-0.5">{greeting.sub}</p>
           </div>

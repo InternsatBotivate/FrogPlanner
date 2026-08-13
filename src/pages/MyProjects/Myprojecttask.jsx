@@ -539,7 +539,7 @@ const Myprojecttask = () => {
                 </div>
                 <div className="flex items-center gap-1.5 min-w-0">
                   <User size={12} className="text-gray-400 shrink-0" />
-                  <p className="text-gray-700 font-bold truncate">{user?.name || user?.email || '—'}</p>
+                  <p className="text-gray-700 font-bold truncate">{user?.full_name || user?.email || '—'}</p>
                 </div>
               </div>
             </div>
