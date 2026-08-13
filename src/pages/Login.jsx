@@ -72,7 +72,7 @@ const Login = () => {
   const handleSendForgotOtp = async (e) => {
     e?.preventDefault?.();
     if (!forgotUsername.trim()) {
-      toast.error('Enter your User ID.');
+      toast.error('Enter your User ID or email.');
       return;
     }
     setSendingForgotOtp(true);
@@ -327,14 +327,14 @@ const Login = () => {
             {/* Sign In Form */}
             <form className="flex flex-col gap-4" onSubmit={handleSignIn}>
               <div className="space-y-1">
-                <label htmlFor="login-id" className="text-xs font-bold text-gray-600 uppercase tracking-wider">User ID</label>
+                <label htmlFor="login-id" className="text-xs font-bold text-gray-600 uppercase tracking-wider">User ID or Email</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <User className="h-4 w-4 text-gray-400 group-focus-within:text-green-600 transition-colors" />
                   </div>
                   <input id="login-id" type="text" required value={id}
                     onChange={(e) => setId(e.target.value)} className={inputCls}
-                    placeholder="Enter your user ID" autoComplete="username" />
+                    placeholder="Enter your user ID or email" autoComplete="username" />
                 </div>
               </div>
 
@@ -604,7 +604,7 @@ const Login = () => {
                   <KeyRound size={18} className="text-green-600" /> Reset Password
                 </h3>
                 <p className="text-[11px] text-gray-400 mt-0.5">
-                  {forgotStep === 'username' && 'Enter your User ID to receive a code'}
+                  {forgotStep === 'username' && 'Enter your User ID or email to receive a code'}
                   {forgotStep === 'otp' && 'Enter the code sent to your email on file'}
                   {forgotStep === 'reset' && 'Choose a new password'}
                 </p>
@@ -619,14 +619,14 @@ const Login = () => {
               {forgotStep === 'username' && (
                 <form onSubmit={handleSendForgotOtp} className="flex flex-col gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User ID</label>
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User ID or Email</label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <User className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
                       </div>
                       <input type="text" required value={forgotUsername}
                         onChange={(e) => setForgotUsername(e.target.value)}
-                        className={inputCls} placeholder="Enter your user ID" />
+                        className={inputCls} placeholder="Enter your user ID or email" />
                     </div>
                   </div>
                   <button type="submit" disabled={sendingForgotOtp}
