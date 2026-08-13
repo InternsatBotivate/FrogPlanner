@@ -39,7 +39,7 @@ export default function DeleteAccount() {
       <div className="mx-auto max-w-3xl px-5 py-10">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <FrogLogo size={40} />
+          <FrogLogo className="w-8 h-8 flex-shrink-0 select-none" />
           <div>
             <h1 className="text-2xl font-extrabold text-gray-900">Delete Your Account</h1>
             <p className="text-xs text-gray-500">
