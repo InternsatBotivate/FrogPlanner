@@ -194,6 +194,28 @@ export const updateUserProfile = async (userId, updatedData) => {
 };
 
 /**
+ * updateAvatarUrl
+ * Updates a user's profile picture URL in public.users.
+ */
+export const updateAvatarUrl = async (userId, avatarUrl) => {
+  try {
+    if (!userId) return { user: null, error: new Error('User ID is required.') };
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) return { user: null, error };
+    return { user, error: null };
+  } catch (err) {
+    return { user: null, error: err };
+  }
+};
+
+/**
  * updateCustomCategories
  * Updates the user's custom categories in public.users.
  */

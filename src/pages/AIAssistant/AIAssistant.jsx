@@ -139,12 +139,20 @@ export default function AIAssistant() {
               className={`flex gap-3 max-w-[85%] ${msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
             >
               {/* Avatar Icon */}
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border shadow-sm ${
-                msg.sender === 'user' 
-                  ? 'bg-indigo-50 border-indigo-100 text-indigo-700 font-bold text-xs' 
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border shadow-sm overflow-hidden ${
+                msg.sender === 'user'
+                  ? 'bg-indigo-50 border-indigo-100 text-indigo-700 font-bold text-xs'
                   : 'bg-white border-gray-200 text-gray-600'
               }`}>
-                {msg.sender === 'user' ? (user?.name?.charAt(0).toUpperCase() || 'U') : <Bot size={16} className="text-indigo-600" />}
+                {msg.sender === 'user' ? (
+                  user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    user?.full_name?.charAt(0).toUpperCase() || 'U'
+                  )
+                ) : (
+                  <Bot size={16} className="text-indigo-600" />
+                )}
               </div>
 
               {/* Message Content Bubble */}
