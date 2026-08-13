@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import frogLogo from '../Assets/frog_planner_logo.avif';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus, Building, Briefcase, Shield, Phone } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus, Building, Briefcase, Shield, Phone, Loader2, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
-import { sendVerificationEmail } from '../lib/verificationService';
+import { sendSignupOtp, verifyOtp, sendPasswordResetOtp, resetPassword } from '../lib/otpService';
+import OtpInput from '../components/OtpInput';
 import Footer from '../components/Footer';
 import AboutFrogPlanner from './AboutFrogPlanner/AboutFrogPlanner';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const inputCls =
   'block w-full pl-9 pr-3 py-2.5 text-sm bg-gray-50/60 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/25 focus:border-green-400 focus:bg-white transition-all shadow-sm';
@@ -36,9 +39,121 @@ const Login = () => {
   const [signupRole, setSignupRole] = useState('');
   const [signupContact, setSignupContact] = useState('');
 
+  // Signup email verification (OTP)
+  const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
+  const [showEmailOtp, setShowEmailOtp] = useState(false);
+  const [emailOtpId, setEmailOtpId] = useState(null);
+  const [emailVerified, setEmailVerified] = useState(false);
+
+  // Forgot password modal
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState('username'); // 'username' | 'otp' | 'reset'
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [forgotOtpId, setForgotOtpId] = useState(null);
+  const [forgotCode, setForgotCode] = useState('');
+  const [sendingForgotOtp, setSendingForgotOtp] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
+
   const login = useAuthStore((state) => state.login);
   const register = useAuthStore((state) => state.register);
   const navigate = useNavigate();
+
+  const resetForgotState = () => {
+    setForgotStep('username');
+    setForgotUsername('');
+    setForgotOtpId(null);
+    setForgotCode('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+  };
+
+  const handleSendForgotOtp = async (e) => {
+    e?.preventDefault?.();
+    if (!forgotUsername.trim()) {
+      toast.error('Enter your User ID.');
+      return;
+    }
+    setSendingForgotOtp(true);
+    const res = await sendPasswordResetOtp(forgotUsername.trim());
+    setSendingForgotOtp(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success('A verification code has been sent to your email on file.');
+    setForgotOtpId(res.otpId);
+    setForgotStep('otp');
+  };
+
+  const handleForgotResend = async () => {
+    const res = await sendPasswordResetOtp(forgotUsername.trim());
+    if (res.ok) setForgotOtpId(res.otpId);
+    return res;
+  };
+
+  const handleForgotOtpConfirm = async (code) => {
+    const res = await verifyOtp(forgotOtpId, code);
+    if (!res.ok) return res;
+    setForgotCode(code);
+    setForgotStep('reset');
+    return { ok: true };
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    setResettingPassword(true);
+    const res = await resetPassword(forgotOtpId, forgotCode, newPassword);
+    setResettingPassword(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success('Password reset! You can now sign in.');
+    setShowForgotModal(false);
+    resetForgotState();
+  };
+
+  const handleSendEmailOtp = async () => {
+    const email = signupEmail.trim();
+    if (!EMAIL_RE.test(email)) {
+      toast.error('Enter a valid email address.');
+      return;
+    }
+    setSendingEmailOtp(true);
+    const res = await sendSignupOtp(email);
+    setSendingEmailOtp(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    setEmailOtpId(res.otpId);
+    setShowEmailOtp(true);
+  };
+
+  const handleEmailOtpResend = () => sendSignupOtp(signupEmail.trim()).then((res) => {
+    if (res.ok) setEmailOtpId(res.otpId);
+    return res;
+  });
+
+  const handleEmailOtpConfirm = async (code) => {
+    const res = await verifyOtp(emailOtpId, code);
+    if (res.ok) {
+      setEmailVerified(true);
+      setShowEmailOtp(false);
+      toast.success('Email verified!');
+    }
+    return res;
+  };
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -62,8 +177,9 @@ const Login = () => {
     e.preventDefault();
     // Validate required fields
     if (
-      !signupName.trim() || 
-      !signupId.trim() || 
+      !signupName.trim() ||
+      !signupId.trim() ||
+      !signupEmail.trim() ||
       !signupPassword.trim() ||
       !signupBusinessName.trim() ||
       !signupPosition.trim() ||
@@ -71,6 +187,11 @@ const Login = () => {
       !signupContact.trim()
     ) {
       toast.error('Please fill all required fields.');
+      return;
+    }
+
+    if (!emailVerified) {
+      toast.error('Please verify your email before creating an account.');
       return;
     }
 
@@ -106,20 +227,11 @@ const Login = () => {
         bio: '',
         business_name: signupBusinessName.trim(),
         user_role: signupRole.trim(),
+        emailVerified: true,
       });
       if (error) {
         toast.error(error.message || 'Sign up failed. Please try again.');
         return;
-      }
-      // Send an email-verification link right away (best-effort; the Dashboard
-      // banner lets them resend if this fails or they missed it).
-      const newEmail = signupEmail.trim();
-      if (newEmail) {
-        sendVerificationEmail(newEmail)
-          .then((r) => {
-            if (r.ok) toast.success('Verification email sent — check your inbox to enable reminders.');
-          })
-          .catch(() => {});
       }
       toast.success(`Account created! Welcome, ${signupName.trim()}!`);
       setShowSignupModal(false);
@@ -240,6 +352,12 @@ const Login = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <div className="text-right">
+                  <button type="button" onClick={() => { resetForgotState(); setShowForgotModal(true); }}
+                    className="text-[11px] font-semibold text-green-700 hover:text-green-900 hover:underline">
+                    Forgot password?
+                  </button>
+                </div>
               </div>
 
               {/* Demo hint */}
@@ -335,14 +453,38 @@ const Login = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Email (optional)</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                  <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Email *</label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative group flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="email" required value={signupEmail}
+                        disabled={emailVerified}
+                        onChange={(e) => {
+                          setSignupEmail(e.target.value);
+                          setEmailVerified(false);
+                          setShowEmailOtp(false);
+                        }}
+                        className={`${inputCls} ${emailVerified ? 'opacity-70' : ''}`} placeholder="your@email.com" />
                     </div>
-                    <input type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)}
-                      className={inputCls} placeholder="your@email.com" />
+                    {emailVerified ? (
+                      <span className="inline-flex items-center justify-center gap-1 text-[11px] font-bold text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-xl whitespace-nowrap">
+                        <BadgeCheck size={13} /> Verified
+                      </span>
+                    ) : (
+                      <button type="button" onClick={handleSendEmailOtp} disabled={sendingEmailOtp}
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3.5 py-2 rounded-xl transition-colors disabled:opacity-60 whitespace-nowrap">
+                        {sendingEmailOtp ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                        {sendingEmailOtp ? 'Sending…' : 'Verify'}
+                      </button>
+                    )}
                   </div>
+                  {showEmailOtp && !emailVerified && (
+                    <div className="pt-1.5">
+                      <OtpInput onConfirm={handleEmailOtpConfirm} onResend={handleEmailOtpResend} confirmLabel="Confirm" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -432,8 +574,9 @@ const Login = () => {
                 </div>
               </div>
 
-              <button type="submit" disabled={signingUp}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 shadow-md shadow-amber-400/25 transition-all mt-1 ${signingUp ? 'opacity-75 cursor-not-allowed' : ''}`}>
+              <button type="submit" disabled={signingUp || !emailVerified}
+                title={!emailVerified ? 'Verify your email first' : undefined}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 shadow-md shadow-amber-400/25 transition-all mt-1 ${signingUp || !emailVerified ? 'opacity-75 cursor-not-allowed' : ''}`}>
                 {signingUp
                   ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Creating...</>
                   : <><UserPlus className="w-4 h-4" />Create Account</>
@@ -447,6 +590,93 @@ const Login = () => {
                 </button>
               </p>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── FORGOT PASSWORD MODAL ── */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-green-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-green-100 flex items-center justify-between bg-green-50/50">
+              <div>
+                <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                  <KeyRound size={18} className="text-green-600" /> Reset Password
+                </h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {forgotStep === 'username' && 'Enter your User ID to receive a code'}
+                  {forgotStep === 'otp' && 'Enter the code sent to your email on file'}
+                  {forgotStep === 'reset' && 'Choose a new password'}
+                </p>
+              </div>
+              <button type="button" onClick={() => { setShowForgotModal(false); resetForgotState(); }}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-green-100 rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 flex flex-col gap-3">
+              {forgotStep === 'username' && (
+                <form onSubmit={handleSendForgotOtp} className="flex flex-col gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User ID</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <User className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="text" required value={forgotUsername}
+                        onChange={(e) => setForgotUsername(e.target.value)}
+                        className={inputCls} placeholder="Enter your user ID" />
+                    </div>
+                  </div>
+                  <button type="submit" disabled={sendingForgotOtp}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-md shadow-green-500/25 transition-all disabled:opacity-75">
+                    {sendingForgotOtp ? <Loader2 size={16} className="animate-spin" /> : null}
+                    {sendingForgotOtp ? 'Sending…' : 'Send Code'}
+                  </button>
+                </form>
+              )}
+
+              {forgotStep === 'otp' && (
+                <OtpInput onConfirm={handleForgotOtpConfirm} onResend={handleForgotResend} confirmLabel="Confirm" />
+              )}
+
+              {forgotStep === 'reset' && (
+                <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">New Password</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="password" required value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className={inputCls} placeholder="Min 6 chars" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Confirm Password</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                      </div>
+                      <input type="password" required value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        className={`${inputCls} ${confirmNewPassword && newPassword !== confirmNewPassword ? 'border-rose-300 focus:border-rose-400' : ''}`}
+                        placeholder="Repeat password" />
+                    </div>
+                    {confirmNewPassword && newPassword !== confirmNewPassword && (
+                      <p className="text-[10px] text-rose-500 font-semibold">Passwords don't match</p>
+                    )}
+                  </div>
+                  <button type="submit" disabled={resettingPassword}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-md shadow-green-500/25 transition-all disabled:opacity-75">
+                    {resettingPassword ? <Loader2 size={16} className="animate-spin" /> : null}
+                    {resettingPassword ? 'Resetting…' : 'Reset Password'}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}
