@@ -72,7 +72,7 @@ export default function PrivacyPolicy() {
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <FrogLogo className="w-10 h-10 flex-shrink-0 select-none" />
+            <FrogLogo className="w-40 h-40 flex-shrink-0 select-none" />
             <div>
               <h1 className="text-2xl font-extrabold text-gray-900">Privacy Policy</h1>
               <p className="text-xs text-gray-500">
