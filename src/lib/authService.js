@@ -45,6 +45,7 @@ export const signUp = async ({
   bio = '',
   business_name = '',
   user_role = '',
+  emailVerified = false, // true when the caller already OTP-verified `email` (see otpService.js)
 }) => {
   try {
     // Check for duplicate username
@@ -58,12 +59,13 @@ export const signUp = async ({
       return { user: null, error: new Error('User ID already exists. Choose a different one.') };
     }
 
+    const trimmedEmail = email.trim();
     const { data: user, error } = await supabase
       .from('users')
       .insert({
         username: username.trim(),
         full_name: name.trim(),
-        email: email.trim() || null,
+        email: trimmedEmail || null,
         password_hash: password, // Store password directly as plain text
         role,
         designation,
@@ -72,11 +74,25 @@ export const signUp = async ({
         bio,
         business_name: business_name.trim() || null,
         user_role: user_role.trim() || null,
+        email_verified: emailVerified && !!trimmedEmail,
+        reminders_enabled: emailVerified && !!trimmedEmail,
       })
       .select()
       .single();
 
     if (error) return { user: null, error };
+
+    // The email was already OTP-verified before this account existed —
+    // insert it straight into user_emails as verified/primary instead of
+    // the old flow (insert unverified + fire a link email).
+    if (emailVerified && trimmedEmail) {
+      await supabase.from('user_emails').insert({
+        user_id: user.id,
+        email: trimmedEmail,
+        is_verified: true,
+        is_primary: true,
+      });
+    }
 
     // Brand-new accounts should start empty instead of inheriting shared browser legacy data.
     localStorage.setItem(`${SIGNUP_SKIP_MIGRATION_KEY_PREFIX}${user.id}`, 'true');
@@ -171,17 +187,22 @@ export const updateUserProfile = async (userId, updatedData) => {
   try {
     if (!userId) return { user: null, error: new Error('User ID is required.') };
 
+    const patch = {
+      full_name: updatedData.name,
+      email: updatedData.email,
+      phone: updatedData.phone,
+      designation: updatedData.designation,
+      department: updatedData.department,
+      bio: updatedData.bio,
+    };
+    // Password changes now go exclusively through the OTP-gated
+    // change-password flow (api/change-password.js) — never overwrite it
+    // here, even if a caller happens to pass one.
+    if (updatedData.password) patch.password_hash = updatedData.password;
+
     const { data: user, error } = await supabase
       .from('users')
-      .update({
-        full_name: updatedData.name,
-        password_hash: updatedData.password,
-        email: updatedData.email,
-        phone: updatedData.phone,
-        designation: updatedData.designation,
-        department: updatedData.department,
-        bio: updatedData.bio,
-      })
+      .update(patch)
       .eq('id', userId)
       .select()
       .single();

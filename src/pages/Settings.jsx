@@ -4,24 +4,24 @@ import { Camera } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import ReminderEmails from '../components/ReminderEmails';
 import AvatarUploadModal from '../components/AvatarUploadModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
 export default function Settings() {
   const { user, updateProfile } = useAuthStore();
-  
+
   // State for form fields
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [designation, setDesignation] = useState('');
   const [department, setDepartment] = useState('');
   const [bio, setBio] = useState('');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   useEffect(() => {
     if (user) {
       setName(user.full_name || '');
-      setPassword(user.password_hash || '');
       setEmail(user.email || '');
       setPhone(user.phone || '');
       setDesignation(user.designation || '');
@@ -33,14 +33,13 @@ export default function Settings() {
   const handleSave = async (e) => {
     e.preventDefault();
 
-    if (!name.trim() || !password.trim()) {
-      toast.error('Name and password are required fields.');
+    if (!name.trim()) {
+      toast.error('Name is required.');
       return;
     }
 
     const updatedData = {
       name: name.trim(),
-      password: password.trim(),
       email: email.trim(),
       phone: phone.trim(),
       designation: designation.trim(),
@@ -134,14 +133,14 @@ export default function Settings() {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tight">Account Password *</label>
-              <input 
-                type="text" 
-                required
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] font-medium text-gray-700 bg-white"
-              />
+              <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tight">Account Password</label>
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(true)}
+                className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-left text-[11px] font-bold text-indigo-600 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+              >
+                Change Password
+              </button>
             </div>
           </div>
 
@@ -231,6 +230,7 @@ export default function Settings() {
       <ReminderEmails />
 
       <AvatarUploadModal isOpen={showAvatarModal} onClose={() => setShowAvatarModal(false)} />
+      <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
     </div>
   );
 }
