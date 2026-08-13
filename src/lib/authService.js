@@ -107,20 +107,55 @@ export const signUp = async ({
 
 /**
  * signIn
- * Validates credentials against public.users.
+ * Validates credentials against public.users. Accepts either a username or
+ * an email address in the `identifier` field — email is checked against both
+ * users.email (set at signup) and user_emails (addresses added later via
+ * Settings, which can diverge from users.email).
  * Returns { user, token, error }
  */
-export const signIn = async (username, password) => {
+export const signIn = async (identifier, password) => {
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', username.trim())
-      .eq('password_hash', password) // Direct plain-text comparison
-      .maybeSingle();
+    const trimmed = identifier.trim();
+    const isEmail = trimmed.includes('@');
+
+    let user = null;
+    let error = null;
+
+    if (isEmail) {
+      const lower = trimmed.toLowerCase();
+      // Primary lookup: users.email (set at signup / profile save).
+      const byUsersEmail = await supabase
+        .from('users')
+        .select('*')
+        .ilike('email', lower)
+        .maybeSingle();
+      user = byUsersEmail.data;
+      error = byUsersEmail.error;
+
+      // Fallback: an email added later via Settings (user_emails), which may
+      // not match users.email.
+      if (!user && !error) {
+        const { data: emailRow } = await supabase
+          .from('user_emails')
+          .select('user_id')
+          .ilike('email', lower)
+          .maybeSingle();
+        if (emailRow) {
+          const byId = await supabase.from('users').select('*').eq('id', emailRow.user_id).maybeSingle();
+          user = byId.data;
+          error = byId.error;
+        }
+      }
+    } else {
+      const byUsername = await supabase.from('users').select('*').eq('username', trimmed).maybeSingle();
+      user = byUsername.data;
+      error = byUsername.error;
+    }
 
     if (error) return { user: null, token: null, error };
-    if (!user) return { user: null, token: null, error: new Error('Invalid User ID or Password.') };
+    if (!user || user.password_hash !== password) {
+      return { user: null, token: null, error: new Error('Invalid User ID or Password.') };
+    }
 
     const token = await createSession(user.id);
     return { user, token, error: null };

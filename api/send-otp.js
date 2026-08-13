@@ -74,29 +74,54 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'An account already uses this email. Try signing in instead.' });
       }
     } else if (purpose === 'password_reset') {
-      const username = String(body.username || '').trim();
-      if (!username) return res.status(400).json({ error: 'Enter your User ID.' });
+      const identifier = String(body.username || '').trim();
+      if (!identifier) return res.status(400).json({ error: 'Enter your User ID or email.' });
 
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', username)
-        .maybeSingle();
-      // Neutral message either way — don't reveal whether the username
+      // Neutral message either way — don't reveal whether the account
       // exists, only whether we could send a code.
       const notFoundMsg = 'No verified email on file for that account. Contact support.';
-      if (!user) return res.status(400).json({ error: notFoundMsg });
+      const isEmailIdentifier = identifier.includes('@');
+
+      let resolvedUserId = null;
+      if (isEmailIdentifier) {
+        const lower = identifier.toLowerCase();
+        // Try users.email first, then user_emails (an address added later
+        // via Settings can diverge from users.email).
+        const { data: byUsersEmail } = await supabase
+          .from('users')
+          .select('id')
+          .ilike('email', lower)
+          .maybeSingle();
+        if (byUsersEmail) {
+          resolvedUserId = byUsersEmail.id;
+        } else {
+          const { data: emailRow } = await supabase
+            .from('user_emails')
+            .select('user_id')
+            .ilike('email', lower)
+            .maybeSingle();
+          if (emailRow) resolvedUserId = emailRow.user_id;
+        }
+      } else {
+        const { data: byUsername } = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', identifier)
+          .maybeSingle();
+        if (byUsername) resolvedUserId = byUsername.id;
+      }
+      if (!resolvedUserId) return res.status(400).json({ error: notFoundMsg });
 
       const { data: primaryEmail } = await supabase
         .from('user_emails')
         .select('email')
-        .eq('user_id', user.id)
+        .eq('user_id', resolvedUserId)
         .eq('is_primary', true)
         .eq('is_verified', true)
         .maybeSingle();
       if (!primaryEmail) return res.status(400).json({ error: notFoundMsg });
 
-      userId = user.id;
+      userId = resolvedUserId;
       email = primaryEmail.email.toLowerCase();
     } else {
       // change_password — requires a live session.
