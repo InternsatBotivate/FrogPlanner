@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 import { Download, Printer } from 'lucide-react';
 import FrogLogo from '../../components/FrogLogo';
 
-const EFFECTIVE_DATE = 'July 18, 2026';
+const EFFECTIVE_DATE = 'August 14, 2026';
 const CONTACT_EMAIL = 'info@botivate.in';
 const APP_NAME = 'FrogPlanner';
 const COMPANY = 'Botivate';
@@ -196,8 +196,10 @@ export default function PrivacyPolicy() {
         <Section title="6. Data Retention and Deletion">
           <p>
             We keep your data for as long as your account is active. You can delete individual tasks,
-            projects, or your Google Calendar connection at any time within the App. To delete your
-            account and all associated data, see our{' '}
+            projects, or your Google Calendar connection at any time within the App. You can delete your
+            entire account and all associated data yourself at any time from{' '}
+            <strong>Settings → Account Security → Delete Account</strong> — this takes effect
+            immediately. If you can’t sign in, see our{' '}
             <Link to="/delete-account" className="font-semibold text-green-700 underline">
               account deletion page
             </Link>{' '}
