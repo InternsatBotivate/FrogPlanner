@@ -6,12 +6,18 @@
  * re-encoded as WebP client-side before it ever reaches avatarService.
  * ──────────────────────────────────────────────────────────────────────────
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Cropper from 'react-easy-crop';
-import { Camera, Loader2, X } from 'lucide-react';
+import { Camera, Loader2, Video, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { uploadAvatar, MAX_AVATAR_SOURCE_BYTES } from '../lib/avatarService';
 import { useAuthStore } from '../store/authStore';
+
+// True when this browser can plausibly grant camera access (desktop or
+// mobile) via getUserMedia — used to hide the "Use Webcam" option instead of
+// showing a button that would just error out.
+const hasWebcamSupport = () =>
+  typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
 // Draws the cropped region of `imageSrc` onto a canvas and resolves a WebP Blob.
 async function cropToWebpBlob(imageSrc, cropPixels) {
@@ -59,12 +65,64 @@ export default function AvatarUploadModal({ isOpen, onClose }) {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  // Webcam capture — a live preview shown in place of the picker until the
+  // user snapshots a frame, which then feeds into the same crop step above.
+  const [webcamActive, setWebcamActive] = useState(false);
+  const [webcamError, setWebcamError] = useState('');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopWebcam = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setWebcamActive(false);
+  }, []);
+
+  const startWebcam = async () => {
+    setWebcamError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setWebcamActive(true);
+      // The <video> element only mounts once webcamActive is true, so attach
+      // the stream on the next tick.
+      requestAnimationFrame(() => {
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      });
+    } catch {
+      setWebcamError('Could not access your camera — check your browser permissions.');
+    }
+  };
+
+  const captureFromWebcam = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    setImageSrc(canvas.toDataURL('image/png'));
+    stopWebcam();
+  };
+
+  // Release the camera whenever the modal closes or unmounts, even if the
+  // user closes it mid-preview instead of pressing Capture/Cancel.
+  useEffect(() => {
+    if (!isOpen) stopWebcam();
+    return stopWebcam;
+  }, [isOpen, stopWebcam]);
+
   const reset = () => {
     setImageSrc(null);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setCroppedAreaPixels(null);
     setSaving(false);
+    setWebcamError('');
+    stopWebcam();
   };
 
   const handleClose = () => {
@@ -126,19 +184,57 @@ export default function AvatarUploadModal({ isOpen, onClose }) {
         </div>
 
         <div className="p-4 space-y-4">
-          {!imageSrc ? (
-            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-green-200 rounded-xl py-10 cursor-pointer hover:bg-green-50/50 transition-colors">
-              <Camera className="text-green-500" size={28} />
-              <span className="text-sm font-bold text-gray-700">Choose or take a photo</span>
-              <span className="text-xs text-gray-400">PNG, JPG, or any image — up to 10MB</span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="hidden"
-                onChange={(e) => handleFile(e.target.files?.[0])}
-              />
-            </label>
+          {webcamActive ? (
+            <div className="space-y-3">
+              <div className="relative w-full aspect-square bg-gray-900 rounded-xl overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover scale-x-[-1]"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={stopWebcam}
+                  className="flex-1 py-2 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition font-bold uppercase tracking-wider"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={captureFromWebcam}
+                  className="flex-1 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-xs text-white transition font-bold uppercase tracking-wider"
+                >
+                  Capture
+                </button>
+              </div>
+            </div>
+          ) : !imageSrc ? (
+            <div className="space-y-2">
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-green-200 rounded-xl py-10 cursor-pointer hover:bg-green-50/50 transition-colors">
+                <Camera className="text-green-500" size={28} />
+                <span className="text-sm font-bold text-gray-700">Choose or take a photo</span>
+                <span className="text-xs text-gray-400">PNG, JPG, or any image — up to 10MB</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="hidden"
+                  onChange={(e) => handleFile(e.target.files?.[0])}
+                />
+              </label>
+              {hasWebcamSupport() && (
+                <button
+                  onClick={startWebcam}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition font-bold uppercase tracking-wider"
+                >
+                  <Video size={14} />
+                  Use Webcam
+                </button>
+              )}
+              {webcamError && <p className="text-xs text-red-500 text-center">{webcamError}</p>}
+            </div>
           ) : (
             <>
               <div className="relative w-full h-64 bg-gray-900 rounded-xl overflow-hidden">
@@ -167,25 +263,27 @@ export default function AvatarUploadModal({ isOpen, onClose }) {
           )}
         </div>
 
-        <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 flex gap-2">
-          {imageSrc && (
+        {!webcamActive && (
+          <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 flex gap-2">
+            {imageSrc && (
+              <button
+                onClick={() => setImageSrc(null)}
+                disabled={saving}
+                className="flex-1 py-2 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition font-bold uppercase tracking-wider disabled:opacity-50"
+              >
+                Choose another
+              </button>
+            )}
             <button
-              onClick={() => setImageSrc(null)}
-              disabled={saving}
-              className="flex-1 py-2 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition font-bold uppercase tracking-wider disabled:opacity-50"
+              onClick={imageSrc ? handleSave : handleClose}
+              disabled={saving || (imageSrc && !croppedAreaPixels)}
+              className="flex-1 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-xs text-white transition font-bold uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
-              Choose another
+              {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+              {imageSrc ? (saving ? 'Saving...' : 'Save Photo') : 'Cancel'}
             </button>
-          )}
-          <button
-            onClick={imageSrc ? handleSave : handleClose}
-            disabled={saving || (imageSrc && !croppedAreaPixels)}
-            className="flex-1 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-xs text-white transition font-bold uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-1.5"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            {imageSrc ? (saving ? 'Saving...' : 'Save Photo') : 'Cancel'}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
