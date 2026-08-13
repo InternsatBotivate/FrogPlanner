@@ -6,7 +6,7 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 import { create } from 'zustand';
-import { signIn, signUp, signOut, getSessionUser, updateUserProfile, updateCustomCategories, updateAvatarUrl } from '../lib/authService';
+import { signIn, signUp, signOut, deleteAccount, getSessionUser, updateUserProfile, updateCustomCategories, updateAvatarUrl } from '../lib/authService';
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -51,6 +51,22 @@ const useAuthStore = create((set) => ({
     sessionStorage.removeItem('gc_token');
     sessionStorage.removeItem('gc_events');
     set({ user: null, isAuthenticated: false });
+  },
+
+  /**
+   * removeAccount
+   * Permanently deletes the account and all its data, then clears local state
+   * exactly like logout. `password` re-confirms the destructive action.
+   * Returns { ok, error } so the caller can surface messages.
+   */
+  removeAccount: async (password) => {
+    const res = await deleteAccount(password);
+    if (!res.ok) return res;
+
+    sessionStorage.removeItem('gc_token');
+    sessionStorage.removeItem('gc_events');
+    set({ user: null, isAuthenticated: false });
+    return { ok: true };
   },
 
   /**

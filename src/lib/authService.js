@@ -177,6 +177,33 @@ export const signOut = async () => {
 };
 
 /**
+ * deleteAccount
+ * Permanently deletes the signed-in account and all its data. Runs entirely
+ * server-side (api/delete-account.js) with the service-role key, scoped to the
+ * session's own user_id; `password` is re-confirmation, not authorization.
+ * Clears the local session token on success. Returns { ok, error }.
+ */
+export const deleteAccount = async (password) => {
+  const token = localStorage.getItem(SESSION_KEY);
+  if (!token) return { ok: false, error: 'Please sign in again.' };
+
+  try {
+    const res = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ password }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, error: json?.error || `Failed (${res.status}).` };
+
+    localStorage.removeItem(SESSION_KEY);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Network error. Please try again.' };
+  }
+};
+
+/**
  * getSessionUser
  * Reads the local session token, validates it against public.user_sessions,
  * and returns the resolved user row (or null if invalid / expired).

@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import ReminderEmails from '../components/ReminderEmails';
 import AvatarUploadModal from '../components/AvatarUploadModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 
 export default function Settings() {
   const { user, updateProfile } = useAuthStore();
@@ -18,6 +19,7 @@ export default function Settings() {
   const [bio, setBio] = useState('');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -142,6 +144,20 @@ export default function Settings() {
                 Change Password
               </button>
             </div>
+
+            <div className="space-y-1 pt-3 border-t border-gray-100">
+              <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tight">Delete Account</label>
+              <p className="text-[10px] text-gray-400 leading-relaxed">
+                Permanently removes your account and all of its data.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                className="w-full border border-rose-200 rounded px-2.5 py-1.5 text-left text-[11px] font-bold text-rose-600 bg-white hover:bg-rose-50 hover:border-rose-300 transition-colors"
+              >
+                Delete My Account
+              </button>
+            </div>
           </div>
 
           {/* Right Column: Personal & Professional Details */}
@@ -231,6 +247,7 @@ export default function Settings() {
 
       <AvatarUploadModal isOpen={showAvatarModal} onClose={() => setShowAvatarModal(false)} />
       <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
+      <DeleteAccountModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} />
     </div>
   );
 }

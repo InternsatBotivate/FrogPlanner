@@ -7,8 +7,9 @@
  * `calendar.events` scope (read + write of the user's Google Calendar events).
  * ──────────────────────────────────────────────────────────────────────────
  */
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { Download, Printer } from 'lucide-react';
 import FrogLogo from '../../components/FrogLogo';
 
 const EFFECTIVE_DATE = 'July 18, 2026';
@@ -27,19 +28,82 @@ function Section({ title, children }) {
 }
 
 export default function PrivacyPolicy() {
+  const contentRef = useRef(null);
+
+  const handlePrint = () => window.print();
+
+  /**
+   * Downloads the policy as a standalone HTML file — no PDF library, so no
+   * new dependency. The saved file carries its own minimal styling and opens
+   * correctly in any browser offline.
+   */
+  const handleDownload = () => {
+    const bodyHtml = contentRef.current?.innerHTML || '';
+    const doc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${APP_NAME} Privacy Policy — Effective ${EFFECTIVE_DATE}</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #1f2937; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  h2 { font-size: 17px; margin-top: 28px; }
+  ul { padding-left: 20px; }
+  a { color: #15803d; }
+</style>
+</head>
+<body>${bodyHtml}</body>
+</html>`;
+
+    const blob = new Blob([doc], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${APP_NAME.toLowerCase()}-privacy-policy.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-3xl px-5 py-10">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <FrogLogo size={40} />
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">Privacy Policy</h1>
-            <p className="text-xs text-gray-500">
-              {APP_NAME} by {COMPANY} · Effective {EFFECTIVE_DATE}
-            </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <FrogLogo size={40} />
+            <div>
+              <h1 className="text-2xl font-extrabold text-gray-900">Privacy Policy</h1>
+              <p className="text-xs text-gray-500">
+                {APP_NAME} by {COMPANY} · Effective {EFFECTIVE_DATE}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={handlePrint}
+              aria-label="Print policy"
+              title="Print policy"
+              className="rounded-lg border border-gray-300 p-2 text-gray-600 transition-colors hover:bg-gray-100"
+            >
+              <Printer size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={handleDownload}
+              aria-label="Download policy"
+              title="Download policy"
+              className="rounded-lg border border-gray-300 p-2 text-gray-600 transition-colors hover:bg-gray-100"
+            >
+              <Download size={18} />
+            </button>
           </div>
         </div>
+
+        <div ref={contentRef}>
 
         <p className="mt-6 text-sm leading-relaxed text-gray-600">
           This Privacy Policy explains how {COMPANY} (“we”, “us”, “our”) collects, uses, and protects
@@ -174,8 +238,9 @@ export default function PrivacyPolicy() {
             .
           </p>
         </Section>
+        </div>
 
-        <div className="mt-10 border-t border-gray-200 pt-5 text-xs text-gray-400">
+        <div className="mt-10 border-t border-gray-200 pt-5 text-xs text-gray-400 print:hidden">
           <Link to="/login" className="font-semibold text-green-700 hover:underline">
             ← Back to {APP_NAME}
           </Link>
