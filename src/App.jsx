@@ -16,6 +16,7 @@ import AboutFrogPlanner from './pages/AboutFrogPlanner/AboutFrogPlanner';
 import Developers from './pages/Developers/Developers';
 import UpcomingPlanner from './pages/UpcomingPlanner/UpcomingPlanner';
 import PrivacyPolicy from './pages/PrivacyPolicy/PrivacyPolicy';
+import DeleteAccount from './pages/DeleteAccount/DeleteAccount';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeStorage } from './utils/storageManager';
@@ -37,6 +38,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           {/* Public — must be reachable without auth for Google OAuth verification */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          {/* Public — account & data deletion (required by Google Play) */}
+          <Route path="/delete-account" element={<DeleteAccount />} />
           
           <Route path="/" element={
             <ProtectedRoute>
