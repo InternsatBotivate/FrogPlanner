@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
+import { subscribeToProjectNotes, subscribeToProjectTasks } from '../../lib/realtimeService';
 import ModalForm from '../../components/ModalForm';
 import ModalView from '../../components/ModalView';
 import {
@@ -75,6 +76,57 @@ const Myprojecttask = () => {
     };
     loadProjectData();
   }, [projectId, user, navigate]);
+
+  // ── Live updates from other devices ──────────────────────────────────────
+  // Without this, a change made on mobile (or in another tab) stays invisible
+  // here until the page is reloaded.
+  useEffect(() => {
+    if (!projectId) return;
+
+    const unsubscribeTasks = subscribeToProjectTasks(projectId, {
+      onChange: ({ event, row }) => {
+        setTasks((prev) => {
+          if (event === 'DELETE') return prev.filter((t) => t.id !== row.id);
+          const incoming = {
+            id: row.id,
+            projectId: row.project_id,
+            description: row.description,
+            isCompleted: row.is_completed,
+            createdAt: row.created_at,
+          };
+          const index = prev.findIndex((t) => t.id === row.id);
+          if (index === -1) return event === 'INSERT' ? [...prev, incoming] : prev;
+          const next = [...prev];
+          next[index] = incoming;
+          return next;
+        });
+      },
+    });
+
+    const unsubscribeNotes = subscribeToProjectNotes(projectId, {
+      onChange: ({ event, row }) => {
+        setNotes((prev) => {
+          if (event === 'DELETE') return prev.filter((n) => n.id !== row.id);
+          const incoming = {
+            id: row.id,
+            projectId: row.project_id,
+            content: row.content,
+            createdAt: row.created_at,
+          };
+          const index = prev.findIndex((n) => n.id === row.id);
+          if (index === -1) return event === 'INSERT' ? [incoming, ...prev] : prev;
+          const next = [...prev];
+          next[index] = incoming;
+          return next;
+        });
+      },
+    });
+
+    return () => {
+      unsubscribeTasks();
+      unsubscribeNotes();
+    };
+  }, [projectId]);
 
   // Handle pasting multiple rows from Excel/clipboard as project tasks
   useEffect(() => {

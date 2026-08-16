@@ -21,14 +21,26 @@ import DeleteAccount from './pages/DeleteAccount/DeleteAccount';
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeStorage } from './utils/storageManager';
 import { useAuthStore } from './store/authStore';
+import { usePlannerStore } from './store/plannerStore';
 
 function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const userId = useAuthStore((state) => state.user?.id);
 
   useEffect(() => {
     initializeStorage();
     initializeAuth();
   }, []);
+
+  // Planner realtime: one subscription for the whole app, so every planner
+  // page picks up edits made on mobile or in another tab without a refresh.
+  useEffect(() => {
+    const planner = usePlannerStore.getState();
+    if (isAuthenticated && userId) planner.startRealtime(userId);
+    else planner.stopRealtime();
+    return () => usePlannerStore.getState().stopRealtime();
+  }, [isAuthenticated, userId]);
 
   return (
     <div className="bg-white min-h-screen">

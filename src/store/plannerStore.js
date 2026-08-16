@@ -11,9 +11,20 @@ import {
 import { 
   migrateUpcomingTasksLegacyData 
 } from '../lib/upcomingPlannerService';
+import {
+  subscribeToRecurringTasks,
+  subscribeToTaskCompletions,
+  subscribeToTasks
+} from '../lib/realtimeService';
 
 let plannerFetchPromise = null;
 let plannerFetchUserId = null;
+
+/** Active realtime subscriptions, and the user they belong to. */
+let realtimeUnsubscribers = [];
+let realtimeUserId = null;
+/** Coalesces a burst of remote events into one refetch. */
+let realtimeRefreshTimer = null;
 
 const usePlannerStore = create((set, get) => ({
   tasks: [],
@@ -269,10 +280,52 @@ const usePlannerStore = create((set, get) => ({
   },
 
   /**
+   * startRealtime
+   * Subscribes to this user's planner tables so an edit made on mobile (or in
+   * another tab) lands here without a manual refresh. Idempotent per user.
+   *
+   * Unlike the mobile client there is no offline outbox to reconcile against,
+   * so a remote change simply forces a refetch. It is debounced because one
+   * user action elsewhere can emit several row events (a task plus its
+   * completion row, say).
+   */
+  startRealtime: (userId) => {
+    if (!userId || realtimeUserId === userId) return;
+    get().stopRealtime();
+    realtimeUserId = userId;
+
+    const scheduleRefresh = () => {
+      if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer);
+      realtimeRefreshTimer = setTimeout(() => {
+        realtimeRefreshTimer = null;
+        if (realtimeUserId) get().fetchPlannerData(realtimeUserId, true);
+      }, 400);
+    };
+
+    realtimeUnsubscribers = [
+      subscribeToTasks(userId, { onChange: scheduleRefresh }),
+      subscribeToTaskCompletions(userId, { onChange: scheduleRefresh }),
+      subscribeToRecurringTasks(userId, { onChange: scheduleRefresh })
+    ];
+  },
+
+  /** Tears down the subscriptions. Safe to call when none are active. */
+  stopRealtime: () => {
+    if (realtimeRefreshTimer) {
+      clearTimeout(realtimeRefreshTimer);
+      realtimeRefreshTimer = null;
+    }
+    realtimeUnsubscribers.forEach((off) => off());
+    realtimeUnsubscribers = [];
+    realtimeUserId = null;
+  },
+
+  /**
    * resetStore
    * Resets caching layers back to defaults when logging out.
    */
   resetStore: () => {
+    get().stopRealtime();
     set({
       tasks: [],
       completions: {},
