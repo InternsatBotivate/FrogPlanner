@@ -43,10 +43,35 @@ export default function RecurringTasks() {
     category: 'Work',
     priority: '',
     remarks: '',
-    isActive: true
+    isActive: true,
+    frequency: 'Daily',
+    daysOfWeek: [],
+    dayOfMonth: 1,
+    intervalDays: 2
   });
 
-  const headers = ['Action', 'Task Description', 'Time', 'Category', 'Remarks', 'Status'];
+  const headers = ['Action', 'Task Description', 'Time', 'Repeats', 'Category', 'Remarks', 'Status'];
+
+  /** One-line plain-English summary of a template's schedule. */
+  const describeSchedule = (recurrence) => {
+    if (!recurrence || recurrence.frequency === 'Daily') return 'Every day';
+    if (recurrence.frequency === 'Weekly') {
+      const days = recurrence.daysOfWeek || [];
+      if (days.length === 0) return 'Weekly';
+      if (days.length === 7) return 'Every day';
+      const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return [...days].sort((a, b) => a - b).map(d => names[d]).join(', ');
+    }
+    if (recurrence.frequency === 'Monthly') {
+      const day = recurrence.dayOfMonth ?? 1;
+      const suffix = day === 1 || day === 21 || day === 31 ? 'st'
+        : day === 2 || day === 22 ? 'nd'
+        : day === 3 || day === 23 ? 'rd' : 'th';
+      return `Monthly on the ${day}${suffix}`;
+    }
+    const n = recurrence.intervalDays ?? 1;
+    return n === 1 ? 'Every day' : `Every ${n} days`;
+  };
 
   // Load recurring tasks directly from the recurring tasks service
   useEffect(() => {
@@ -87,7 +112,11 @@ export default function RecurringTasks() {
       category: customCategories[0] || 'Work',
       priority: '',
       remarks: '',
-      isActive: true
+      isActive: true,
+      frequency: 'Daily',
+      daysOfWeek: [],
+      dayOfMonth: 1,
+      intervalDays: 2
     });
     setCustomCategoryText('');
     setShowModal(true);
@@ -102,7 +131,11 @@ export default function RecurringTasks() {
       category: isCustomCat ? 'custom' : (task.category || 'Work'),
       priority: task.priority || '',
       remarks: task.remarks || '',
-      isActive: task.isActive !== undefined ? task.isActive : true
+      isActive: task.isActive !== undefined ? task.isActive : true,
+      frequency: task.recurrence?.frequency || 'Daily',
+      daysOfWeek: task.recurrence?.daysOfWeek || [],
+      dayOfMonth: task.recurrence?.dayOfMonth ?? 1,
+      intervalDays: task.recurrence?.intervalDays ?? 2
     });
     setCustomCategoryText(isCustomCat ? task.category : '');
     setShowModal(true);
@@ -144,6 +177,22 @@ export default function RecurringTasks() {
       }
     }
 
+    // Each frequency needs its own parameter. The DB enforces this too
+    // (recurring_tasks_schedule_check), but failing here gives a real message
+    // instead of a constraint violation.
+    if (formData.frequency === 'Weekly' && formData.daysOfWeek.length === 0) {
+      toast.error('Pick at least one day of the week.');
+      return;
+    }
+    if (formData.frequency === 'Monthly' && (formData.dayOfMonth < 1 || formData.dayOfMonth > 31)) {
+      toast.error('Day of month must be between 1 and 31.');
+      return;
+    }
+    if (formData.frequency === 'Custom' && (formData.intervalDays < 1 || formData.intervalDays > 365)) {
+      toast.error('Interval must be between 1 and 365 days.');
+      return;
+    }
+
     const payload = {
       description: formData.description,
       duration: formData.duration,
@@ -151,7 +200,13 @@ export default function RecurringTasks() {
       priority: formData.priority,
       isRecurring: true,
       remarks: formData.remarks || '',
-      isActive: formData.isActive !== undefined ? formData.isActive : true
+      isActive: formData.isActive !== undefined ? formData.isActive : true,
+      recurrence: {
+        frequency: formData.frequency,
+        daysOfWeek: formData.daysOfWeek,
+        dayOfMonth: formData.dayOfMonth,
+        intervalDays: formData.intervalDays
+      }
     };
 
     if (!user?.id) return;
@@ -202,6 +257,11 @@ export default function RecurringTasks() {
       <td className="px-4 py-3.5 text-gray-755 whitespace-nowrap text-xs md:text-sm font-bold">
         {item.duration}
       </td>
+      <td className="px-4 py-3.5 whitespace-nowrap text-center">
+        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[11px] font-bold">
+          {describeSchedule(item.recurrence)}
+        </span>
+      </td>
       <td className="px-4 py-3.5 text-gray-755 whitespace-nowrap text-xs md:text-sm text-center">
         <span className="px-2.5 py-1 bg-indigo-50 text-indigo-605 border border-indigo-100 rounded text-[11px] font-bold uppercase">
           {getCategoryEmoji(item.category)} {item.category}
@@ -232,6 +292,7 @@ export default function RecurringTasks() {
             {getCategoryEmoji(item.category)} {item.category}
           </span>
           <span className="text-[10px] font-bold text-gray-550 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">{item.duration}</span>
+          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{describeSchedule(item.recurrence)}</span>
           {item.isActive ? (
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase tracking-wider">Active</span>
           ) : (
@@ -404,6 +465,82 @@ export default function RecurringTasks() {
               </select>
             </div>
           </div>
+
+          {/* ── Repeat schedule ── */}
+          <div className="space-y-1">
+            <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Repeats *</label>
+            <select
+              required
+              value={formData.frequency}
+              onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
+            >
+              {['Daily', 'Weekly', 'Monthly', 'Custom'].map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
+
+          {formData.frequency === 'Weekly' && (
+            <div className="space-y-1">
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">On these days *</label>
+              <div className="flex gap-1.5">
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((label, day) => {
+                  const on = formData.daysOfWeek.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        daysOfWeek: on
+                          ? formData.daysOfWeek.filter(d => d !== day)
+                          : [...formData.daysOfWeek, day]
+                      })}
+                      className={`flex-1 h-[32px] rounded text-[11px] font-bold border transition ${
+                        on
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {formData.frequency === 'Monthly' && (
+            <div className="space-y-1">
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Day of month *</label>
+              <select
+                value={formData.dayOfMonth}
+                onChange={(e) => setFormData({ ...formData, dayOfMonth: Number(e.target.value) })}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-gray-400">Days after a month&rsquo;s length fall on its last day.</p>
+            </div>
+          )}
+
+          {formData.frequency === 'Custom' && (
+            <div className="space-y-1">
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Repeat every (days) *</label>
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={formData.intervalDays}
+                onChange={(e) => setFormData({ ...formData, intervalDays: Number(e.target.value) })}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
+                placeholder="e.g. 3"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Frog selector */}

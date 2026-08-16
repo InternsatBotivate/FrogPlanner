@@ -9,6 +9,50 @@
 import { supabase } from './supabaseClient';
 
 /**
+ * Maps a recurring_tasks row to the shape the UI consumes.
+ * Extracted because the same mapping was repeated in three places.
+ */
+const mapRow = (r) => ({
+  id: r.id,
+  description: r.description,
+  duration: r.time_slot, // Map time_slot to duration
+  category: r.category,
+  priority: r.priority,
+  date: null, // Baseline template task has no specific date
+  selectValue: 'Select',
+  remarks: r.remarks || '',
+  isRecurring: true,
+  isActive: r.is_active,
+  timestamp: r.created_at,
+  recurrence: {
+    // Rows created before the frequency migration have no value; they were
+    // daily by definition.
+    frequency: r.frequency || 'Daily',
+    daysOfWeek: r.days_of_week || [],
+    dayOfMonth: r.day_of_month ?? null,
+    intervalDays: r.interval_days ?? null,
+    startDate: r.start_date ?? null,
+  },
+});
+
+/**
+ * Builds the schedule columns for a write. Only the fields the chosen
+ * frequency actually uses are set — the rest are cleared so a template
+ * switched from Weekly to Monthly doesn't keep stale days_of_week that the
+ * DB check constraint would then reject.
+ */
+const scheduleColumns = (recurrence) => {
+  const frequency = recurrence?.frequency || 'Daily';
+  return {
+    frequency,
+    days_of_week: frequency === 'Weekly' ? recurrence?.daysOfWeek || [] : [],
+    day_of_month: frequency === 'Monthly' ? recurrence?.dayOfMonth ?? null : null,
+    interval_days: frequency === 'Custom' ? recurrence?.intervalDays ?? null : null,
+    start_date: recurrence?.startDate ?? null,
+  };
+};
+
+/**
  * fetchRecurringTasks
  * Loads all active/inactive recurring task templates for the logged-in user.
  */
@@ -24,19 +68,7 @@ export const fetchRecurringTasks = async (userId) => {
 
     if (error) throw error;
 
-    return (data || []).map(r => ({
-      id: r.id,
-      description: r.description,
-      duration: r.time_slot, // Map time_slot to duration
-      category: r.category,
-      priority: r.priority,
-      date: null, // Baseline template task has no specific date
-      selectValue: 'Select',
-      remarks: r.remarks || '',
-      isRecurring: true,
-      isActive: r.is_active,
-      timestamp: r.created_at
-    }));
+    return (data || []).map(mapRow);
   } catch (error) {
     console.error('[Supabase RecurringTasks] Fetch Error:', error);
     return [];
@@ -58,7 +90,8 @@ export const addRecurringTasks = async (userId, newTasksArray) => {
       priority: t.priority || '',
       remarks: t.remarks || '',
       time_slot: t.duration || 'Morning', // Map duration to time_slot
-      is_active: t.isActive !== undefined ? t.isActive : true
+      is_active: t.isActive !== undefined ? t.isActive : true,
+      ...scheduleColumns(t.recurrence)
     }));
 
     const { data, error } = await supabase
@@ -68,19 +101,7 @@ export const addRecurringTasks = async (userId, newTasksArray) => {
 
     if (error) throw error;
 
-    return (data || []).map(r => ({
-      id: r.id,
-      description: r.description,
-      duration: r.time_slot, // Map time_slot to duration
-      category: r.category,
-      priority: r.priority,
-      date: null,
-      selectValue: 'Select',
-      remarks: r.remarks || '',
-      isRecurring: true,
-      isActive: r.is_active,
-      timestamp: r.created_at
-    }));
+    return (data || []).map(mapRow);
   } catch (error) {
     console.error('[Supabase RecurringTasks] Add Error:', error);
     return [];
@@ -101,7 +122,8 @@ export const updateRecurringTask = async (taskId, taskPayload) => {
         priority: taskPayload.priority || '',
         remarks: taskPayload.remarks || '',
         time_slot: taskPayload.duration || 'Morning',
-        is_active: taskPayload.isActive !== undefined ? taskPayload.isActive : true
+        is_active: taskPayload.isActive !== undefined ? taskPayload.isActive : true,
+        ...scheduleColumns(taskPayload.recurrence)
       })
       .eq('id', taskId)
       .select()
@@ -109,19 +131,7 @@ export const updateRecurringTask = async (taskId, taskPayload) => {
 
     if (error) throw error;
 
-    return {
-      id: data.id,
-      description: data.description,
-      duration: data.time_slot,
-      category: data.category,
-      priority: data.priority,
-      date: null,
-      selectValue: 'Select',
-      remarks: data.remarks || '',
-      isRecurring: true,
-      isActive: data.is_active,
-      timestamp: data.created_at
-    };
+    return mapRow(data);
   } catch (error) {
     console.error('[Supabase RecurringTasks] Update Error:', error);
     return null;
