@@ -30,8 +30,10 @@ const mapRow = (r) => ({
     frequency: r.frequency || 'Daily',
     daysOfWeek: r.days_of_week || [],
     dayOfMonth: r.day_of_month ?? null,
+    monthOfYear: r.month_of_year ?? null,
     intervalDays: r.interval_days ?? null,
     startDate: r.start_date ?? null,
+    endDate: r.end_date ?? null,
   },
 });
 
@@ -43,12 +45,16 @@ const mapRow = (r) => ({
  */
 const scheduleColumns = (recurrence) => {
   const frequency = recurrence?.frequency || 'Daily';
+  const usesDayOfMonth = frequency === 'Monthly' || frequency === 'Yearly';
   return {
     frequency,
     days_of_week: frequency === 'Weekly' ? recurrence?.daysOfWeek || [] : [],
-    day_of_month: frequency === 'Monthly' ? recurrence?.dayOfMonth ?? null : null,
+    day_of_month: usesDayOfMonth ? recurrence?.dayOfMonth ?? null : null,
+    month_of_year: frequency === 'Yearly' ? recurrence?.monthOfYear ?? null : null,
     interval_days: frequency === 'Custom' ? recurrence?.intervalDays ?? null : null,
+    // start/end bound any frequency, so they are never cleared by frequency.
     start_date: recurrence?.startDate ?? null,
+    end_date: recurrence?.endDate ?? null,
   };
 };
 

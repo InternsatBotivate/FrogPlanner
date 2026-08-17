@@ -47,7 +47,10 @@ export default function RecurringTasks() {
     frequency: 'Daily',
     daysOfWeek: [],
     dayOfMonth: 1,
-    intervalDays: 2
+    monthOfYear: 1,
+    intervalDays: 2,
+    startDate: '',
+    endDate: ''
   });
 
   const headers = ['Action', 'Task Description', 'Time', 'Repeats', 'Category', 'Remarks', 'Status'];
@@ -69,8 +72,23 @@ export default function RecurringTasks() {
         : day === 3 || day === 23 ? 'rd' : 'th';
       return `Monthly on the ${day}${suffix}`;
     }
+    if (recurrence.frequency === 'Yearly') {
+      const months = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      return `Every ${months[(recurrence.monthOfYear ?? 1) - 1] || ''} ${recurrence.dayOfMonth ?? 1}`;
+    }
     const n = recurrence.intervalDays ?? 1;
     return n === 1 ? 'Every day' : `Every ${n} days`;
+  };
+
+  /** Bounded range summary, e.g. "until 2026-09-01". Empty when unbounded. */
+  const describeBounds = (recurrence) => {
+    if (!recurrence) return '';
+    const { startDate, endDate } = recurrence;
+    if (startDate && endDate) return `${startDate} → ${endDate}`;
+    if (endDate) return `until ${endDate}`;
+    if (startDate) return `from ${startDate}`;
+    return '';
   };
 
   // Load recurring tasks directly from the recurring tasks service
@@ -116,7 +134,10 @@ export default function RecurringTasks() {
       frequency: 'Daily',
       daysOfWeek: [],
       dayOfMonth: 1,
-      intervalDays: 2
+      monthOfYear: 1,
+      intervalDays: 2,
+      startDate: '',
+      endDate: ''
     });
     setCustomCategoryText('');
     setShowModal(true);
@@ -135,7 +156,10 @@ export default function RecurringTasks() {
       frequency: task.recurrence?.frequency || 'Daily',
       daysOfWeek: task.recurrence?.daysOfWeek || [],
       dayOfMonth: task.recurrence?.dayOfMonth ?? 1,
-      intervalDays: task.recurrence?.intervalDays ?? 2
+      monthOfYear: task.recurrence?.monthOfYear ?? 1,
+      intervalDays: task.recurrence?.intervalDays ?? 2,
+      startDate: task.recurrence?.startDate ?? '',
+      endDate: task.recurrence?.endDate ?? ''
     });
     setCustomCategoryText(isCustomCat ? task.category : '');
     setShowModal(true);
@@ -192,6 +216,15 @@ export default function RecurringTasks() {
       toast.error('Interval must be between 1 and 365 days.');
       return;
     }
+    if (formData.frequency === 'Yearly' && (formData.monthOfYear < 1 || formData.monthOfYear > 12)) {
+      toast.error('Pick a month for the yearly repeat.');
+      return;
+    }
+    // Mirrors recurring_tasks_date_range_check.
+    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+      toast.error('End date must be on or after the start date.');
+      return;
+    }
 
     const payload = {
       description: formData.description,
@@ -205,7 +238,10 @@ export default function RecurringTasks() {
         frequency: formData.frequency,
         daysOfWeek: formData.daysOfWeek,
         dayOfMonth: formData.dayOfMonth,
-        intervalDays: formData.intervalDays
+        monthOfYear: formData.monthOfYear,
+        intervalDays: formData.intervalDays,
+        startDate: formData.startDate || null,
+        endDate: formData.endDate || null
       }
     };
 
@@ -261,6 +297,9 @@ export default function RecurringTasks() {
         <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[11px] font-bold">
           {describeSchedule(item.recurrence)}
         </span>
+        {describeBounds(item.recurrence) && (
+          <div className="mt-1 text-[10px] font-semibold text-gray-500">{describeBounds(item.recurrence)}</div>
+        )}
       </td>
       <td className="px-4 py-3.5 text-gray-755 whitespace-nowrap text-xs md:text-sm text-center">
         <span className="px-2.5 py-1 bg-indigo-50 text-indigo-605 border border-indigo-100 rounded text-[11px] font-bold uppercase">
@@ -293,6 +332,9 @@ export default function RecurringTasks() {
           </span>
           <span className="text-[10px] font-bold text-gray-550 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">{item.duration}</span>
           <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{describeSchedule(item.recurrence)}</span>
+          {describeBounds(item.recurrence) && (
+            <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{describeBounds(item.recurrence)}</span>
+          )}
           {item.isActive ? (
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase tracking-wider">Active</span>
           ) : (
@@ -475,7 +517,7 @@ export default function RecurringTasks() {
               onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
               className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
             >
-              {['Daily', 'Weekly', 'Monthly', 'Custom'].map(f => (
+              {['Daily', 'Weekly', 'Monthly', 'Yearly', 'Custom'].map(f => (
                 <option key={f} value={f}>{f}</option>
               ))}
             </select>
@@ -527,6 +569,35 @@ export default function RecurringTasks() {
             </div>
           )}
 
+          {formData.frequency === 'Yearly' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Month *</label>
+                <select
+                  value={formData.monthOfYear}
+                  onChange={(e) => setFormData({ ...formData, monthOfYear: Number(e.target.value) })}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
+                >
+                  {['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December']
+                    .map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Day *</label>
+                <select
+                  value={formData.dayOfMonth}
+                  onChange={(e) => setFormData({ ...formData, dayOfMonth: Number(e.target.value) })}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
+                >
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {formData.frequency === 'Custom' && (
             <div className="space-y-1">
               <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Repeat every (days) *</label>
@@ -539,8 +610,33 @@ export default function RecurringTasks() {
                 className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
                 placeholder="e.g. 3"
               />
+              <p className="text-[10px] text-gray-400">Counted from the start date below.</p>
             </div>
           )}
+
+          {/* Optional date bounds — apply to every frequency, though they matter
+              most for Custom, whose interval is counted from the start date.
+              Leave blank to repeat indefinitely. */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Starts (optional)</label>
+              <input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Ends (optional)</label>
+              <input
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] md:text-[13px] h-[30px] md:h-[34px] bg-white font-medium"
+              />
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Frog selector */}
