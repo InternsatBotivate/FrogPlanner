@@ -3,7 +3,7 @@ import { BrainCircuit, CalendarCheck, Code2, Globe, ShieldCheck, Sparkles, Users
 import FrogLogo from '../../components/FrogLogo';
 
 /**
- * Developers — credits page for Botivate's team behind FrogPlanner.
+ * Developers — credits page for Botivate's team behind Frog Planner.
  * Keep credits team-based only; do not add individual developer names.
  */
 const TEAMS = [
@@ -12,7 +12,7 @@ const TEAMS = [
     icon: UsersRound,
     title: 'Product planning',
     blurb:
-      'Botivate’s team shaped FrogPlanner around focused daily planning, projects, recurring routines, and the Eat the Frog workflow.',
+      'Botivate’s team shaped Frog Planner around focused daily planning, projects, recurring routines, and the Eat the Frog workflow.',
   },
   {
     key: 'engineering',
@@ -26,14 +26,14 @@ const TEAMS = [
     icon: Sparkles,
     title: 'Planner-aware AI',
     blurb:
-      'Botivate’s team connected the AI Assistant to FrogPlanner context so it can help with priorities, scheduling, task breakdowns, and next actions.',
+      'Botivate’s team connected the AI Assistant to Frog Planner context so it can help with priorities, scheduling, task breakdowns, and next actions.',
   },
   {
     key: 'quality',
     icon: ShieldCheck,
     title: 'Reliability and care',
     blurb:
-      'The team continues refining layouts, authentication, data sync, notifications, and interface details so FrogPlanner feels consistent across screens.',
+      'The team continues refining layouts, authentication, data sync, notifications, and interface details so Frog Planner feels consistent across screens.',
   },
 ];
 
@@ -60,7 +60,7 @@ const Developers = () => {
             Built by Botivate’s team
           </h1>
           <p className="text-sm md:text-base text-green-100/90 max-w-2xl font-medium leading-relaxed">
-            FrogPlanner is designed and developed by Botivate’s team across product thinking, interface design, application engineering, and AI-assisted planning. This page credits the team behind the work without listing individual names.
+            Frog Planner is designed and developed by Botivate’s team across product thinking, interface design, application engineering, and AI-assisted planning. This page credits the team behind the work without listing individual names.
           </p>
         </div>
       </div>

@@ -202,10 +202,10 @@ export default async function handler(req, res) {
       auth: { user: gmailUser, pass: gmailPass },
     });
     await transporter.sendMail({
-      from: `"FrogPlanner" <${gmailUser}>`,
+      from: `"Frog Planner" <${gmailUser}>`,
       to: email,
-      subject: 'Your FrogPlanner verification code',
-      text: `Your FrogPlanner verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore it.`,
+      subject: 'Your Frog Planner verification code',
+      text: `Your Frog Planner verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore it.`,
       html: otpEmailHtml(code),
     });
 
@@ -233,7 +233,7 @@ function otpEmailHtml(code) {
   return `<!doctype html><html><body style="margin:0;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
     <div style="max-width:480px;margin:24px auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
       <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:22px 24px;color:#fff;">
-        <div style="font-size:20px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />FrogPlanner</div>
+        <div style="font-size:20px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />Frog Planner</div>
       </div>
       <div style="padding:24px;color:#374151;font-size:14px;line-height:1.6;">
         <p style="margin:0 0 14px;">Here's your verification code:</p>

@@ -108,10 +108,10 @@ export default async function handler(req, res) {
       auth: { user: gmailUser, pass: gmailPass },
     });
     await transporter.sendMail({
-      from: `"FrogPlanner" <${gmailUser}>`,
+      from: `"Frog Planner" <${gmailUser}>`,
       to: email,
-      subject: 'Verify your email for FrogPlanner',
-      text: `Verify your email to enable FrogPlanner reminders:\n${verifyUrl}\n\nThis link expires in 24 hours. If you didn't request this, you can ignore it.`,
+      subject: 'Verify your email for Frog Planner',
+      text: `Verify your email to enable Frog Planner reminders:\n${verifyUrl}\n\nThis link expires in 24 hours. If you didn't request this, you can ignore it.`,
       html: verificationEmailHtml(verifyUrl),
     });
 
@@ -140,10 +140,10 @@ function verificationEmailHtml(url) {
   return `<!doctype html><html><body style="margin:0;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
     <div style="max-width:480px;margin:24px auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
       <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:22px 24px;color:#fff;">
-        <div style="font-size:20px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />FrogPlanner</div>
+        <div style="font-size:20px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />Frog Planner</div>
       </div>
       <div style="padding:24px;color:#374151;font-size:14px;line-height:1.6;">
-        <p style="margin:0 0 14px;">Confirm this email to turn on FrogPlanner reminders — weather-aware nudges and task deadlines.</p>
+        <p style="margin:0 0 14px;">Confirm this email to turn on Frog Planner reminders — weather-aware nudges and task deadlines.</p>
         <p style="text-align:center;margin:22px 0;">
           <a href="${url}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px;">Verify email</a>
         </p>

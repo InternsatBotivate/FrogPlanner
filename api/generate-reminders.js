@@ -191,7 +191,7 @@ function summarizeWindow(hourly, hours) {
 // Ask Cerebras which tasks deserve a weather alert; expect a JSON array.
 async function askAiForReminders(cerebrasKey, taskViews) {
   const system =
-    'You are FrogPlanner’s weather reminder assistant. Given today’s tasks with their time slot and ' +
+    'You are Frog Planner’s weather reminder assistant. Given today’s tasks with their time slot and ' +
     'the forecast for that slot, decide which tasks are weather-SENSITIVE (outdoor, commute/travel, gym/run/walk, ' +
     'errands, in-person meetings that require going out) AND face adverse weather (rain likely ≥50%, notable ' +
     'precipitation, or extreme heat/cold). For each such task, write ONE short, friendly reminder (≤160 chars, ' +

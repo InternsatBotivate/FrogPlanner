@@ -132,13 +132,13 @@ export default async function handler(req, res) {
 
         const firstName = (user.full_name || 'there').split(' ')[0];
         const html = digestHtml(firstName, pending);
-        const text = `Hi ${firstName},\n\n${pending.map((p) => '• ' + p.message).join('\n')}\n\n— FrogPlanner`;
+        const text = `Hi ${firstName},\n\n${pending.map((p) => '• ' + p.message).join('\n')}\n\n— Frog Planner`;
 
         for (const to of verified) {
           await transporter.sendMail({
-            from: `"FrogPlanner" <${gmailUser}>`,
+            from: `"Frog Planner" <${gmailUser}>`,
             to,
-            subject: `Your FrogPlanner reminders — ${today}`,
+            subject: `Your Frog Planner reminders — ${today}`,
             text,
             html,
           });
@@ -188,12 +188,12 @@ function digestHtml(firstName, reminders) {
     .join('');
   return `<!doctype html><html><body style="margin:0;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
     <div style="max-width:480px;margin:24px auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:20px 24px;color:#fff;font-size:19px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />FrogPlanner reminders</div>
+      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:20px 24px;color:#fff;font-size:19px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />Frog Planner reminders</div>
       <div style="padding:22px 24px;color:#374151;font-size:14px;line-height:1.6;">
         <p style="margin:0 0 14px;">Hi ${escapeHtml(firstName)}, here's what needs your attention today:</p>
         <ul style="list-style:none;padding:0;margin:0;">${items}</ul>
         <p style="text-align:center;margin:20px 0 4px;">
-          <a href="https://www.frogplanner.in" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:10px;">Open FrogPlanner</a>
+          <a href="https://www.frogplanner.in" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:10px;">Open Frog Planner</a>
         </p>
       </div>
     </div>

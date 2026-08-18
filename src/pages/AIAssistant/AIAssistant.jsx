@@ -36,7 +36,7 @@ export default function AIAssistant() {
         {
           id: 'welcome',
           sender: 'bot',
-          text: `Hi ${firstName}! 👋 I'm your Frog Assistant. I can tell you about FrogPlanner, read your planner, create and update tasks, manage your projects, and summarize your day. What would you like to do?`,
+          text: `Hi ${firstName}! 👋 I'm your Frog Assistant. I can tell you about Frog Planner, read your planner, create and update tasks, manage your projects, and summarize your day. What would you like to do?`,
           timestamp: new Date(),
         },
       ]);
@@ -86,7 +86,7 @@ export default function AIAssistant() {
   };
 
   const quickPrompts = [
-    'What is FrogPlanner?',
+    'What is Frog Planner?',
     'What is pending today?',
     'Show my morning tasks',
     'Add "Coffee Break" tomorrow afternoon under Personal',
@@ -107,7 +107,7 @@ export default function AIAssistant() {
             </div>
             <div>
               <h2 className="text-xs font-bold text-gray-800 uppercase tracking-tight">AI Planner Assistant</h2>
-              <p className="text-[10px] text-gray-400">Powered by FrogPlanner AI</p>
+              <p className="text-[10px] text-gray-400">Powered by Frog Planner AI</p>
             </div>
           </div>
           <button
@@ -214,7 +214,7 @@ export default function AIAssistant() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={sending}
-            placeholder={sending ? 'Frog Assistant is thinking…' : 'Ask about FrogPlanner or your tasks…'}
+            placeholder={sending ? 'Frog Assistant is thinking…' : 'Ask about Frog Planner or your tasks…'}
             className="flex-1 resize-none border border-gray-300 rounded-xl px-3 py-2 leading-relaxed focus:outline-none focus:border-indigo-500 text-xs md:text-sm shadow-inner bg-gray-50/50 disabled:opacity-60 max-h-[140px] overflow-y-auto"
           />
           <button

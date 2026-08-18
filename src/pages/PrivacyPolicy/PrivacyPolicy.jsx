@@ -14,7 +14,7 @@ import FrogLogo from '../../components/FrogLogo';
 
 const EFFECTIVE_DATE = 'August 14, 2026';
 const CONTACT_EMAIL = 'info@botivate.in';
-const APP_NAME = 'FrogPlanner';
+const APP_NAME = 'Frog Planner';
 const COMPANY = 'Botivate';
 const DOMAIN = 'frogplanner.in';
 

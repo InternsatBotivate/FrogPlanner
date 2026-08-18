@@ -17,13 +17,13 @@ import FrogLogo from '../../components/FrogLogo';
 
 const EFFECTIVE_DATE = 'August 14, 2026';
 const CONTACT_EMAIL = 'info@botivate.in';
-const APP_NAME = 'FrogPlanner';
+const APP_NAME = 'Frog Planner';
 const COMPANY = 'Botivate';
 
 const MAILTO = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
-  'FrogPlanner account deletion request',
+  'Frog Planner account deletion request',
 )}&body=${encodeURIComponent(
-  'Please delete my FrogPlanner account and all associated data.\n\n' +
+  'Please delete my Frog Planner account and all associated data.\n\n' +
     'Account email / username: \n' +
     '(Send this request from the email on your account, or include your username so we can verify it.)',
 )}`;
@@ -139,7 +139,7 @@ export default function DeleteAccount() {
               <a href={MAILTO} className="font-semibold text-green-700 underline">
                 {CONTACT_EMAIL}
               </a>{' '}
-              with the subject “FrogPlanner account deletion request”, or
+              with the subject “Frog Planner account deletion request”, or
             </li>
             <li>
               Email us directly at{' '}

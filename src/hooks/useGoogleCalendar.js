@@ -242,7 +242,7 @@ export default function useGoogleCalendar(userId) {
       try {
         const { start, end } = getEventTimes(taskDate, task.duration);
         const payload = {
-          summary: task.description || 'FrogPlanner Task',
+          summary: task.description || 'Frog Planner Task',
           description: [
             `Category: ${task.category || 'General'}`,
             `Priority: ${task.priority || 'Normal'}`,

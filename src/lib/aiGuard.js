@@ -56,7 +56,7 @@ export function checkInput(text) {
         ok: false,
         reason: 'injection',
         message:
-          "I'm your FrogPlanner assistant — I can only help with your tasks, projects, recurring tasks, and daily planning. What would you like to do with your planner?",
+          "I'm your Frog Planner assistant — I can only help with your tasks, projects, recurring tasks, and daily planning. What would you like to do with your planner?",
       };
     }
   }
