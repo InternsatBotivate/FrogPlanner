@@ -2,7 +2,7 @@
 // FrogPlanner — Send a 6-digit email OTP (Vercel Serverless Node.js Function)
 // Location: api/send-otp.js
 // ---------------------------------------------------------------------
-// Mints a 6-digit, 10-minute one-time code and emails it via Gmail SMTP.
+// Mints a 6-digit, 10-minute one-time code and emails it via Resend SMTP.
 // Separate from api/send-verification.js (the existing 24h link-based
 // flow used by the Settings-page "add a reminder email" feature) because
 // this needs to work BEFORE an account/session exists (signup) and WITHOUT
@@ -16,12 +16,12 @@
 //   60s cooldown between sends, max 5 sends per rolling hour.
 //
 // Required server env (Vercel, never in the bundle):
-//   GMAIL_USER, GMAIL_APP_PASSWORD, SUPABASE_SERVICE_ROLE_KEY,
+//   RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY,
 //   VITE_SUPABASE_URL (or SUPABASE_URL)
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import nodemailer from 'nodemailer';
+import { sendMail } from './_lib/mailer.js';
 
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
@@ -37,13 +37,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed. Use POST.' });
 
   try {
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!gmailUser || !gmailPass) {
-      return res.status(500).json({ error: 'Email is not configured (missing Gmail credentials).' });
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(500).json({ error: 'Email is not configured (missing Resend API key).' });
     }
     if (!supabaseUrl || !serviceRoleKey) {
       return res.status(500).json({ error: 'Server misconfigured (missing Supabase env).' });
@@ -196,13 +194,8 @@ export default async function handler(req, res) {
       .single();
     if (insErr) throw insErr;
 
-    // ── Send via Gmail SMTP ────────────────────────────────────────────────
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: gmailUser, pass: gmailPass },
-    });
-    await transporter.sendMail({
-      from: `"Frog Planner" <${gmailUser}>`,
+    // ── Send via Resend SMTP ─────────────────────────────────────────────
+    await sendMail({
       to: email,
       subject: 'Your Frog Planner verification code',
       text: `Your Frog Planner verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore it.`,

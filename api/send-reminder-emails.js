@@ -10,12 +10,12 @@
 //      emailed=true.
 //
 // Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
-// Env: CRON_SECRET, GMAIL_USER, GMAIL_APP_PASSWORD,
+// Env: CRON_SECRET, RESEND_API_KEY,
 //      SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_URL (or SUPABASE_URL).
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import nodemailer from 'nodemailer';
+import { sendMail } from './_lib/mailer.js';
 
 const OVERDUE_WINDOW_DAYS = 30;
 
@@ -27,10 +27,8 @@ export default async function handler(req, res) {
     }
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
     if (!supabaseUrl || !serviceRoleKey) return res.status(500).json({ error: 'Missing Supabase env.' });
-    if (!gmailUser || !gmailPass) return res.status(500).json({ error: 'Missing Gmail env.' });
+    if (!process.env.RESEND_API_KEY) return res.status(500).json({ error: 'Missing Resend env.' });
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -103,11 +101,6 @@ export default async function handler(req, res) {
     }
 
     // ── Step 2: email today's unsent reminders per user ─────────────────
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: gmailUser, pass: gmailPass },
-    });
-
     let emailed = 0;
     for (const user of users || []) {
       try {
@@ -135,8 +128,7 @@ export default async function handler(req, res) {
         const text = `Hi ${firstName},\n\n${pending.map((p) => '• ' + p.message).join('\n')}\n\n— Frog Planner`;
 
         for (const to of verified) {
-          await transporter.sendMail({
-            from: `"Frog Planner" <${gmailUser}>`,
+          await sendMail({
             to,
             subject: `Your Frog Planner reminders — ${today}`,
             text,

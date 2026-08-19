@@ -3,7 +3,7 @@
 // Location: api/send-verification.js
 // ---------------------------------------------------------------------
 // Mints a single-use, 24h verification token for an email, stores it, and
-// emails a verify link via Gmail SMTP (nodemailer). Also upserts the email
+// emails a verify link via Resend SMTP. Also upserts the email
 // into user_emails as unverified.
 //
 // Auth: caller sends their FrogPlanner session token
@@ -11,8 +11,7 @@
 // validated against public.user_sessions (custom auth — no Supabase Auth).
 //
 // Required server env (Vercel, never in the bundle):
-//   GMAIL_USER            — sending Gmail address
-//   GMAIL_APP_PASSWORD    — 16-char Google App Password (2FA account)
+//   RESEND_API_KEY
 //   SUPABASE_SERVICE_ROLE_KEY
 //   VITE_SUPABASE_URL (or SUPABASE_URL)
 // Optional:
@@ -21,7 +20,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import nodemailer from 'nodemailer';
+import { sendMail } from './_lib/mailer.js';
 import { randomBytes } from 'node:crypto';
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -35,13 +34,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed. Use POST.' });
 
   try {
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!gmailUser || !gmailPass) {
-      return res.status(500).json({ error: 'Email is not configured (missing Gmail credentials).' });
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(500).json({ error: 'Email is not configured (missing Resend API key).' });
     }
     if (!supabaseUrl || !serviceRoleKey) {
       return res.status(500).json({ error: 'Server misconfigured (missing Supabase env).' });
@@ -102,13 +99,8 @@ export default async function handler(req, res) {
       'https://www.frogplanner.in';
     const verifyUrl = `${base.replace(/\/$/, '')}/api/verify-email?token=${verifyToken}`;
 
-    // ── Send via Gmail SMTP ─────────────────────────────────────────────
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: gmailUser, pass: gmailPass },
-    });
-    await transporter.sendMail({
-      from: `"Frog Planner" <${gmailUser}>`,
+    // ── Send via Resend SMTP ─────────────────────────────────────────────
+    await sendMail({
       to: email,
       subject: 'Verify your email for Frog Planner',
       text: `Verify your email to enable Frog Planner reminders:\n${verifyUrl}\n\nThis link expires in 24 hours. If you didn't request this, you can ignore it.`,
