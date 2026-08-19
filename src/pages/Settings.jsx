@@ -9,6 +9,9 @@ import DeleteAccountModal from '../components/DeleteAccountModal';
 
 export default function Settings() {
   const { user, updateProfile } = useAuthStore();
+  // Defaults to TRUE when the column is absent (pre-migration row) so an
+  // existing account never sees "Set a Password".
+  const hasPassword = user?.has_password !== false;
 
   // State for form fields
   const [name, setName] = useState('');
@@ -134,6 +137,11 @@ export default function Settings() {
               />
             </div>
 
+            {/* A Google account starts with no password at all (see
+                api/google-signin.js), so "Change" would be wrong for them. The
+                underlying flow is identical either way — OTP-gated against
+                their verified email, never asks for an old password — so it
+                serves both cases unchanged. */}
             <div className="space-y-1">
               <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tight">Account Password</label>
               <button
@@ -141,8 +149,13 @@ export default function Settings() {
                 onClick={() => setShowPasswordModal(true)}
                 className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-left text-[11px] font-bold text-indigo-600 bg-white hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
               >
-                Change Password
+                {hasPassword ? 'Change Password' : 'Set a Password'}
               </button>
+              {!hasPassword && (
+                <p className="text-[10px] text-gray-400 leading-relaxed">
+                  You signed up with Google. Set a password to also sign in with your User ID.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1 pt-3 border-t border-gray-100">
