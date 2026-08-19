@@ -206,12 +206,56 @@ export const updateTaskField = async (taskId, field, value) => {
 };
 
 /**
- * toggleCompletion
- * Relational toggling of completed items.
+ * resolveRecurringInstanceId
+ * Given a recurring TEMPLATE id (a recurring_tasks row, as rendered by the
+ * UI with isRecurring: true) and a date, finds the materialized `tasks` row
+ * for that template on that date via tasks.recurring_task_id — the column
+ * added by db_scripts/recurring_link_and_updated_at.sql. Returns null if the
+ * link column doesn't exist yet (migration not applied) or no instance has
+ * been generated for that date (e.g. a future date, or the cron hasn't run
+ * yet today).
  */
-export const toggleCompletion = async (userId, taskId, dateStr, isCompleted) => {
+async function resolveRecurringInstanceId(userId, templateId, dateStr) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('recurring_task_id', templateId)
+    .eq('task_date', dateStr)
+    .maybeSingle();
+
+  if (error) {
+    // 42703 = column does not exist — the migration hasn't been applied yet.
+    // Fail soft: callers fall back to the old (non-persisting) behavior
+    // rather than throwing, so this never regresses a not-yet-migrated env.
+    if (error.code !== '42703') {
+      console.error('[Supabase Planner] resolveRecurringInstanceId Error:', error);
+    }
+    return null;
+  }
+  return data?.id ?? null;
+}
+
+/**
+ * toggleCompletion
+ * Inserts/removes a completion row for a (task, date) pair. `taskId` may be
+ * either a standard tasks.id OR a recurring_tasks TEMPLATE id — in the
+ * latter case this resolves the day's materialized instance first, so the
+ * completion is stored against a row that actually satisfies the
+ * task_completions -> tasks foreign key (see resolveRecurringInstanceId).
+ */
+export const toggleCompletion = async (userId, taskId, dateStr, isCompleted, isRecurring = false) => {
   try {
     if (!userId || !taskId || !dateStr) return false;
+
+    let targetId = taskId;
+    if (isRecurring) {
+      const instanceId = await resolveRecurringInstanceId(userId, taskId, dateStr);
+      if (instanceId) targetId = instanceId;
+      // No instance found (migration not applied yet, or nothing generated
+      // for this date): fall through with the template id, preserving the
+      // exact prior behavior (23503 swallowed below) rather than failing.
+    }
 
     if (isCompleted) {
       // Create completion row
@@ -219,13 +263,14 @@ export const toggleCompletion = async (userId, taskId, dateStr, isCompleted) => 
         .from('task_completions')
         .insert({
           user_id: userId,
-          task_id: taskId,
+          task_id: targetId,
           completion_date: dateStr
         });
-      // 23505 = duplicate key (already completed). 23503 = FK violation: recurring
-      // task templates live in recurring_tasks, not tasks, so their id can't be
-      // stored in task_completions. Treat both as an optimistic (non-persisted)
-      // success rather than surfacing an error.
+      // 23505 = duplicate key (already completed). 23503 = FK violation: this
+      // fires only when targetId is still a template id (no materialized
+      // instance resolved above) — kept as a safety net so a pre-migration
+      // environment behaves exactly as before (optimistic, non-persisted
+      // success) instead of surfacing an error.
       if (error && error.code !== '23505' && error.code !== '23503') throw error;
     } else {
       // Remove completion row
@@ -233,7 +278,7 @@ export const toggleCompletion = async (userId, taskId, dateStr, isCompleted) => 
         .from('task_completions')
         .delete()
         .eq('user_id', userId)
-        .eq('task_id', taskId)
+        .eq('task_id', targetId)
         .eq('completion_date', dateStr);
       if (error) throw error;
     }

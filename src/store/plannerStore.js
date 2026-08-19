@@ -220,6 +220,15 @@ const usePlannerStore = create((set, get) => ({
   toggleCompletion: async (userId, taskId, dateStr, isCompleted) => {
     if (!userId || !taskId || !dateStr) return false;
 
+    // taskId may be a recurring_tasks TEMPLATE id (same id reused across every
+    // date it appears on in the UI) — toggleDbCompletion needs to know this so
+    // it can resolve the day's materialized `tasks` row instead of trying to
+    // store the template id directly, which fails the task_completions -> tasks
+    // foreign key. Read it before the optimistic update below, which itself
+    // doesn't distinguish the two (dateComps only needs the id as a key).
+    const targetTask = get().tasks.find(t => t.id === taskId);
+    const isRecurring = !!targetTask?.isRecurring;
+
     const previousCompletions = get().completions;
     const previousCompletionDates = get().completionDates;
     const previousTasks = get().tasks;
@@ -259,20 +268,19 @@ const usePlannerStore = create((set, get) => ({
       };
     });
 
-    const success = await toggleDbCompletion(userId, taskId, dateStr, isCompleted);
+    const success = await toggleDbCompletion(userId, taskId, dateStr, isCompleted, isRecurring);
     if (!success) {
       // Rollback on failure
-      set({ 
-        completions: previousCompletions, 
+      set({
+        completions: previousCompletions,
         completionDates: previousCompletionDates,
-        tasks: previousTasks 
+        tasks: previousTasks
       });
       return false;
     }
 
     // Persist select_value in tasks table for standard tasks in DB
-    const task = get().tasks.find(t => t.id === taskId);
-    if (task && !task.isRecurring) {
+    if (targetTask && !isRecurring) {
       await updateDbTaskField(taskId, 'selectValue', isCompleted ? 'Done' : 'Select');
     }
 
