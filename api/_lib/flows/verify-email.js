@@ -13,7 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-export default async function handler(req, res) {
+export async function handler(req, res) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

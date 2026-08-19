@@ -20,13 +20,13 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { sendMail, emailShell } from './_lib/mailer.js';
+import { sendMail, emailShell } from '../mailer.js';
 import { randomBytes } from 'node:crypto';
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default async function handler(req, res) {
+export async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

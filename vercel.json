@@ -1,9 +1,15 @@
 {
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/send-otp", "destination": "/api/auth-otp?action=send-otp" },
+    { "source": "/api/verify-otp", "destination": "/api/auth-otp?action=verify-otp" },
+    { "source": "/api/reset-password", "destination": "/api/auth-otp?action=reset-password" },
+    { "source": "/api/change-password", "destination": "/api/auth-otp?action=change-password" },
+
+    { "source": "/api/send-verification", "destination": "/api/reminder-emails?action=send-verification" },
+    { "source": "/api/verify-email", "destination": "/api/reminder-emails?action=verify-email" },
+    { "source": "/api/user-emails", "destination": "/api/reminder-emails?action=user-emails" },
+
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
     {

@@ -21,7 +21,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { sendMail, emailShell } from './_lib/mailer.js';
+import { sendMail, emailShell } from '../mailer.js';
 
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
@@ -29,7 +29,7 @@ const MAX_SENDS_PER_HOUR = 5;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PURPOSES = ['signup', 'password_reset', 'change_password'];
 
-export default async function handler(req, res) {
+export async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
