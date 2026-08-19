@@ -12,7 +12,7 @@ const TEAMS = [
     icon: UsersRound,
     title: 'Product planning',
     blurb:
-      'Botivate’s team shaped Frog Planner around focused daily planning, projects, recurring routines, and the Eat the Frog workflow.',
+      'Botivate’s team shaped Frog Planner around focused daily planning, projects, recurring routines, and the Tackle-Your-Frog-First workflow.',
   },
   {
     key: 'engineering',

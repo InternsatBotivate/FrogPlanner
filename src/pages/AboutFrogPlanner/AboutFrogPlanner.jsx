@@ -4,7 +4,7 @@ import { BookOpen, Milestone, HelpCircle, Award, Play, Star, ArrowRight } from '
 
 const AboutFrogPlanner = () => {
   const rules = [
-    { num: 1, title: 'Eat Your Frog First', text: 'Complete your most important task before distractions begin.', icon: null },
+    { num: 1, title: 'Tackle Your Frog First', text: 'Complete your most important task before distractions begin.', icon: null },
     { num: 2, title: 'Top 3 Priorities Only', text: "Don't overload your day. More tasks rarely means more impact.", icon: '🎯' },
     { num: 3, title: 'Avoid Busy Work', text: 'Staying busy and being productive are not the same thing.', icon: '🚫' },
     { num: 4, title: 'One Task at a Time', text: 'Multitasking reduces quality. Finish before moving on.', icon: '✅' },
@@ -16,7 +16,7 @@ const AboutFrogPlanner = () => {
     { step: 2, title: 'Add your top priorities 🎯', desc: 'List 2–3 supporting tasks that still matter. Keep the list short by design.' },
     { step: 3, title: 'Block your day ⏰', desc: 'Assign time for your frog before anything else — meetings, messages, or admin.' },
     { step: 4, title: 'Work through tasks one by one ✅', desc: 'Complete each task fully before moving to the next. Resist the urge to context-switch.' },
-    { step: 5, title: 'Review at end of day 📊', desc: "Did you eat the frog? Note what got done, what didn't, and what tomorrow's frog should be." },
+    { step: 5, title: 'Review at end of day 📊', desc: "Did you tackle your frog? Note what got done, what didn't, and what tomorrow's frog should be." },
   ];
 
   return (
@@ -35,7 +35,7 @@ const AboutFrogPlanner = () => {
             <FrogLogo className="w-8 h-8 inline-block mr-2 align-middle" />Welcome to Frog Planner
           </h1>
           <p className="text-sm text-green-100/90 max-w-xl font-medium leading-relaxed">
-            Inspired by the <span className="font-bold text-yellow-300">"Eat The Frog"</span> concept — designed to help you focus on high-impact results rather than constant busyness.
+            Inspired by the <span className="font-bold text-yellow-300">"Tackle Your Frog First"</span> concept — designed to help you focus on high-impact results rather than constant busyness.
           </p>
         </div>
       </div>
@@ -202,9 +202,9 @@ const AboutFrogPlanner = () => {
         <div className="text-4xl">🚀</div>
         <h3 className="text-base font-extrabold text-gray-800">Ready to plan your day?</h3>
         <p className="text-xs text-gray-500 max-w-lg mx-auto leading-relaxed font-medium">
-          Don't just complete tasks — <span className="text-green-700 font-bold">complete the right ones first.</span> Every day you eat your frog, you move one step closer to your goals.
+          Don't just complete tasks — <span className="text-green-700 font-bold">complete the right ones first.</span> Every day you tackle your frog, you move one step closer to your goals.
         </p>
-        <p className="text-[11px] text-amber-600 font-extrabold pt-1 flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Eat the Frog. Every. Single. Day.</p>
+        <p className="text-[11px] text-amber-600 font-extrabold pt-1 flex items-center gap-1"><FrogLogo className="w-3.5 h-3.5" />Tackle Your Frog First. Every. Single. Day.</p>
       </div>
 
     </div>

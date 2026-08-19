@@ -275,7 +275,7 @@ const Login = () => {
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2">
-                {['Eat the Frog', 'Daily Focus', 'AI Assistant', 'Smart Tasks'].map((f) => (
+                {['Tackle Your Frog', 'Daily Focus', 'AI Assistant', 'Smart Tasks'].map((f) => (
                   <span key={f} className="px-3 py-1 bg-green-50 text-green-700 text-[11px] font-bold rounded-full border border-green-200">{f}</span>
                 ))}
               </div>
@@ -285,7 +285,7 @@ const Login = () => {
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <div className="h-px flex-1 bg-yellow-400/60" />
-                  <p className="text-amber-500 text-[10px] font-bold">Eat the Frog Method</p>
+                  <p className="text-amber-500 text-[10px] font-bold">Tackle Your Frog First</p>
                 </div>
               </div>
             </div>

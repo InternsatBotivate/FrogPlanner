@@ -84,10 +84,10 @@ export default function Dashboard() {
   // Time-based greeting
   const getTimeGreeting = () => {
     const h = new Date().getHours();
-    if (h >= 5 && h < 12)  return { wish: 'Good Morning', emoji: '🌅', sub: 'Start strong — eat your frog first!' };
+    if (h >= 5 && h < 12)  return { wish: 'Good Morning', emoji: '🌅', sub: 'Start strong — tackle your frog first!' };
     if (h >= 12 && h < 17) return { wish: 'Good Afternoon', emoji: '☀️', sub: 'Stay focused and keep the momentum going.' };
     if (h >= 17 && h < 21) return { wish: 'Good Evening', emoji: '🌇', sub: 'Great work today — review and wrap up.' };
-    return { wish: 'Good Night', emoji: '🌙', sub: 'Rest well. Tomorrow, eat the frog early!' };
+    return { wish: 'Good Night', emoji: '🌙', sub: 'Rest well. Tomorrow, tackle your frog early!' };
   };
   const greeting = getTimeGreeting();
   const [timeRange, setTimeRange] = useState('Today'); // Today, Weekly, Monthly
