@@ -21,7 +21,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { sendMail } from './_lib/mailer.js';
+import { sendMail, emailShell } from './_lib/mailer.js';
 
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
@@ -223,18 +223,11 @@ function safeParse(v) {
 }
 
 function otpEmailHtml(code) {
-  return `<!doctype html><html><body style="margin:0;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
-    <div style="max-width:480px;margin:24px auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:22px 24px;color:#fff;">
-        <div style="font-size:20px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />Frog Planner</div>
-      </div>
-      <div style="padding:24px;color:#374151;font-size:14px;line-height:1.6;">
-        <p style="margin:0 0 14px;">Here's your verification code:</p>
-        <p style="text-align:center;margin:22px 0;">
-          <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;font-weight:800;font-size:28px;letter-spacing:6px;padding:14px 26px;border-radius:12px;">${code}</span>
-        </p>
-        <p style="margin:0;color:#9ca3af;font-size:12px;">This code expires in 10 minutes. If you didn't request it, ignore this email.</p>
-      </div>
-    </div>
-  </body></html>`;
+  return emailShell(`
+    <p style="margin:0 0 14px;">Here's your verification code:</p>
+    <p style="text-align:center;margin:22px 0;">
+      <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;font-weight:800;font-size:28px;letter-spacing:6px;padding:14px 26px;border-radius:12px;">${code}</span>
+    </p>
+    <p style="margin:0;color:#9ca3af;font-size:12px;">This code expires in 10 minutes. If you didn't request it, ignore this email.</p>
+  `);
 }

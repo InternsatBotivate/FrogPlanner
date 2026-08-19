@@ -64,10 +64,13 @@ function page(res, status, kind, message) {
   const html = `<!doctype html><html><head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Frog Planner — Email verification</title></head>
-    <body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
-      <div style="max-width:420px;margin:24px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;text-align:center;">
-        <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:26px;color:#fff;font-size:22px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="26" height="26" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;" />Frog Planner</div>
-        <div style="padding:28px 24px;">
+    <body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0fdf4;font-family:Arial,Helvetica,sans-serif;">
+      <div style="max-width:420px;margin:24px;background:#fff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden;text-align:center;box-shadow:0 4px 16px rgba(22,163,74,0.08);">
+        <div style="padding:28px 24px 14px;background:linear-gradient(180deg,#f0fdf4 0%,#ffffff 100%);">
+          <img src="https://www.frogplanner.in/frog-logo-email.png" width="72" height="72" alt="Frog Planner" style="display:inline-block;" />
+          <div style="margin-top:8px;font-size:19px;font-weight:800;color:#15803d;letter-spacing:-0.3px;">Frog Planner</div>
+        </div>
+        <div style="padding:14px 24px 28px;">
           <div style="font-size:44px;margin-bottom:10px;">${ok ? '✅' : '⚠️'}</div>
           <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">${message}</p>
           <a href="https://www.frogplanner.in" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:10px;">Open Frog Planner</a>

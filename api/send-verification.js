@@ -20,7 +20,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { sendMail } from './_lib/mailer.js';
+import { sendMail, emailShell } from './_lib/mailer.js';
 import { randomBytes } from 'node:crypto';
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -129,20 +129,13 @@ function originFromReq(req) {
 }
 
 function verificationEmailHtml(url) {
-  return `<!doctype html><html><body style="margin:0;background:#f6f7f6;font-family:Arial,Helvetica,sans-serif;">
-    <div style="max-width:480px;margin:24px auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:22px 24px;color:#fff;">
-        <div style="font-size:20px;font-weight:800;"><img src="https://www.frogplanner.in/favicon.png" width="24" height="24" alt="" style="vertical-align:middle;border-radius:6px;margin-right:8px;" />Frog Planner</div>
-      </div>
-      <div style="padding:24px;color:#374151;font-size:14px;line-height:1.6;">
-        <p style="margin:0 0 14px;">Confirm this email to turn on Frog Planner reminders — weather-aware nudges and task deadlines.</p>
-        <p style="text-align:center;margin:22px 0;">
-          <a href="${url}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px;">Verify email</a>
-        </p>
-        <p style="margin:0 0 8px;color:#6b7280;font-size:12px;">Or paste this link into your browser:</p>
-        <p style="margin:0 0 16px;word-break:break-all;font-size:12px;color:#16a34a;">${url}</p>
-        <p style="margin:0;color:#9ca3af;font-size:12px;">This link expires in 24 hours. If you didn't request it, ignore this email.</p>
-      </div>
-    </div>
-  </body></html>`;
+  return emailShell(`
+    <p style="margin:0 0 14px;">Confirm this email to turn on Frog Planner reminders — weather-aware nudges and task deadlines.</p>
+    <p style="text-align:center;margin:22px 0;">
+      <a href="${url}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px;">Verify email</a>
+    </p>
+    <p style="margin:0 0 8px;color:#6b7280;font-size:12px;">Or paste this link into your browser:</p>
+    <p style="margin:0 0 16px;word-break:break-all;font-size:12px;color:#16a34a;">${url}</p>
+    <p style="margin:0;color:#9ca3af;font-size:12px;">This link expires in 24 hours. If you didn't request it, ignore this email.</p>
+  `);
 }
