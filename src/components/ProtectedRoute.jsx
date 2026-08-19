@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, needsOnboarding } from '../store/authStore';
 import { usePlannerStore } from '../store/plannerStore';
 import FrogLogo from './FrogLogo';
 
@@ -29,6 +29,12 @@ const ProtectedRoute = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // A Google signup lands here with a real session but an unfinished profile.
+  // Send them to the wizard rather than into a half-configured app.
+  if (needsOnboarding(user)) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;

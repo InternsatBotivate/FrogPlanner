@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import frogLogo from '../Assets/frog_planner_logo.avif';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, ArrowRight, X, BadgeCheck, Mail, UserPlus, Building, Briefcase, Shield, Phone, Loader2, KeyRound } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, ArrowRight, X, Mail, UserPlus, Loader2, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
+import { isGoogleAuthConfigured, renderGoogleButton } from '../lib/googleAuthService';
 import { sendSignupOtp, verifyOtp, sendPasswordResetOtp, resetPassword } from '../lib/otpService';
 import OtpInput from '../components/OtpInput';
 import Footer from '../components/Footer';
@@ -24,20 +25,14 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Sign Up state
-  const [signupName, setSignupName] = useState('');
-  const [signupId, setSignupId] = useState('');
+  // Sign Up state — just the email. Everything else moved to /onboarding, which
+  // also creates the account (see Onboarding.jsx for why it happens there).
   const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupConfirm, setSignupConfirm] = useState('');
-  const [showSignupPwd, setShowSignupPwd] = useState(false);
-  const [signingUp, setSigningUp] = useState(false);
 
-  // New Business & User details
-  const [signupBusinessName, setSignupBusinessName] = useState('');
-  const [signupPosition, setSignupPosition] = useState('');
-  const [signupRole, setSignupRole] = useState('');
-  const [signupContact, setSignupContact] = useState('');
+  // Google sign-in
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const googleBtnRef = useRef(null);
+  const googleReady = isGoogleAuthConfigured();
 
   // Signup email verification (OTP)
   const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
@@ -57,7 +52,7 @@ const Login = () => {
   const [resettingPassword, setResettingPassword] = useState(false);
 
   const login = useAuthStore((state) => state.login);
-  const register = useAuthStore((state) => state.register);
+  const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
   const navigate = useNavigate();
 
   const resetForgotState = () => {
@@ -150,10 +145,59 @@ const Login = () => {
     if (res.ok) {
       setEmailVerified(true);
       setShowEmailOtp(false);
+      // Hand the verified address to the wizard, which collects the rest and
+      // creates the account on its last step. sessionStorage (not router state)
+      // so a mid-wizard refresh doesn't strand them with a consumed OTP.
+      sessionStorage.setItem('fp_pending_signup', JSON.stringify({ email: signupEmail.trim() }));
       toast.success('Email verified!');
+      navigate('/onboarding', { replace: true });
     }
     return res;
   };
+
+  const closeSignup = () => {
+    setShowSignupModal(false);
+    setShowEmailOtp(false);
+    setEmailOtpId(null);
+    setEmailVerified(false);
+    setSignupEmail('');
+  };
+
+  /**
+   * handleGoogleCredential
+   * Receives the ID token from Google's button and exchanges it for a session.
+   * New/unfinished accounts go to the wizard; everyone else straight to the app.
+   */
+  const handleGoogleCredential = async (idToken) => {
+    setGoogleBusy(true);
+    try {
+      const { error, needsOnboarding } = await loginWithGoogle(idToken);
+      if (error) {
+        toast.error(error.message || 'Google sign-in failed.');
+        return;
+      }
+      if (needsOnboarding) {
+        navigate('/onboarding', { replace: true });
+      } else {
+        toast.success('Welcome back!');
+        navigate('/', { replace: true });
+      }
+    } finally {
+      setGoogleBusy(false);
+    }
+  };
+
+  // Google renders its own button into this container. Re-rendering on every
+  // mount keeps it from going stale after a failed attempt.
+  useEffect(() => {
+    if (!googleReady || !googleBtnRef.current) return;
+    let cleanup;
+    renderGoogleButton(googleBtnRef.current, handleGoogleCredential, { width: 320 })
+      .then((fn) => { cleanup = fn; })
+      .catch(() => { /* button just won't show; the password form still works */ });
+    return () => cleanup?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleReady]);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -170,76 +214,6 @@ const Login = () => {
       toast.error('Login error. Please try again.');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleSignUp = async (e) => {
-    e.preventDefault();
-    // Validate required fields
-    if (
-      !signupName.trim() ||
-      !signupId.trim() ||
-      !signupEmail.trim() ||
-      !signupPassword.trim() ||
-      !signupBusinessName.trim() ||
-      !signupPosition.trim() ||
-      !signupRole.trim() ||
-      !signupContact.trim()
-    ) {
-      toast.error('Please fill all required fields.');
-      return;
-    }
-
-    if (!emailVerified) {
-      toast.error('Please verify your email before creating an account.');
-      return;
-    }
-
-    // Validate passwords match
-    if (signupPassword !== signupConfirm) {
-      toast.error('Passwords do not match.');
-      return;
-    }
-
-    // Validate password length
-    if (signupPassword.length < 6) {
-      toast.error('Password must be at least 6 characters.');
-      return;
-    }
-
-    // Validate numeric Contact Number
-    if (!/^\d+$/.test(signupContact.trim())) {
-      toast.error('Contact Number must contain only numbers.');
-      return;
-    }
-
-    setSigningUp(true);
-    try {
-      const { error } = await register({
-        username: signupId.trim(),
-        name: signupName.trim(),
-        email: signupEmail.trim(),
-        password: signupPassword,
-        role: 'USER',
-        designation: signupPosition.trim(),
-        department: 'General Division',
-        phone: signupContact.trim(),
-        bio: '',
-        business_name: signupBusinessName.trim(),
-        user_role: signupRole.trim(),
-        emailVerified: true,
-      });
-      if (error) {
-        toast.error(error.message || 'Sign up failed. Please try again.');
-        return;
-      }
-      toast.success(`Account created! Welcome, ${signupName.trim()}!`);
-      setShowSignupModal(false);
-      navigate('/', { replace: true });
-    } catch {
-      toast.error('Sign up failed. Please try again.');
-    } finally {
-      setSigningUp(false);
     }
   };
 
@@ -374,11 +348,36 @@ const Login = () => {
                 </span>
               </button>
 
+              {/* ── Google ── */}
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+                <div className="relative flex justify-center">
+                  <span className="px-2 bg-white text-[11px] font-bold text-gray-400 uppercase tracking-wider">or</span>
+                </div>
+              </div>
+
+              {googleReady ? (
+                <div className="relative">
+                  {/* Google's own rendered button — see googleAuthService.js for
+                      why we don't hand-roll one. */}
+                  <div ref={googleBtnRef} className="flex justify-center min-h-[44px]" />
+                  {googleBusy && (
+                    <div className="absolute inset-0 grid place-items-center bg-white/70 rounded-xl">
+                      <Loader2 className="w-4 h-4 animate-spin text-green-600" />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[11px] text-center text-gray-400">
+                  Google sign-in isn&apos;t configured.
+                </p>
+              )}
+
               {/* Sign Up Button */}
               <button type="button" onClick={() => setShowSignupModal(true)}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-bold text-green-700 rounded-xl border-2 border-green-300 bg-white hover:bg-green-50 hover:border-green-400 transition-all shadow-sm">
                 <UserPlus className="w-4 h-4" />
-                Sign Up — Create New Account
+                New here? Create an account
               </button>
             </form>
 
@@ -404,192 +403,80 @@ const Login = () => {
         </div>
       </div>
 
-      {/* ── SIGN UP MODAL ── */}
+      {/* ── SIGN UP MODAL (email verification only) ── */}
+      {/* Signup collects nothing else here — the OTP-verified address is handed
+          to /onboarding, which gathers the rest and creates the account on its
+          final step. See src/pages/Onboarding/Onboarding.jsx. */}
       {showSignupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-green-100 overflow-hidden animate-in zoom-in-95 duration-200">
-
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-green-100 flex items-center justify-between bg-green-50/50">
-              <div>
-                <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
-                  <UserPlus size={18} className="text-green-600" /> Create Account
-                </h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Join Frog Planner and start today</p>
-              </div>
-              <button type="button" onClick={() => setShowSignupModal(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-green-100 rounded-lg transition-colors">
-                <X size={18} />
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-green-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-green-600" /> Create your account
+              </h3>
+              <button type="button" onClick={closeSignup} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSignUp} className="p-5 flex flex-col gap-3 max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
-              
-              {/* Account Details Group */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+            <div className="p-5 space-y-4">
+              {!showEmailOtp ? (
+                <>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Start with your email — we&apos;ll send a 6-digit code to confirm it&apos;s yours.
+                  </p>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Full Name *</label>
+                    <label htmlFor="signup-email" className="text-xs font-bold text-gray-600 uppercase tracking-wider">Email</label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <User className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                        <Mail className="h-4 w-4 text-gray-400 group-focus-within:text-green-600 transition-colors" />
                       </div>
-                      <input type="text" required value={signupName} onChange={(e) => setSignupName(e.target.value)}
-                        className={inputCls} placeholder="Full name" />
+                      <input
+                        id="signup-email"
+                        type="email"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSendEmailOtp(); }}
+                        className={inputCls}
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                      />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User ID *</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                      </div>
-                      <input type="text" required value={signupId}
-                        onChange={(e) => setSignupId(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                        className={inputCls} placeholder="user_id" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Email *</label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="relative group flex-1">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                      </div>
-                      <input type="email" required value={signupEmail}
-                        disabled={emailVerified}
-                        onChange={(e) => {
-                          setSignupEmail(e.target.value);
-                          setEmailVerified(false);
-                          setShowEmailOtp(false);
-                        }}
-                        className={`${inputCls} ${emailVerified ? 'opacity-70' : ''}`} placeholder="your@email.com" />
-                    </div>
-                    {emailVerified ? (
-                      <span className="inline-flex items-center justify-center gap-1 text-[11px] font-bold text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-xl whitespace-nowrap">
-                        <BadgeCheck size={13} /> Verified
-                      </span>
-                    ) : (
-                      <button type="button" onClick={handleSendEmailOtp} disabled={sendingEmailOtp}
-                        className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3.5 py-2 rounded-xl transition-colors disabled:opacity-60 whitespace-nowrap">
-                        {sendingEmailOtp ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
-                        {sendingEmailOtp ? 'Sending…' : 'Verify'}
-                      </button>
-                    )}
-                  </div>
-                  {showEmailOtp && !emailVerified && (
-                    <div className="pt-1.5">
-                      <OtpInput onConfirm={handleEmailOtpConfirm} onResend={handleEmailOtpResend} confirmLabel="Confirm" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Password *</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                      </div>
-                      <input type={showSignupPwd ? 'text' : 'password'} required value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
-                        className={`${inputCls} pr-9`} placeholder="Min 6 chars" />
-                      <button type="button" onClick={() => setShowSignupPwd(!showSignupPwd)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
-                        {showSignupPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Confirm *</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                      </div>
-                      <input type="password" required value={signupConfirm} onChange={(e) => setSignupConfirm(e.target.value)}
-                        className={`${inputCls} ${signupConfirm && signupPassword !== signupConfirm ? 'border-rose-300 focus:border-rose-400' : ''}`}
-                        placeholder="Repeat password" />
-                    </div>
-                    {signupConfirm && signupPassword !== signupConfirm && (
-                      <p className="text-[10px] text-rose-500 font-semibold">Passwords don't match</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Business Profile Details Group */}
-              <div className="border border-green-100 rounded-xl p-3.5 bg-green-50/10 space-y-3 mt-1.5">
-                <div className="flex items-center gap-1.5 border-b border-green-100/50 pb-1.5">
-                  <Building className="h-4 w-4 text-green-700" />
-                  <span className="text-[10px] font-extrabold text-green-700 uppercase tracking-wider">Business Profile Details</span>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Business Name *</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Building className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                    </div>
-                    <input type="text" required value={signupBusinessName} onChange={(e) => setSignupBusinessName(e.target.value)}
-                      className={inputCls} placeholder="e.g. Acme Corporation" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User Position *</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Briefcase className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                      </div>
-                      <input type="text" required value={signupPosition} onChange={(e) => setSignupPosition(e.target.value)}
-                        className={inputCls} placeholder="e.g. Director" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User Role *</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Shield className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                      </div>
-                      <input type="text" required value={signupRole} onChange={(e) => setSignupRole(e.target.value)}
-                        className={inputCls} placeholder="e.g. Administrator" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Contact Number *</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                    </div>
-                    <input type="text" required value={signupContact} 
-                      onChange={(e) => setSignupContact(e.target.value.replace(/\D/g, ''))}
-                      className={inputCls} placeholder="Only numbers e.g. 9876543210" />
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" disabled={signingUp || !emailVerified}
-                title={!emailVerified ? 'Verify your email first' : undefined}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 shadow-md shadow-amber-400/25 transition-all mt-1 ${signingUp || !emailVerified ? 'opacity-75 cursor-not-allowed' : ''}`}>
-                {signingUp
-                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Creating...</>
-                  : <><UserPlus className="w-4 h-4" />Create Account</>
-                }
-              </button>
+                  <button
+                    type="button"
+                    onClick={handleSendEmailOtp}
+                    disabled={sendingEmailOtp}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-md shadow-green-500/25 transition-all disabled:opacity-60"
+                  >
+                    {sendingEmailOtp
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending code…</>
+                      : <>Send verification code <ArrowRight className="w-4 h-4" /></>}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Enter the 6-digit code we sent to <strong className="text-gray-700">{signupEmail.trim()}</strong>.
+                  </p>
+                  <OtpInput onConfirm={handleEmailOtpConfirm} onResend={handleEmailOtpResend} />
+                  <button
+                    type="button"
+                    onClick={() => { setShowEmailOtp(false); setEmailOtpId(null); }}
+                    className="w-full text-center text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline"
+                  >
+                    Use a different email
+                  </button>
+                </>
+              )}
 
               <p className="text-center text-[11px] text-gray-400">
                 Already have an account?{' '}
-                <button type="button" onClick={() => setShowSignupModal(false)} className="text-green-700 font-bold hover:underline">
+                <button type="button" onClick={closeSignup} className="text-green-700 font-bold hover:underline">
                   Sign In
                 </button>
               </p>
-            </form>
+            </div>
           </div>
         </div>
       )}

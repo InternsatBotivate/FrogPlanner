@@ -29,22 +29,62 @@ const generateToken = () => {
 // ── auth operations ────────────────────────────────────────────────────────
 
 /**
+ * PROFILE_FIELD_MAP
+ * Onboarding step 3 asks a different pair of questions depending on the answer
+ * to step 2, but stores them in the two columns that already exist rather than
+ * adding five more. This is the single source of truth for that mapping and
+ * must stay in sync with db_scripts/google_auth_and_onboarding.sql and with
+ * the mobile app's copy in src/lib/authService.ts.
+ *
+ *   profile_type         → business_name        , designation
+ *   business_owner       → Business Name        , Position
+ *   working_professional → Company Name         , Job Role
+ *   student              → School/College       , Course
+ *   freelancer           → (unused)             , Profession/Service
+ *   personal             → (unused)             , (unused)
+ */
+export const mapProfileFields = (profileType, orgName = '', orgRole = '') => {
+  const name = (orgName || '').trim();
+  const role = (orgRole || '').trim();
+  switch (profileType) {
+    case 'business_owner':
+    case 'working_professional':
+    case 'student':
+      return { business_name: name || null, designation: role || null };
+    case 'freelancer':
+      return { business_name: null, designation: role || null };
+    default: // 'personal' — no follow-up questions
+      return { business_name: null, designation: null };
+  }
+};
+
+/**
  * signUp
- * Creates a new row in public.users.
- * Returns { user, error }
+ * Creates a new row in public.users for an EMAIL signup, at the END of the
+ * onboarding wizard — which is why it takes the onboarding answers too.
+ *
+ * Email signups have no account until this point: the password is collected in
+ * onboarding's final step, and users_has_credential_check requires either a
+ * password or a google_id, so there is nothing valid to insert earlier.
+ * (Google signups take the opposite path — api/google-signin.js creates the row
+ * up front with onboarding_complete=false, then completeOnboarding() fills it in.)
+ *
+ * Returns { user, token, error }
  */
 export const signUp = async ({
   username,     // the app-level user ID (e.g. "admin", "user1")
   name,
   email = '',
   password,
-  role = 'USER',
-  designation = 'Team Member',
-  department = 'General Division',
   phone = '',
+  dateOfBirth = null,
+  profileType = null,
+  orgName = '',
+  orgRole = '',
+  improvementGoal = null,
+  role = 'USER',
+  department = 'General Division',
   bio = '',
-  business_name = '',
-  user_role = '',
   emailVerified = false, // true when the caller already OTP-verified `email` (see otpService.js)
 }) => {
   try {
@@ -67,15 +107,19 @@ export const signUp = async ({
         full_name: name.trim(),
         email: trimmedEmail || null,
         password_hash: password, // Store password directly as plain text
+        auth_provider: 'password',
         role,
-        designation,
         department,
         phone,
         bio,
-        business_name: business_name.trim() || null,
-        user_role: user_role.trim() || null,
+        date_of_birth: dateOfBirth || null,
+        profile_type: profileType,
+        improvement_goal: improvementGoal,
+        ...mapProfileFields(profileType, orgName, orgRole),
         email_verified: emailVerified && !!trimmedEmail,
         reminders_enabled: emailVerified && !!trimmedEmail,
+        // The wizard ran before the row existed, so it is already complete.
+        onboarding_complete: true,
       })
       .select()
       .single();
@@ -153,6 +197,18 @@ export const signIn = async (identifier, password) => {
     }
 
     if (error) return { user: null, token: null, error };
+
+    // A Google account has no password until the user sets one in Settings.
+    // Without this branch they'd get "Invalid User ID or Password" for
+    // credentials that were never wrong — they simply don't exist yet.
+    if (user && !user.password_hash) {
+      return {
+        user: null,
+        token: null,
+        error: new Error('This account uses Google sign-in. Use “Continue with Google”, or set a password in Settings.'),
+      };
+    }
+
     if (!user || user.password_hash !== password) {
       return { user: null, token: null, error: new Error('Invalid User ID or Password.') };
     }
@@ -296,6 +352,120 @@ export const updateAvatarUrl = async (userId, avatarUrl) => {
   } catch (err) {
     return { user: null, error: err };
   }
+};
+
+/**
+ * signInWithGoogle
+ * Exchanges a Google ID token for a Frog Planner session.
+ *
+ * All the real work — verifying the token's signature, resolving-or-creating
+ * the account, minting the session — happens in api/google-signin.js with the
+ * service-role key. This function deliberately does no Supabase work of its
+ * own: a client-side "this is who I am" claim is worth nothing, so trusting one
+ * here would let anyone sign in as anyone.
+ *
+ * Returns { user, token, needsOnboarding, error }
+ */
+export const signInWithGoogle = async (idToken) => {
+  try {
+    if (!idToken) return { user: null, token: null, needsOnboarding: false, error: new Error('Google sign-in was cancelled.') };
+
+    const res = await fetch('/api/google-signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok || !json?.ok) {
+      return {
+        user: null,
+        token: null,
+        needsOnboarding: false,
+        error: new Error(json?.error || `Google sign-in failed (${res.status}).`),
+      };
+    }
+
+    // The server already created the session row; persist the token under the
+    // same key the password flow uses so getSessionUser works unchanged.
+    localStorage.setItem(SESSION_KEY, json.token);
+
+    // A first-time Google user starts with no local data of their own, so keep
+    // them out of the shared-browser legacy localStorage migration.
+    if (json.needsOnboarding) {
+      localStorage.setItem(`${SIGNUP_SKIP_MIGRATION_KEY_PREFIX}${json.user.id}`, 'true');
+    }
+
+    return { user: json.user, token: json.token, needsOnboarding: !!json.isNewUser, error: null };
+  } catch {
+    return { user: null, token: null, needsOnboarding: false, error: new Error('Network error. Please try again.') };
+  }
+};
+
+/**
+ * completeOnboarding
+ * Finishes the onboarding wizard for an account that ALREADY exists — i.e. a
+ * Google signup, whose row was created by api/google-signin.js with
+ * onboarding_complete=false.
+ *
+ * Email signups never reach here: signUp() writes the same fields at insert
+ * time because their account doesn't exist until the wizard's last step.
+ *
+ * Writes everything in one update so an interrupted save can't leave a
+ * half-onboarded row that still reads as complete.
+ */
+export const completeOnboarding = async (userId, data) => {
+  try {
+    if (!userId) return { user: null, error: new Error('User ID is required.') };
+
+    const patch = {
+      full_name: (data.name || '').trim(),
+      phone: (data.phone || '').trim(),
+      date_of_birth: data.dateOfBirth || null,
+      profile_type: data.profileType || null,
+      improvement_goal: data.improvementGoal || null,
+      ...mapProfileFields(data.profileType, data.orgName, data.orgRole),
+      onboarding_complete: true,
+    };
+    // The username is editable in step 1, but only send it when it actually
+    // changed — a no-op write would still trip the unique index against itself.
+    if (data.username) patch.username = data.username.trim();
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .update(patch)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      // 23505 = unique_violation. The only unique column reachable here is
+      // username, so surface it as the actionable message rather than a raw code.
+      if (error.code === '23505') {
+        return { user: null, error: new Error('That User ID is taken. Choose a different one.') };
+      }
+      return { user: null, error };
+    }
+    return { user, error: null };
+  } catch (err) {
+    return { user: null, error: err };
+  }
+};
+
+/**
+ * isUsernameAvailable
+ * Step 1 of onboarding pre-fills a generated User ID and lets the user edit it,
+ * so it needs to check availability before the final save. `excludeUserId` skips
+ * the caller's own row (a Google user keeping their generated username).
+ */
+export const isUsernameAvailable = async (username, excludeUserId = null) => {
+  const trimmed = (username || '').trim();
+  if (!trimmed) return false;
+  let query = supabase.from('users').select('id').eq('username', trimmed);
+  if (excludeUserId) query = query.neq('id', excludeUserId);
+  const { data, error } = await query.maybeSingle();
+  if (error) return false;
+  return !data;
 };
 
 /**

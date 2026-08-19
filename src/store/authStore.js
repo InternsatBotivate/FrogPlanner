@@ -6,7 +6,18 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 import { create } from 'zustand';
-import { signIn, signUp, signOut, deleteAccount, getSessionUser, updateUserProfile, updateCustomCategories, updateAvatarUrl } from '../lib/authService';
+import { signIn, signUp, signOut, deleteAccount, getSessionUser, updateUserProfile, updateCustomCategories, updateAvatarUrl, signInWithGoogle, completeOnboarding } from '../lib/authService';
+
+/**
+ * needsOnboarding
+ * True when a signed-in account still has to run the onboarding wizard.
+ *
+ * Compares against `false` explicitly rather than using `!user.onboarding_complete`:
+ * if the column is missing from the row (an old cached shape, or the migration
+ * not yet run) the value is `undefined`, and the loose check would wrongly send
+ * every existing user into onboarding. Absent means "don't touch them".
+ */
+export const needsOnboarding = (user) => !!user && user.onboarding_complete === false;
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -35,6 +46,37 @@ const useAuthStore = create((set) => ({
     const { user, error } = await signUp(userData);
     if (user) {
       set({ user, isAuthenticated: true });
+    }
+    return { error };
+  },
+
+  /**
+   * loginWithGoogle
+   * Exchanges a Google ID token for a session (server-verified — see
+   * api/google-signin.js) and sets authenticated state.
+   * Returns { error, needsOnboarding } so the caller can route to the wizard.
+   */
+  loginWithGoogle: async (idToken) => {
+    const { user, needsOnboarding: needsWizard, error } = await signInWithGoogle(idToken);
+    if (user) {
+      set({ user, isAuthenticated: true });
+    }
+    return { error, needsOnboarding: needsWizard };
+  },
+
+  /**
+   * finishOnboarding
+   * Completes the wizard for an already-existing account (the Google path).
+   * Email signups don't use this — their account is created by `register` with
+   * the answers already baked in.
+   */
+  finishOnboarding: async (data) => {
+    const state = useAuthStore.getState();
+    if (!state.user?.id) return { error: new Error('Not authenticated') };
+
+    const { user, error } = await completeOnboarding(state.user.id, data);
+    if (user) {
+      set({ user });
     }
     return { error };
   },

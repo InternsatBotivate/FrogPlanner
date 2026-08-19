@@ -17,6 +17,7 @@ import Developers from './pages/Developers/Developers';
 import UpcomingPlanner from './pages/UpcomingPlanner/UpcomingPlanner';
 import PrivacyPolicy from './pages/PrivacyPolicy/PrivacyPolicy';
 import DeleteAccount from './pages/DeleteAccount/DeleteAccount';
+import Onboarding from './pages/Onboarding/Onboarding';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeStorage } from './utils/storageManager';
@@ -52,7 +53,15 @@ function App() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           {/* Public — account & data deletion (required by Google Play) */}
           <Route path="/delete-account" element={<DeleteAccount />} />
-          
+
+          {/* Onboarding is deliberately NOT wrapped in ProtectedRoute: an email
+              signup reaches it before their account exists, so there is no
+              session yet. It decides for itself which mode it's in (Google =
+              signed in, email = a verified address in sessionStorage) and
+              redirects out if neither holds. It also sits outside Layout — no
+              nav chrome while onboarding. */}
+          <Route path="/onboarding" element={<Onboarding />} />
+
           <Route path="/" element={
             <ProtectedRoute>
               <Layout />
