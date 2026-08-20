@@ -16,8 +16,10 @@ import AboutFrogPlanner from './pages/AboutFrogPlanner/AboutFrogPlanner';
 import Developers from './pages/Developers/Developers';
 import UpcomingPlanner from './pages/UpcomingPlanner/UpcomingPlanner';
 import PrivacyPolicy from './pages/PrivacyPolicy/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService/TermsOfService';
 import DeleteAccount from './pages/DeleteAccount/DeleteAccount';
 import Onboarding from './pages/Onboarding/Onboarding';
+import Home from './pages/Home/Home';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import { initializeStorage } from './utils/storageManager';
@@ -48,9 +50,12 @@ function App() {
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
         <Routes>
+          {/* Public product homepage — used for discovery and OAuth verification. */}
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           {/* Public — must be reachable without auth for Google OAuth verification */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           {/* Public — account & data deletion (required by Google Play) */}
           <Route path="/delete-account" element={<DeleteAccount />} />
 
@@ -62,12 +67,11 @@ function App() {
               nav chrome while onboarding. */}
           <Route path="/onboarding" element={<Onboarding />} />
 
-          <Route path="/" element={
+          <Route element={
             <ProtectedRoute>
               <Layout />
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="settings" element={<Settings />} />
             <Route path="recurring-tasks" element={<RecurringTasks />} />
