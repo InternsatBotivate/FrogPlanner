@@ -105,6 +105,22 @@ const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
+  // Fade the step body out, swap content, fade it back in. `visible` is what
+  // actually renders — `step` can change a beat before `visible` catches up,
+  // so the outgoing step is still on screen (fully faded) for the duration
+  // of the exit transition instead of popping straight to the next question.
+  const [visibleStep, setVisibleStep] = useState(1);
+  const [phase, setPhase] = useState('in'); // 'in' | 'out'
+  const FADE_MS = 180;
+  const goToStep = (n) => {
+    setPhase('out');
+    setStep(n);
+    window.setTimeout(() => {
+      setVisibleStep(n);
+      setPhase('in');
+    }, FADE_MS);
+  };
+
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -237,11 +253,11 @@ const Onboarding = () => {
       await handleFinish();
       return;
     }
-    setStep(sequence[stepIndex + 1]);
+    goToStep(sequence[stepIndex + 1]);
   };
 
   const back = () => {
-    if (stepIndex > 0) setStep(sequence[stepIndex - 1]);
+    if (stepIndex > 0) goToStep(sequence[stepIndex - 1]);
   };
 
   // ── Final submit ───────────────────────────────────────────────────────
@@ -386,11 +402,16 @@ const Onboarding = () => {
           ))}
         </div>
 
-        <h1 className="text-2xl font-black text-gray-900 leading-tight">{stepTitles[step].title}</h1>
-        <p className="text-sm text-gray-500 mt-1 mb-6">{stepTitles[step].sub}</p>
+        <div
+          className={`transition-all duration-[180ms] ease-out ${
+            phase === 'out' ? 'opacity-0 translate-y-1' : 'opacity-100 translate-y-0'
+          }`}
+        >
+        <h1 className="text-2xl font-black text-gray-900 leading-tight">{stepTitles[visibleStep].title}</h1>
+        <p className="text-sm text-gray-500 mt-1 mb-6">{stepTitles[visibleStep].sub}</p>
 
         {/* ── Step bodies ─────────────────────────────────────────────── */}
-        {step === 1 && (
+        {visibleStep === 1 && (
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1.5">Full Name *</label>
@@ -452,7 +473,7 @@ const Onboarding = () => {
           </div>
         )}
 
-        {step === 2 && (
+        {visibleStep === 2 && (
           <div className="space-y-2.5">
             {PROFILE_TYPES.map((p) => (
               <ChoiceCard
@@ -471,7 +492,7 @@ const Onboarding = () => {
           </div>
         )}
 
-        {step === 3 && (
+        {visibleStep === 3 && (
           <div className="space-y-4">
             {profileFields.nameLabel && (
               <div>
@@ -492,7 +513,7 @@ const Onboarding = () => {
           </div>
         )}
 
-        {step === 4 && (
+        {visibleStep === 4 && (
           <div className="space-y-2.5">
             {GOALS.map((g) => (
               <ChoiceCard key={g.value} selected={goal === g.value} onClick={() => setGoal(g.value)} icon={Target} label={g.label} hint={g.hint} />
@@ -500,7 +521,7 @@ const Onboarding = () => {
           </div>
         )}
 
-        {step === 5 && (
+        {visibleStep === 5 && (
           <div>
             <div className="p-4 rounded-2xl bg-green-50 border border-green-100 mb-4 flex gap-3">
               <FrogLogo className="w-8 h-8 shrink-0" />
@@ -520,7 +541,7 @@ const Onboarding = () => {
           </div>
         )}
 
-        {step === 6 && (
+        {visibleStep === 6 && (
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1.5">Password *</label>
@@ -572,6 +593,7 @@ const Onboarding = () => {
             </div>
           </div>
         )}
+        </div>
 
         {/* ── Nav ─────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-3 mt-8">
