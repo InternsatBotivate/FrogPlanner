@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import FrogLogo from '../../components/FrogLogo';
-import { Search, Plus, Filter, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Trash2, CheckCircle2, PauseCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DataTable from '../../components/DataTable';
 import ModalAlert from '../../components/ModalAlert';
 import ModalForm from '../../components/ModalForm';
-import { getCategoryEmoji } from '../../utils/helpers';
+import CategoryIcon from '../../components/CategoryIcon';
 import { useAuthStore } from '../../store/authStore';
 import {
   fetchRecurringTasks,
@@ -302,8 +302,8 @@ export default function RecurringTasks() {
         )}
       </td>
       <td className="px-4 py-3.5 text-gray-755 whitespace-nowrap text-xs md:text-sm text-center">
-        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-605 border border-indigo-100 rounded text-[11px] font-bold uppercase">
-          {getCategoryEmoji(item.category)} {item.category}
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-605 border border-indigo-100 rounded text-[11px] font-bold uppercase">
+          <CategoryIcon category={item.category} size={12} /> {item.category}
         </span>
       </td>
       <td className="px-4 py-3.5 text-gray-700 text-left text-xs md:text-sm max-w-[200px] truncate" title={item.remarks}>
@@ -327,8 +327,8 @@ export default function RecurringTasks() {
     <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3.5 text-left animate-in fade-in duration-100">
       <div className="flex justify-between items-start border-b border-gray-100 pb-2.5">
         <div className="flex gap-2 flex-wrap">
-          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wider">
-            {getCategoryEmoji(item.category)} {item.category}
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wider">
+            <CategoryIcon category={item.category} size={11} /> {item.category}
           </span>
           <span className="text-[10px] font-bold text-gray-550 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">{item.duration}</span>
           <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{describeSchedule(item.recurrence)}</span>
@@ -421,7 +421,7 @@ export default function RecurringTasks() {
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col pt-1 mt-2 flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-col mt-2 flex-1 min-h-0 overflow-hidden">
         <DataTable
           headers={headers}
           data={paginatedTasks}
@@ -434,6 +434,13 @@ export default function RecurringTasks() {
           totalResults={filteredTasks.length}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(val) => { setItemsPerPage(val); setCurrentPage(1); }}
+          emptyTitle={searchQuery ? 'No matching recurring tasks' : 'No recurring tasks yet'}
+          emptyDescription={searchQuery ? 'Try a different search term or clear the current filter.' : 'Create a template once, then let Frog Planner add it to the right days automatically.'}
+          emptyAction={!searchQuery ? (
+            <button type="button" onClick={handleAdd} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-emerald-800 transition-colors">
+              <Plus size={13} /> Add recurring task
+            </button>
+          ) : null}
         />
       </div>
 
@@ -665,7 +672,7 @@ export default function RecurringTasks() {
                     : 'bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100'
                   }`}
               >
-                {formData.isActive ? '🟢 Active' : '⚪ Paused'}
+                {formData.isActive ? <><CheckCircle2 size={14} /> Active</> : <><PauseCircle size={14} /> Paused</>}
               </button>
             </div>
           </div>

@@ -4,7 +4,8 @@ import {
   CheckCircle2, Clock, Calendar, CheckSquare, Search, AlertCircle,
   Trash2, Edit, ListTodo, ChevronLeft, ChevronRight, Zap, SlidersHorizontal
 } from 'lucide-react';
-import { getCategoryEmoji } from '../../utils/helpers';
+import CategoryIcon from '../../components/CategoryIcon';
+import TimeBlockIcon from '../../components/TimeBlockIcon';
 import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../store/authStore';
 import { usePlannerStore } from '../../store/plannerStore';
@@ -30,17 +31,6 @@ const getCategoryColorClass = (cat) => {
     case 'break': return 'bg-slate-50 text-slate-700 border-slate-200';
     case 'health': return 'bg-rose-50 text-rose-700 border-rose-150';
     default: return 'bg-gray-50 text-gray-700 border-gray-200';
-  }
-};
-
-// Duration specific sun/moon emojis helper
-const getDurationEmoji = (dur) => {
-  switch (dur?.toLowerCase()) {
-    case 'morning': return '🌅';
-    case 'afternoon': return '☀️';
-    case 'evening': return '🌇';
-    case 'night': return '🌃';
-    default: return '⏰';
   }
 };
 
@@ -427,7 +417,7 @@ export default function AllTasks() {
       </td>
       <td className="px-4 py-3.5 text-gray-700 whitespace-nowrap text-xs text-center">
         <span className="font-extrabold uppercase text-[11px] text-gray-650 tracking-wider flex items-center justify-center gap-1.5 select-none">
-          <span>{getCategoryEmoji(item.category)}</span>
+          <CategoryIcon category={item.category} size={12} />
           <span>{item.category}</span>
         </span>
       </td>
@@ -499,11 +489,11 @@ export default function AllTasks() {
           {item.dateInstance}
         </span>
         <span className={`px-2 py-0.5 border rounded text-[9px] font-bold uppercase flex items-center gap-1 select-none ${getCategoryColorClass(item.category)}`}>
-          <span>{getCategoryEmoji(item.category)}</span>
+          <CategoryIcon category={item.category} size={11} />
           <span>{item.category}</span>
         </span>
         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-150 rounded text-[9px] font-bold text-gray-500 select-none">
-          <span>{getDurationEmoji(item.duration)}</span>
+          <TimeBlockIcon block={item.duration} size={11} />
           <span>{item.duration || 'Flexible'}</span>
         </span>
         <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase tracking-wider select-none">
@@ -543,7 +533,7 @@ export default function AllTasks() {
       </td>
       <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs text-center">
         <span className="font-bold uppercase text-[11px] text-gray-500 tracking-wider flex items-center justify-center gap-1.5 select-none">
-          <span>{getCategoryEmoji(item.category)}</span>
+          <CategoryIcon category={item.category} size={12} />
           <span>{item.category}</span>
         </span>
       </td>
@@ -600,11 +590,11 @@ export default function AllTasks() {
           {item.dateInstance}
         </span>
         <span className="px-2 py-0.5 bg-gray-100 text-gray-550 border border-gray-200 rounded text-[9px] font-bold uppercase flex items-center gap-1 select-none">
-          <span>{getCategoryEmoji(item.category)}</span>
+          <CategoryIcon category={item.category} size={11} />
           <span>{item.category}</span>
         </span>
         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-150 rounded text-[9px] font-bold text-gray-400 select-none">
-          <span>{getDurationEmoji(item.duration)}</span>
+          <TimeBlockIcon block={item.duration} size={11} />
           <span>{item.duration || 'Flexible'}</span>
         </span>
         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black uppercase tracking-wider select-none">
@@ -1050,7 +1040,7 @@ export default function AllTasks() {
       )}
 
       {/* Main Table Area (Shows Active Tab Table) */}
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col justify-between flex-1 min-h-[450px] md:min-h-0 overflow-hidden">
+      <div className="flex flex-col justify-between flex-1 min-h-[450px] md:min-h-0 overflow-hidden">
         <DataTable
           headers={tableHeaders}
           data={paginatedTasks}
@@ -1063,9 +1053,11 @@ export default function AllTasks() {
           totalResults={filteredTasks.length}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(val) => { setItemsPerPage(val); setCurrentPage(1); }}
+          emptyTitle="No tasks in this view"
+          emptyDescription="Adjust the filters or add a task to start building your plan."
         />
       </div>
-      {/* 🐸 Frog Tasks Modal */}
+      {/* Frog tasks modal */}
       {showFrogModal && (() => {
         const frogTasks = taskInstances.filter(t => t.priority === 'Frog' && t.status === 'Pending');
         const frogDone = taskInstances.filter(t => t.priority === 'Frog' && t.status === 'Completed').length;
@@ -1100,7 +1092,7 @@ export default function AllTasks() {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {frogTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                    <span className="text-5xl select-none">🎉</span>
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 size={24} /></span>
                     <p className="text-sm font-bold text-gray-700">All frogs eaten!</p>
                     <p className="text-xs text-gray-400">No pending frog tasks remaining. Great work!</p>
                   </div>
@@ -1118,8 +1110,8 @@ export default function AllTasks() {
                           </span>
                         )}
                         {t.category && (
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-bold uppercase tracking-wide">
-                            {getCategoryEmoji(t.category)} {t.category}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-bold uppercase tracking-wide">
+                            <CategoryIcon category={t.category} size={10} /> {t.category}
                           </span>
                         )}
                         {t.dateInstance && (

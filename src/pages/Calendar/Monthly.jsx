@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import FrogLogo from '../../components/FrogLogo';
 import DragScrollTable from '../../components/DragScrollTable';
-import { CheckSquare, Square, Clock } from 'lucide-react';
+import { CheckSquare, Square, Clock, ClipboardList } from 'lucide-react';
 
 export default function Monthly({ events, currentDate, onToggleStatus }) {
   const [selectedDateDetails, setSelectedDateDetails] = useState(null);
@@ -60,7 +60,7 @@ export default function Monthly({ events, currentDate, onToggleStatus }) {
               )}
               {nonFrogCount > 0 && (
                 <span className="px-2 py-0.5 bg-indigo-50 text-indigo-705 border border-indigo-150 rounded-lg text-[9px] font-extrabold flex items-center gap-1 shadow-sm w-full justify-center">
-                  📋 {nonFrogCount} Task
+                  <ClipboardList size={10} /> {nonFrogCount} Task
                 </span>
               )}
             </div>

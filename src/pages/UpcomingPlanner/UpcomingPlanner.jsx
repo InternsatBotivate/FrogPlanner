@@ -4,12 +4,13 @@ import {
   Clock, Plus, Trash2, Lock, Calendar, Sparkles,
   Send, RefreshCw, AlertCircle, CalendarRange, Info, ListTodo,
   CheckCircle2, PlusCircle, Check, HelpCircle, Flame, ArrowRight,
-  Search
+  Search, Repeat2, FilePenLine, Inbox, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { usePlannerStore } from '../../store/plannerStore';
-import { getCategoryEmoji } from '../../utils/helpers';
+import CategoryIcon from '../../components/CategoryIcon';
+import TimeBlockIcon from '../../components/TimeBlockIcon';
 import ModalAlert from '../../components/ModalAlert';
 
 export default function UpcomingPlanner() {
@@ -34,16 +35,6 @@ export default function UpcomingPlanner() {
   // Always plan for tomorrow only — fixed date
   const tomorrowStr = useMemo(() => getTomorrowStr(), []);
   const planningDate = tomorrowStr;
-
-  const getDurationEmoji = (duration) => {
-    switch (duration) {
-      case 'Morning': return '🌅';
-      case 'Afternoon': return '☀️';
-      case 'Evening': return '🌇';
-      case 'Night': return '🌙';
-      default: return '⏰';
-    }
-  };
 
   const getCategoryColorClass = (cat) => {
     const c = String(cat).toLowerCase();
@@ -291,7 +282,6 @@ export default function UpcomingPlanner() {
             borderRadius: '12px',
             padding: '12px 16px',
           },
-          icon: '✅',
         });
       } else {
         toast.error('Failed to save tasks to the database.');
@@ -308,7 +298,6 @@ export default function UpcomingPlanner() {
   //   return (
   //     <div className="p-4 space-y-4 text-left flex flex-col min-h-screen justify-center items-center bg-gray-55/30">
   //       <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-gray-150 shadow-sm max-w-sm w-full">
-  //         <span className="text-4xl animate-bounce select-none block mb-3">🐸</span>
   //         <p className="text-sm font-semibold text-gray-500 animate-pulse flex items-center gap-1.5">
   //           <RefreshCw size={14} className="animate-spin text-indigo-505" />
   //           Loading Next Day Planner...
@@ -335,7 +324,7 @@ export default function UpcomingPlanner() {
 
             <div className="space-y-1.5">
               <h2 className="text-xl font-black text-gray-800 tracking-tight">
-                Tomorrow is all set! 🎉
+                Tomorrow is all set
               </h2>
               <p className="text-sm text-gray-500 leading-relaxed">
                 You've already planned your tasks for{' '}
@@ -352,7 +341,7 @@ export default function UpcomingPlanner() {
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex flex-col items-center gap-1">
                 <span className="text-2xl font-black text-slate-700">{recurringTasks.length}</span>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">🔄 Recurring</span>
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider"><Repeat2 size={11} /> Recurring</span>
               </div>
             </div>
 
@@ -383,7 +372,7 @@ export default function UpcomingPlanner() {
                     <div className="flex items-center gap-1.5 pl-5">
                       {t.category && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-100 rounded-md text-[9px] font-bold text-indigo-600 uppercase tracking-wide">
-                          {getCategoryEmoji(t.category)} {t.category}
+                          <CategoryIcon category={t.category} size={10} /> {t.category}
                         </span>
                       )}
                       {t.duration && (
@@ -481,7 +470,7 @@ export default function UpcomingPlanner() {
           <div className="bg-gradient-to-r from-emerald-50 to-white p-4 rounded-2xl border border-emerald-100 shadow-sm space-y-3.5">
             <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
               <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                ➕ Add Custom Task
+                <Plus size={13} /> Add custom task
               </span>
               <button
                 type="button"
@@ -539,14 +528,14 @@ export default function UpcomingPlanner() {
                       onClick={handleConfirmInlineCategory}
                       className="h-[36px] w-[30px] flex items-center justify-center bg-indigo-600 text-white rounded-lg font-bold shrink-0 text-xs shadow-sm"
                     >
-                      ✓
+                      <Check size={14} />
                     </button>
                     <button
                       type="button"
                       onClick={() => setInlineTask(prev => ({ ...prev, isCreatingCategory: false }))}
                       className="h-[36px] w-[30px] flex items-center justify-center bg-gray-200 text-gray-500 rounded-lg shrink-0 text-xs"
                     >
-                      ✕
+                      <X size={14} />
                     </button>
                   </div>
                 ) : (
@@ -576,7 +565,7 @@ export default function UpcomingPlanner() {
           {/* Empty state placeholder */}
           {recurringTasks.length === 0 && unsavedTasks.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 bg-white border border-gray-150 rounded-2xl p-4 text-center">
-              <span className="text-3xl select-none mb-1">💤</span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400 mb-1"><Inbox size={20} /></span>
               <p className="text-xs font-bold text-gray-700">No planned tasks for tomorrow yet</p>
               <p className="text-[10px] text-gray-400 mt-0.5">Use the card above to add custom tasks!</p>
             </div>
@@ -591,11 +580,11 @@ export default function UpcomingPlanner() {
                   <div className="space-y-2.5">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${getCategoryColorClass(task.category)}`}>
-                          {getCategoryEmoji(task.category)} {task.category}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${getCategoryColorClass(task.category)}`}>
+                          <CategoryIcon category={task.category} size={11} /> {task.category}
                         </span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-255 text-amber-600 rounded-lg text-[9px] font-bold select-none uppercase tracking-wide animate-pulse">
-                          ✍️ Unsaved Draft
+                          <FilePenLine size={10} /> Unsaved draft
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -625,7 +614,7 @@ export default function UpcomingPlanner() {
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 pt-2 border-t border-gray-100 mt-2">
-                    <span className="text-sm select-none">{getDurationEmoji(task.duration)}</span>
+                    <TimeBlockIcon block={task.duration} size={13} />
                     <span>{task.duration}</span>
                   </div>
                 </div>
@@ -637,11 +626,11 @@ export default function UpcomingPlanner() {
                   <div className="space-y-2.5">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${getCategoryColorClass(task.category)}`}>
-                          {getCategoryEmoji(task.category)} {task.category}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${getCategoryColorClass(task.category)}`}>
+                          <CategoryIcon category={task.category} size={11} /> {task.category}
                         </span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-150 rounded-lg text-[9px] font-bold text-slate-500 select-none uppercase tracking-wide">
-                          🔄 Recurring
+                          <Repeat2 size={10} /> Recurring
                         </span>
                       </div>
                       <div className="text-gray-400">
@@ -658,7 +647,7 @@ export default function UpcomingPlanner() {
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 pt-2 border-t border-gray-100 mt-2">
-                    <span className="text-sm select-none">{getDurationEmoji(task.duration)}</span>
+                    <TimeBlockIcon block={task.duration} size={13} />
                     <span>{task.duration}</span>
                   </div>
                 </div>
@@ -684,7 +673,7 @@ export default function UpcomingPlanner() {
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center py-4 text-center">
-                      <span className="text-2xl select-none mb-1">💤</span>
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400 mb-1"><Inbox size={18} /></span>
                       <p className="text-xs font-semibold">No tasks found for this date.</p>
                       <p className="text-[10px] text-gray-400 mt-0.5">Use the inline task row below to add custom tasks.</p>
                     </div>
@@ -712,13 +701,13 @@ export default function UpcomingPlanner() {
                   </td>
                   <td className="py-3.5 text-left whitespace-nowrap align-middle">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-green-50/70 border border-green-150 rounded-md text-[10px] font-extrabold uppercase text-green-700 tracking-wider select-none w-max">
-                      <span>{getCategoryEmoji(task.category)}</span>
+                      <CategoryIcon category={task.category} size={11} />
                       <span>{task.category}</span>
                     </span>
                   </td>
                   <td className="py-3.5 text-left align-middle">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[9px] font-bold text-slate-500 select-none uppercase tracking-wide">
-                      🔄 Recurring
+                      <Repeat2 size={10} /> Recurring
                     </span>
                   </td>
                 </tr>
@@ -759,13 +748,13 @@ export default function UpcomingPlanner() {
                   </td>
                   <td className="py-3.5 text-left whitespace-nowrap align-middle">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-indigo-50/70 border border-indigo-150 rounded-md text-[10px] font-extrabold uppercase text-indigo-700 tracking-wider select-none w-max">
-                      <span>{getCategoryEmoji(task.category)}</span>
+                      <CategoryIcon category={task.category} size={11} />
                       <span>{task.category}</span>
                     </span>
                   </td>
                   <td className="py-3.5 text-left align-middle">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-250 text-amber-600 rounded text-[9px] font-bold select-none uppercase tracking-wide animate-pulse">
-                      ✍️ Unsaved Draft
+                      <FilePenLine size={10} /> Unsaved draft
                     </span>
                   </td>
                 </tr>

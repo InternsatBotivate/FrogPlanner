@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CheckCircle2 } from 'lucide-react';
+import { Clock, CheckCircle2, ClipboardList } from 'lucide-react';
 import FrogLogo from '../../components/FrogLogo';
 
 export default function Daily({ events, onToggleStatus }) {
@@ -37,7 +37,7 @@ export default function Daily({ events, onToggleStatus }) {
                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badgeColors}`}>
                            {evt.type}
                          </span>
-                         {isFrog ? <FrogLogo className="w-4 h-4 select-none" title="Frog Task" /> : <span className="text-sm select-none" title="Normal Task">📋</span>}
+                         {isFrog ? <FrogLogo className="w-4 h-4 select-none" title="Frog Task" /> : <ClipboardList size={14} className="text-slate-400" aria-label="Task" />}
                        </div>
                        <h3 className={`text-base md:text-lg font-bold leading-tight ${evt.isCompleted ? 'text-gray-400 font-semibold' : 'text-gray-900'}`}>{evt.title}</h3>
                      </div>
@@ -62,7 +62,7 @@ export default function Daily({ events, onToggleStatus }) {
              })
            ) : (
              <div className="text-center py-16 text-gray-400 font-bold space-y-3">
-               <span className="text-4xl block select-none">📋</span>
+               <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400"><ClipboardList size={21} /></span>
                <p className="text-sm">No pending tasks scheduled for this day.</p>
              </div>
            )}

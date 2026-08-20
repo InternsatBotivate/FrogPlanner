@@ -5,12 +5,14 @@ import {
   CheckCircle2, Clock, AlertTriangle, TrendingUp, Droplets,
   Coffee, UtensilsCrossed, Moon, Brain, Smile, Zap, Target,
   Plus, Timer, Bot, ListTodo, ArrowUpRight, ArrowDownRight, Minus, ChevronLeft, ChevronRight,
-  Calendar, CheckSquare, Compass, AlertCircle, Trash2
+  Calendar, CheckSquare, Compass, AlertCircle, Trash2, Sunrise, Sun, Sunset,
+  Lightbulb, Trophy, Salad, Frown
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { getCategoryEmoji } from '../../utils/helpers';
+import CategoryIcon from '../../components/CategoryIcon';
+import TimeBlockIcon from '../../components/TimeBlockIcon';
 import { useAuthStore } from '../../store/authStore';
 import { usePlannerStore } from '../../store/plannerStore';
 import ModalForm from '../../components/ModalForm';
@@ -44,8 +46,8 @@ const ProductivityChart = React.memo(({ data }) => (
       <AreaChart data={data}>
         <defs>
           <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#6366F1" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+            <stop offset="5%" stopColor="#28724f" stopOpacity={0.22} />
+            <stop offset="95%" stopColor="#28724f" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
@@ -63,10 +65,10 @@ const ProductivityChart = React.memo(({ data }) => (
         <Area
           type="monotone"
           dataKey="score"
-          stroke="#6366F1"
+          stroke="#28724f"
           strokeWidth={3}
           fill="url(#scoreColor)"
-          dot={{ r: 4, fill: '#6366F1', strokeWidth: 0 }}
+          dot={{ r: 4, fill: '#28724f', strokeWidth: 0 }}
           isAnimationActive={false}
         />
       </AreaChart>
@@ -84,10 +86,10 @@ export default function Dashboard() {
   // Time-based greeting
   const getTimeGreeting = () => {
     const h = new Date().getHours();
-    if (h >= 5 && h < 12)  return { wish: 'Good Morning', emoji: '🌅', sub: 'Start strong — tackle your frog first!' };
-    if (h >= 12 && h < 17) return { wish: 'Good Afternoon', emoji: '☀️', sub: 'Stay focused and keep the momentum going.' };
-    if (h >= 17 && h < 21) return { wish: 'Good Evening', emoji: '🌇', sub: 'Great work today — review and wrap up.' };
-    return { wish: 'Good Night', emoji: '🌙', sub: 'Rest well. Tomorrow, tackle your frog early!' };
+    if (h >= 5 && h < 12)  return { wish: 'Good morning', Icon: Sunrise, sub: 'Start strong — tackle your frog first.' };
+    if (h >= 12 && h < 17) return { wish: 'Good afternoon', Icon: Sun, sub: 'Stay focused and keep the momentum going.' };
+    if (h >= 17 && h < 21) return { wish: 'Good evening', Icon: Sunset, sub: 'Review the day and close it with intention.' };
+    return { wish: 'Good night', Icon: Moon, sub: 'Rest well. Tomorrow, tackle your frog early.' };
   };
   const greeting = getTimeGreeting();
   const [timeRange, setTimeRange] = useState('Today'); // Today, Weekly, Monthly
@@ -414,26 +416,26 @@ export default function Dashboard() {
   const aiSuggestions = useMemo(() => {
     const list = [];
     if (productivityScore < 40) {
-      list.push({ type: 'warning', text: '⚡ Low task completion so far. Focus on one high-priority item next.', icon: '⚡' });
+      list.push({ type: 'warning', text: 'Task completion is low so far. Focus on one high-priority item next.', Icon: Zap });
     } else if (productivityScore >= 70) {
-      list.push({ type: 'success', text: '🎉 Incredible job! Your execution rates are highly optimized.', icon: '🏆' });
+      list.push({ type: 'success', text: 'Strong progress. Your completion rate is ahead of today’s plan.', Icon: Trophy });
     } else {
-      list.push({ type: 'info', text: '💡 Work flow is stable. Maintain a steady pace to prevent exhaustion.', icon: '💡' });
+      list.push({ type: 'info', text: 'Your workflow is steady. Maintain this pace and protect your energy.', Icon: Lightbulb });
     }
 
     if (currentHealth.water < 4) {
-      list.push({ type: 'health', text: '💧 Hydration warning: Drink at least 4 more glasses of water today.', icon: '💧' });
+      list.push({ type: 'health', text: 'Hydration is below target. Add four more glasses of water today.', Icon: Droplets });
     } else {
-      list.push({ type: 'health', text: '🥗 Good hydration levels! Keep feeding your focus reserves.', icon: '🥗' });
+      list.push({ type: 'health', text: 'Hydration is on track. Keep supporting your focus.', Icon: Salad });
     }
 
     if (focusMins >= 120) {
-      list.push({ type: 'focus', text: '🧠 Intense mental focus recorded. Consider a short 10-minute break.', icon: '🧠' });
+      list.push({ type: 'focus', text: 'You have logged sustained focus. Consider a short ten-minute break.', Icon: Brain });
     } else {
-      list.push({ type: 'focus', text: '⏰ Use Focus Mode to chip away at your scheduled Afternoon block.', icon: '⏰' });
+      list.push({ type: 'focus', text: 'Use Focus Mode to make progress on your afternoon block.', Icon: Clock });
     }
 
-    list.push({ type: 'general', text: '📝 Check calendar frequently to keep track of upcoming custom plans.', icon: '📅' });
+    list.push({ type: 'general', text: 'Review the calendar to stay ahead of upcoming plans.', Icon: Calendar });
 
     return list;
   }, [productivityScore, currentHealth, focusMins]);
@@ -467,7 +469,7 @@ export default function Dashboard() {
       {/* ── Time-Based Greeting Banner ── */}
       <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 shadow-md flex-shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-3xl select-none">{greeting.emoji}</span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white"><greeting.Icon size={20} /></span>
           <div>
             <h2 className="text-base font-extrabold text-white leading-tight">
               {greeting.wish}, {user?.full_name?.split(' ')[0] || 'Friend'}! <FrogLogo className="w-5 h-5 inline-block ml-1 align-middle" />
@@ -617,7 +619,7 @@ export default function Dashboard() {
                       <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />
                       <span>{task.description}</span>
                     </p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">{task.duration} • {getCategoryEmoji(task.category)} {task.category}</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={task.duration} size={10} />{task.duration} <span>•</span> <CategoryIcon category={task.category} size={10} />{task.category}</p>
                   </div>
                 </div>
                 <button 
@@ -690,7 +692,7 @@ export default function Dashboard() {
                         {isCompleted ? '✓ Completed' : <span className="flex items-center gap-1"><FrogLogo className="w-3 h-3" />Active Frog</span>}
                       </span>
                       <span className="text-[9px] text-gray-500 font-semibold uppercase">
-                        ⏰ {t.duration}
+                        <span className="inline-flex items-center gap-1"><TimeBlockIcon block={t.duration} size={10} />{t.duration}</span>
                       </span>
                     </div>
                     <h4 className={`text-xs md:text-sm font-bold text-gray-800 leading-snug flex items-start gap-1.5 ${isCompleted ? 'line-through text-gray-400 font-medium' : ''}`}>
@@ -699,8 +701,8 @@ export default function Dashboard() {
                     </h4>
                   </div>
                   <div className="flex justify-between items-center border-t border-gray-100 pt-2 mt-3">
-                    <span className="text-[9px] text-indigo-650 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase">
-                      {getCategoryEmoji(t.category)} {t.category}
+                    <span className="inline-flex items-center gap-1 text-[9px] text-indigo-650 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase">
+                      <CategoryIcon category={t.category} size={10} /> {t.category}
                     </span>
                     <button 
                       onClick={() => handleToggleTaskStatus(t.id)}
@@ -829,7 +831,7 @@ export default function Dashboard() {
                           {task.priority === 'Frog' && <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />}
                           <span>{task.description}</span>
                         </p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">⏰ {task.duration} • {getCategoryEmoji(task.category)} {task.category}</p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={task.duration} size={10} />{task.duration} <span>•</span> <CategoryIcon category={task.category} size={10} />{task.category}</p>
                       </div>
                     </div>
                   </div>
@@ -924,17 +926,17 @@ export default function Dashboard() {
                 <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Mood Indicator</span>
               </div>
               <div className="flex justify-between bg-gray-50 border border-gray-150 rounded-xl p-2">
-                {['😊 Happy', '😐 Neutral', '💤 Tired', '😔 Sad'].map(mood => (
+                {[{ label: 'Happy', Icon: Smile }, { label: 'Neutral', Icon: Minus }, { label: 'Tired', Icon: Moon }, { label: 'Sad', Icon: Frown }].map(({ label, Icon }) => (
                   <button
-                    key={mood}
-                    onClick={() => setMood(mood)}
-                    className={`flex-1 py-1 text-[10px] font-bold rounded transition-all duration-100 active:scale-95 ${
-                      currentHealth.mood === mood 
+                    key={label}
+                    onClick={() => setMood(label)}
+                    className={`flex-1 py-1.5 text-[9px] font-bold rounded transition-all duration-100 inline-flex items-center justify-center gap-1 ${
+                      currentHealth.mood?.includes(label)
                         ? 'bg-white text-amber-600 shadow-sm border border-amber-100' 
                         : 'text-gray-500 hover:text-gray-800'
                     }`}
                   >
-                    {mood}
+                    <Icon size={11} /> {label}
                   </button>
                 ))}
               </div>
@@ -966,7 +968,7 @@ export default function Dashboard() {
                     'bg-indigo-50 border-indigo-100 text-indigo-700'
                   }`}
                 >
-                  <span className="mr-1">{s.icon}</span> {s.text}
+                  <span className="inline-flex items-start gap-2"><s.Icon size={14} className="mt-0.5 flex-shrink-0" /> <span>{s.text}</span></span>
                 </div>
               ))}
             </div>
@@ -986,7 +988,7 @@ export default function Dashboard() {
                         {t.priority === 'Frog' && <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />}
                         <span>{t.description}</span>
                       </p>
-                      <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">⏰ {t.duration} • {getCategoryEmoji(t.category)} {t.category}</p>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={t.duration} size={10} />{t.duration} <span>•</span> <CategoryIcon category={t.category} size={10} />{t.category}</p>
                     </div>
                   </div>
                 ))
@@ -1060,8 +1062,8 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-left">
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 font-extrabold text-[9px] uppercase">
-                          {getCategoryEmoji(t.category)} {t.category}
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 font-extrabold text-[9px] uppercase">
+                          <CategoryIcon category={t.category} size={10} /> {t.category}
                         </span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-left">
@@ -1070,7 +1072,7 @@ export default function Dashboard() {
                             ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
                             : 'bg-amber-50 border-amber-100 text-amber-700'
                         }`}>
-                          {isDone ? '✅ Completed' : '⏳ Pending'}
+                          {isDone ? <><CheckCircle2 size={10} /> Completed</> : <><Clock size={10} /> Pending</>}
                         </span>
                       </td>
                     </tr>

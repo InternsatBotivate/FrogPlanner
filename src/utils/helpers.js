@@ -139,19 +139,3 @@ export const createLedgerEntry = (id, personName, type, amount, date, referenceI
     timestamp: new Date().toISOString()
   };
 };
-
-// Get category-based icons/emojis automatically
-export const getCategoryEmoji = (category) => {
-  if (!category) return '📁';
-  const cat = category.toLowerCase().trim();
-  if (cat.includes('health') || cat.includes('gym') || cat.includes('fitness') || cat.includes('workout') || cat.includes('exercise') || cat.includes('sport')) return '💪';
-  if (cat.includes('work') || cat.includes('office') || cat.includes('job') || cat.includes('meeting') || cat.includes('task') || cat.includes('project')) return '💼';
-  if (cat.includes('personal') || cat.includes('self') || cat.includes('home') || cat.includes('life')) return '😊';
-  if (cat.includes('learning') || cat.includes('study') || cat.includes('book') || cat.includes('course') || cat.includes('read') || cat.includes('class')) return '📚';
-  if (cat.includes('finance') || cat.includes('money') || cat.includes('tax') || cat.includes('budget') || cat.includes('bill') || cat.includes('pay') || cat.includes('salary')) return '💰';
-  if (cat.includes('travel') || cat.includes('trip') || cat.includes('flight') || cat.includes('vacation') || cat.includes('tour') || cat.includes('journey')) return '✈️';
-  if (cat.includes('call') || cat.includes('phone') || cat.includes('talk')) return '📞';
-  if (cat.includes('review') || cat.includes('check') || cat.includes('inspect')) return '🔍';
-  if (cat.includes('break') || cat.includes('tea') || cat.includes('coffee') || cat.includes('lunch')) return '☕';
-  return '📁';
-};

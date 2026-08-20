@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import FrogLogo from '../../components/FrogLogo';
-import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, SlidersHorizontal, Save, Edit } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Plus, Trash2, Search, SlidersHorizontal, Save, Edit, CalendarDays, CheckCircle2 } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 import ModalForm from '../../components/ModalForm';
 import ModalAlert from '../../components/ModalAlert';
-import { getCategoryEmoji } from '../../utils/helpers';
+import CategoryIcon from '../../components/CategoryIcon';
+import TimeBlockIcon from '../../components/TimeBlockIcon';
 import { useAuthStore } from '../../store/authStore';
 import { usePlannerStore } from '../../store/plannerStore';
 import { migrateLegacyData } from '../../lib/plannerService';
@@ -16,16 +17,6 @@ const formatDateLocal = (date) => {
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
-};
-
-const getDurationEmoji = (duration) => {
-  switch (duration) {
-    case 'Morning': return '🌅';
-    case 'Afternoon': return '☀️';
-    case 'Evening': return '🌇';
-    case 'Night': return '🌙';
-    default: return '⏰';
-  }
 };
 
 const getCategoryColorClass = (cat) => {
@@ -997,15 +988,15 @@ export default function Planner() {
           {item.status === 'Completed' ? (
             <div className="flex flex-col items-center gap-1">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[11px] text-gray-600 font-bold" title="Scheduled Date">
-                📅 {item.date || selectedDate}
+                <CalendarDays size={11} /> {item.date || selectedDate}
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[11px] text-emerald-700 font-bold" title="Date Completed">
-                ✅ Done: {formatDateCompleted(item.id)}
+                <CheckCircle2 size={11} /> Done: {formatDateCompleted(item.id)}
               </span>
             </div>
           ) : (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-gray-600 font-bold" title="Scheduled Date">
-              📅 {item.date || selectedDate}
+              <CalendarDays size={11} /> {item.date || selectedDate}
             </span>
           )}
         </td>
@@ -1021,7 +1012,7 @@ export default function Planner() {
         {/* Category */}
         <td className="px-2 py-2 w-[140px] text-gray-700 whitespace-nowrap text-xs md:text-sm text-center">
           <span className="font-extrabold uppercase text-[11px] text-gray-650 tracking-wider flex items-center justify-center gap-1.5 select-none">
-            <span>{getCategoryEmoji(item.category)}</span>
+            <CategoryIcon category={item.category} size={12} />
             <span>{item.category}</span>
           </span>
         </td>
@@ -1077,25 +1068,25 @@ export default function Planner() {
 
         {/* Row 2: Badges (Category, Time, Date, Status) */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getCategoryColorClass(item.category)}`}>
-            {getCategoryEmoji(item.category)} {item.category}
+          <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getCategoryColorClass(item.category)}`}>
+            <CategoryIcon category={item.category} size={10} /> {item.category}
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-150 rounded text-[9px] font-bold text-gray-500">
-            <span className="text-[11px] select-none">{getDurationEmoji(item.time)}</span>
+            <TimeBlockIcon block={item.time} size={11} />
             <span>{item.time}</span>
           </span>
           {item.status === 'Completed' ? (
             <>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-150 rounded text-[9px] font-bold text-slate-500" title="Scheduled Date">
-                <span>📅 {item.date || selectedDate}</span>
+                <CalendarDays size={10} /><span>{item.date || selectedDate}</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-150 rounded text-[9px] font-bold text-emerald-600" title="Date Completed">
-                <span>✅ Done: {formatDateCompleted(item.id)}</span>
+                <CheckCircle2 size={10} /><span>Done: {formatDateCompleted(item.id)}</span>
               </span>
             </>
           ) : (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-150 rounded text-[9px] font-bold text-slate-500" title="Scheduled Date">
-              <span>📅 {item.date || selectedDate}</span>
+              <CalendarDays size={10} /><span>{item.date || selectedDate}</span>
             </span>
           )}
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
@@ -1374,7 +1365,7 @@ export default function Planner() {
                 onClick={handleBulkEditClick}
                 className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg flex items-center justify-center gap-1.5 h-[28px] text-[11px] font-bold shadow-sm transition active:scale-95 border border-amber-600 animate-in slide-in-from-top-1 duration-150"
               >
-                <span>📅 Date Transfer ({selectedTaskIds.length})</span>
+                <span className="inline-flex items-center gap-1"><CalendarDays size={13} /> Date transfer ({selectedTaskIds.length})</span>
               </button>
             )}
 
@@ -1447,7 +1438,7 @@ export default function Planner() {
                 className="p-2 border border-amber-300 rounded-lg flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white transition-all h-[34px] w-[34px] shadow-sm text-sm active:scale-95 shrink-0 animate-in slide-in-from-top-1 duration-150"
                 title={`Bulk Edit Date (${selectedTaskIds.length})`}
               >
-                <span>📅</span>
+                <CalendarDays size={15} />
               </button>
             )}
 
@@ -1909,7 +1900,7 @@ export default function Planner() {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {frogTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                    <span className="text-5xl select-none">🎉</span>
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 size={24} /></span>
                     <p className="text-sm font-bold text-gray-700">All frogs eaten!</p>
                     <p className="text-xs text-gray-400">No pending frog tasks remaining. Great work!</p>
                   </div>
@@ -1927,8 +1918,8 @@ export default function Planner() {
                           </span>
                         )}
                         {t.category && (
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-bold uppercase tracking-wide">
-                            {getCategoryEmoji(t.category)} {t.category}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-bold uppercase tracking-wide">
+                            <CategoryIcon category={t.category} size={10} /> {t.category}
                           </span>
                         )}
                         {(t.date || selectedDate) && (

@@ -1,6 +1,6 @@
 import React from 'react';
 import DragScrollTable from '../../components/DragScrollTable';
-import { Clock, CheckSquare, Square } from 'lucide-react';
+import { Clock, CheckSquare, Square, ClipboardList } from 'lucide-react';
 import FrogLogo from '../../components/FrogLogo';
 
 export default function Weekly({ events, currentDate, onToggleStatus }) {
@@ -59,7 +59,7 @@ export default function Weekly({ events, currentDate, onToggleStatus }) {
                         >
                           <div className="flex items-center justify-between gap-1 mb-0.5">
                             <span className="text-[8px] md:text-[9px] opacity-70">{evt.time}</span>
-                            {evt.priority === 'Frog' ? <FrogLogo className="w-3 h-3 select-none" /> : <span className="text-[10px]">📋</span>}
+                            {evt.priority === 'Frog' ? <FrogLogo className="w-3 h-3 select-none" /> : <ClipboardList size={10} className="text-slate-400" />}
                           </div>
                           <div className="leading-tight break-words">{evt.title}</div>
                         </div>
@@ -122,7 +122,7 @@ export default function Weekly({ events, currentDate, onToggleStatus }) {
                         className={`p-2.5 border rounded-xl flex items-center justify-between gap-3 shadow-sm cursor-pointer transition-all active:scale-[0.99] ${colors}`}
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {evt.priority === 'Frog' ? <FrogLogo className="w-4 h-4 select-none flex-shrink-0" /> : <span className="text-sm select-none">📋</span>}
+                          {evt.priority === 'Frog' ? <FrogLogo className="w-4 h-4 select-none flex-shrink-0" /> : <ClipboardList size={14} className="text-slate-400 flex-shrink-0" />}
                           <span className="text-xs font-bold truncate flex-1 text-left">{evt.title}</span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
