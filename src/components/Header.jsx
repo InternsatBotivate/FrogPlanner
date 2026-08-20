@@ -1,47 +1,70 @@
 import React from 'react';
-import { Bell, Settings, Menu } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Settings, Menu } from 'lucide-react';
 import FrogLogo from './FrogLogo';
 
 const Header = ({ onMenuClick, user }) => {
+  const { pathname } = useLocation();
+  const routeTitles = {
+    '/dashboard': ['Dashboard', 'Your planning overview'],
+    '/planner': ['Today', 'Plan and complete today’s work'],
+    '/all-tasks': ['All tasks', 'Review work across every date'],
+    '/next-day-planner': ['Next day', 'Prepare tomorrow with intention'],
+    '/my-projects': ['Projects', 'Organise related work'],
+    '/calendar': ['Calendar', 'See your schedule over time'],
+    '/recurring-tasks': ['Recurring tasks', 'Manage repeat routines'],
+    '/ai-assistant': ['AI assistant', 'Turn ideas into practical plans'],
+    '/about-frog-planner': ['About Frog Planner', 'A focused way to plan'],
+    '/developers': ['Developers', 'Integration reference'],
+    '/settings': ['Settings', 'Account and planner preferences'],
+  };
+  const projectRoute = pathname.startsWith('/my-projects/') ? ['Project', 'Tasks and progress'] : null;
+  const [title, subtitle] = projectRoute || routeTitles[pathname] || ['Frog Planner', 'Focused daily planning'];
+
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-green-100 shadow-[0_1px_4px_rgba(22,163,74,0.07)]">
-      <div className="flex justify-between items-center h-14 px-4 sm:px-6 lg:px-8">
+    <header className="app-topbar">
+      <div className="app-topbar__inner">
 
         {/* Left Section: Mobile Menu */}
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+            className="app-icon-button lg:hidden"
+            aria-label="Open navigation"
           >
-            <Menu size={22} />
+            <Menu size={19} />
           </button>
+          <div className="min-w-0">
+            <h1 className="app-topbar__title">{title}</h1>
+            <p className="app-topbar__subtitle">{subtitle}</p>
+          </div>
         </div>
 
         {/* Right Section: Actions & Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
 
-          <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all">
-            <Settings size={18} />
-          </button>
+          <Link to="/settings" className="app-icon-button" aria-label="Open settings">
+            <Settings size={17} />
+          </Link>
 
-          <div className="h-7 w-px bg-green-100 mx-1 hidden sm:block" />
+          <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
 
           {/* User Profile */}
-          <div className="flex items-center gap-2.5 pl-1 group cursor-pointer">
+          <Link to="/settings" className="app-profile group">
             <div className="hidden md:block text-right">
-              <p className="text-sm font-semibold text-gray-800 group-hover:text-green-700 transition-colors leading-tight">
+              <p className="text-xs font-semibold text-slate-800 group-hover:text-emerald-800 transition-colors leading-tight">
                 {user?.full_name || user?.username || 'User'}
               </p>
             </div>
             {/* User avatar, falling back to the frog mark when none is set */}
-            <div className="w-9 h-9 rounded-full bg-yellow-50 border-2 border-yellow-300 flex items-center justify-center group-hover:border-green-400 transition-all overflow-hidden shadow-sm select-none">
+            <div className="app-profile__avatar">
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
               ) : (
                 <FrogLogo className="w-full h-full object-cover" />
               )}
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </header>

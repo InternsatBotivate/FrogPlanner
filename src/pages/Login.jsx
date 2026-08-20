@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import frogLogo from '../Assets/frog_planner_logo.avif';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, ArrowRight, X, Mail, UserPlus, Loader2, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import { isGoogleAuthConfigured, renderGoogleButton } from '../lib/googleAuthService';
 import { sendSignupOtp, verifyOtp, sendPasswordResetOtp, resetPassword } from '../lib/otpService';
 import OtpInput from '../components/OtpInput';
-import Footer from '../components/Footer';
+import FrogLogo from '../components/FrogLogo';
+import botivateLogo from '../../../FrogPlanner_App/assets/Botivate_logo.png';
 import AboutFrogPlanner from './AboutFrogPlanner/AboutFrogPlanner';
+import './Login.css';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const inputCls =
-  'block w-full pl-9 pr-3 py-2.5 text-sm bg-gray-50/60 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/25 focus:border-green-400 focus:bg-white transition-all shadow-sm';
+  'auth-input block w-full pl-10 pr-3';
 
 const Login = () => {
   const [showAbout, setShowAbout] = useState(false);
@@ -32,6 +33,7 @@ const Login = () => {
   // Google sign-in
   const [googleBusy, setGoogleBusy] = useState(false);
   const googleBtnRef = useRef(null);
+  const signupGoogleBtnRef = useRef(null);
   const googleReady = isGoogleAuthConfigured();
 
   // Signup email verification (OTP)
@@ -54,6 +56,11 @@ const Login = () => {
   const login = useAuthStore((state) => state.login);
   const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('mode') === 'signup') setShowSignupModal(true);
+  }, [searchParams]);
 
   const resetForgotState = () => {
     setForgotStep('username');
@@ -180,7 +187,7 @@ const Login = () => {
         navigate('/onboarding', { replace: true });
       } else {
         toast.success('Welcome back!');
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }
     } finally {
       setGoogleBusy(false);
@@ -199,6 +206,19 @@ const Login = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleReady]);
 
+  // The sign-up modal offers the same official Google Identity button. New
+  // Google accounts continue to onboarding; completed accounts sign in.
+  useEffect(() => {
+    if (!googleReady || !showSignupModal || showEmailOtp || !signupGoogleBtnRef.current) return;
+    let cleanup;
+    const width = Math.min(signupGoogleBtnRef.current.clientWidth || 368, 368);
+    renderGoogleButton(signupGoogleBtnRef.current, handleGoogleCredential, { width })
+      .then((fn) => { cleanup = fn; })
+      .catch(() => { /* email verification remains available */ });
+    return () => cleanup?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleReady, showSignupModal, showEmailOtp]);
+
   const handleSignIn = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -209,7 +229,7 @@ const Login = () => {
         return;
       }
       toast.success(`Welcome back!`);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch {
       toast.error('Login error. Please try again.');
     } finally {
@@ -218,218 +238,184 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-white relative overflow-x-hidden overflow-y-auto">
+    <div className="auth-page">
+      <main className="auth-frame" aria-labelledby="login-heading">
+        <section className="auth-story" aria-label="Frog Planner method">
+          <div className="auth-story__topline">
+            <Link to="/" className="auth-brand-lockup" aria-label="Go to Frog Planner home">
+              <span className="auth-brand-mark"><FrogLogo backgroundless /></span>
+              <span>
+                <strong>Frog Planner</strong>
+                <small>Tackle Your Frog First</small>
+              </span>
+            </Link>
+          </div>
 
-      {/* Subtle background blobs */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[15%] -left-[10%] w-[45%] h-[45%] rounded-full bg-green-100/40 blur-3xl animate-pulse" style={{ animationDuration: '7s' }} />
-        <div className="absolute top-[10%] -right-[8%] w-[38%] h-[50%] rounded-full bg-yellow-100/30 blur-3xl animate-pulse" style={{ animationDuration: '9s' }} />
-        <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[40%] rounded-full bg-green-100/20 blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-      </div>
+          <div className="auth-story__copy">
+            <p className="auth-kicker">Focused daily planning</p>
+            <h1>Make progress on what matters most.</h1>
+            <p className="auth-story__lede">
+              Choose one meaningful priority, give it focused time, and build the rest of your day around it.
+            </p>
+          </div>
 
-      {/* Centered card */}
-      <div className="flex-1 flex items-center justify-center p-3 sm:p-5 py-6 relative z-10">
-
-        {/* Two-panel card */}
-        <div className="w-full max-w-sm md:max-w-3xl lg:max-w-4xl xl:max-w-5xl bg-white rounded-2xl sm:rounded-3xl shadow-[0_12px_48px_rgba(0,0,0,0.08)] border border-green-100 overflow-hidden flex flex-col md:flex-row">
-
-          {/* ── LEFT BRANDING PANEL ── */}
-          <div className="hidden md:flex md:w-2/5 lg:w-[42%] bg-white flex-col items-center justify-between p-8 lg:p-10 relative overflow-hidden border-r border-green-100">
-            <div className="absolute top-[-20%] left-[-20%] w-72 h-72 rounded-full bg-green-50/60 pointer-events-none" />
-            <div className="absolute bottom-[-15%] right-[-15%] w-60 h-60 rounded-full bg-yellow-50/60 pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col items-center text-center space-y-5 flex-1 justify-center w-full">
-              <div className="w-24 h-24 lg:w-28 lg:h-28 flex items-center justify-center select-none drop-shadow-lg">
-                <img src={frogLogo} alt="Frog Planner" className="w-full h-full object-contain" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-3xl lg:text-4xl font-black text-green-700 tracking-tight">Frog Planner</h1>
-                <p className="text-gray-500 text-sm font-medium leading-relaxed max-w-xs">
-                  Focus on what matters most. Complete your most important task first — every single day.
-                </p>
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {['Tackle Your Frog', 'Daily Focus', 'AI Assistant', 'Smart Tasks'].map((f) => (
-                  <span key={f} className="px-3 py-1 bg-green-50 text-green-700 text-[11px] font-bold rounded-full border border-green-200">{f}</span>
-                ))}
-              </div>
-              <div className="bg-green-50 rounded-2xl p-4 border border-green-100 text-left w-full max-w-xs">
-                <p className="text-gray-600 text-xs font-medium leading-relaxed italic">
-                  "20% of your tasks create 80% of your results. Identify those tasks and do them first."
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="h-px flex-1 bg-yellow-400/60" />
-                  <p className="text-amber-500 text-[10px] font-bold">Tackle Your Frog First</p>
-                </div>
-              </div>
-            </div>
-            <div className="relative z-10 text-center mt-4">
-              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Powered By Botivate</p>
-              <div className="flex items-center justify-center gap-2">
-                <Link to="/privacy-policy" className="text-gray-400 text-[10px] font-semibold hover:text-green-700 hover:underline">
-                  Privacy Policy
-                </Link>
-                <span className="text-gray-300 text-[10px]">·</span>
-                <Link to="/delete-account" className="text-gray-400 text-[10px] font-semibold hover:text-green-700 hover:underline">
-                  Delete account
-                </Link>
-              </div>
+            <div className="frog-note" aria-label="Example daily focus card">
+            <div className="frog-note__meta"><span>Today&apos;s priority</span><span>45 min</span></div>
+            <div className="frog-note__task">
+              <span className="frog-note__check" aria-hidden="true" />
+              <p>Finish the task you keep moving to tomorrow.</p>
             </div>
           </div>
 
-          {/* ── RIGHT FORM PANEL ── */}
-          <div className="flex-1 flex flex-col p-5 sm:p-7 lg:p-10 gap-5 bg-white">
+          <div className="auth-story__footer">
+            <a href="https://www.botivate.in/" target="_blank" rel="noopener noreferrer" className="auth-botivate-link" aria-label="Visit Botivate">
+              <img src={botivateLogo} alt="" />
+              <span>Powered by <strong>Botivate</strong></span>
+            </a>
+            <nav aria-label="Legal links">
+              <Link to="/privacy-policy">Privacy</Link>
+              <Link to="/terms-of-service">Terms</Link>
+              <Link to="/delete-account">Delete account</Link>
+            </nav>
+          </div>
+        </section>
 
-            {/* Mobile logo */}
-            <div className="flex flex-col items-center gap-2 md:hidden">
-              <div className="w-16 h-16 flex items-center justify-center select-none drop-shadow-md">
-                <img src={frogLogo} alt="Frog Planner" className="w-full h-full object-contain" />
-              </div>
-              <h1 className="text-xl font-extrabold text-gray-900 flex items-center gap-1.5">
-                <img src={frogLogo} alt="" className="w-5 h-5 object-contain" /> Frog <span className="text-green-600">Planner</span>
-              </h1>
-            </div>
+        <section className="auth-panel">
+          <Link to="/" className="auth-mobile-brand" aria-label="Go to Frog Planner home">
+            <span className="auth-brand-mark"><FrogLogo backgroundless /></span>
+            <div><strong>Frog Planner</strong><small>Tackle Your Frog First</small></div>
+          </Link>
 
-            {/* Heading (md+) */}
-            <div className="hidden md:block">
-              <h2 className="text-2xl lg:text-3xl font-extrabold text-gray-900 flex items-center gap-2">
-                <img src={frogLogo} alt="" className="w-8 h-8 object-contain" /> <span>Sign In</span>
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">Enter your credentials to access Frog Planner.</p>
-            </div>
+          <div className="auth-panel__meta">
+            <span>Account access</span>
+            <span className="auth-status"><i /> Secure sign in</span>
+          </div>
+
+          <header className="auth-panel__header">
+            <h2 id="login-heading">Welcome back</h2>
+            <p>Sign in to continue to your planner.</p>
+          </header>
 
             {/* Sign In Form */}
-            <form className="flex flex-col gap-4" onSubmit={handleSignIn}>
-              <div className="space-y-1">
-                <label htmlFor="login-id" className="text-xs font-bold text-gray-600 uppercase tracking-wider">User ID or Email</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-4 w-4 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+            <form className="auth-form" onSubmit={handleSignIn}>
+              <div className="auth-field">
+                <label htmlFor="login-id">User ID or email</label>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <User aria-hidden="true" />
                   </div>
                   <input id="login-id" type="text" required value={id}
                     onChange={(e) => setId(e.target.value)} className={inputCls}
-                    placeholder="Enter your user ID or email" autoComplete="username" />
+                    placeholder="Your user ID or email" autoComplete="username" />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="login-password" className="text-xs font-bold text-gray-600 uppercase tracking-wider">Password</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-4 w-4 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                  </div>
-                  <input id="login-password" type={showPassword ? 'text' : 'password'} required value={password}
-                    onChange={(e) => setPassword(e.target.value)} className={`${inputCls} pr-10`}
-                    placeholder="Enter your password" autoComplete="current-password" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <div className="text-right">
-                  <button type="button" onClick={() => { resetForgotState(); setShowForgotModal(true); }}
-                    className="text-[11px] font-semibold text-green-700 hover:text-green-900 hover:underline">
+              <div className="auth-field">
+                <div className="auth-label-row">
+                  <label htmlFor="login-password">Password</label>
+                  <button type="button" onClick={() => { resetForgotState(); setShowForgotModal(true); }}>
                     Forgot password?
                   </button>
                 </div>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <Lock aria-hidden="true" />
+                  </div>
+                  <input id="login-password" type={showPassword ? 'text' : 'password'} required value={password}
+                    onChange={(e) => setPassword(e.target.value)} className={`${inputCls} pr-10`}
+                    placeholder="Your password" autoComplete="current-password" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="auth-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-
-              {/* Demo hint */}
 
               {/* Sign In Button */}
               <button type="submit" disabled={submitting}
-                className={`group relative w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-md shadow-green-500/25 transition-all overflow-hidden ${submitting ? 'opacity-75 cursor-not-allowed' : ''}`}>
-                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-                <span className="relative z-10 flex items-center gap-2">
+                className="auth-primary-button">
+                <span>
                   {submitting
-                    ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Authenticating...</>
-                    : <>Sign In <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                    ? <><Loader2 className="auth-spinner" /> Checking your plan…</>
+                    : <>Sign in <ArrowRight aria-hidden="true" /></>
                   }
                 </span>
               </button>
 
               {/* ── Google ── */}
-              <div className="relative py-1">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-                <div className="relative flex justify-center">
-                  <span className="px-2 bg-white text-[11px] font-bold text-gray-400 uppercase tracking-wider">or</span>
-                </div>
+              <div className="auth-divider">
+                <span>or continue with</span>
               </div>
 
               {googleReady ? (
-                <div className="relative">
+                <div className="auth-google-wrap">
                   {/* Google's own rendered button — see googleAuthService.js for
                       why we don't hand-roll one. */}
-                  <div ref={googleBtnRef} className="flex justify-center min-h-[44px]" />
+                  <div ref={googleBtnRef} className="auth-google-button" />
                   {googleBusy && (
-                    <div className="absolute inset-0 grid place-items-center bg-white/70 rounded-xl">
-                      <Loader2 className="w-4 h-4 animate-spin text-green-600" />
+                    <div className="auth-google-loading">
+                      <Loader2 className="auth-spinner" />
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-[11px] text-center text-gray-400">
+                <p className="auth-google-unavailable">
                   Google sign-in isn&apos;t configured.
                 </p>
               )}
 
               {/* Sign Up Button */}
               <button type="button" onClick={() => setShowSignupModal(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-bold text-green-700 rounded-xl border-2 border-green-300 bg-white hover:bg-green-50 hover:border-green-400 transition-all shadow-sm">
-                <UserPlus className="w-4 h-4" />
-                New here? Create an account
+                className="auth-secondary-button">
+                <span>New to Frog Planner?</span>
+                <strong>Create an account</strong>
               </button>
             </form>
 
             {/* Footer links */}
-            <div className="pt-3 border-t border-gray-100 space-y-2 mt-auto">
+            <div className="auth-panel__footer">
               <button type="button" onClick={() => setShowAbout(true)}
-                className="w-full text-center text-[11px] font-bold text-green-700 hover:text-green-900 hover:underline flex items-center justify-center gap-1 select-none transition-colors">
-                <img src={frogLogo} alt="" className="w-4 h-4 object-contain" /> About Frog Planner
+                className="auth-about-link">
+                <FrogLogo backgroundless /> About Frog Planner
               </button>
-              <div className="flex items-center justify-center gap-2">
-                <Link to="/privacy-policy"
-                  className="text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline transition-colors">
-                  Privacy Policy
-                </Link>
-                <span className="text-gray-300 text-[11px]">·</span>
-                <Link to="/delete-account"
-                  className="text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline transition-colors">
-                  Delete account
-                </Link>
+              <a href="https://www.botivate.in/" target="_blank" rel="noopener noreferrer" className="auth-mobile-botivate" aria-label="Visit Botivate">
+                <img src={botivateLogo} alt="" /> Powered by <strong>Botivate</strong>
+              </a>
+              <div className="auth-mobile-legal">
+                <Link to="/privacy-policy">Privacy</Link><span>·</span><Link to="/terms-of-service">Terms</Link><span>·</span><Link to="/delete-account">Delete account</Link>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
       {/* ── SIGN UP MODAL (email verification only) ── */}
       {/* Signup collects nothing else here — the OTP-verified address is handed
           to /onboarding, which gathers the rest and creates the account on its
           final step. See src/pages/Onboarding/Onboarding.jsx. */}
       {showSignupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-green-100 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-green-600" /> Create your account
-              </h3>
-              <button type="button" onClick={closeSignup} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
+        <div className="auth-modal-backdrop" role="presentation">
+          <section className="auth-modal auth-modal--signup" role="dialog" aria-modal="true" aria-labelledby="signup-title">
+            <header className="auth-modal__header">
+              <div>
+                <span className="auth-modal__step">New account · Step 01</span>
+                <h3 id="signup-title"><UserPlus aria-hidden="true" /> Start with your email.</h3>
+              </div>
+              <button type="button" onClick={closeSignup} className="auth-modal__close" aria-label="Close sign-up">
+                <X aria-hidden="true" />
               </button>
-            </div>
+            </header>
 
-            <div className="p-5 space-y-4">
+            <div className="auth-modal__body">
               {!showEmailOtp ? (
                 <>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    Start with your email — we&apos;ll send a 6-digit code to confirm it&apos;s yours.
+                  <p className="auth-modal__intro">
+                    We&apos;ll send a six-digit code to confirm it&apos;s yours. Your planning setup comes next.
                   </p>
-                  <div className="space-y-1">
-                    <label htmlFor="signup-email" className="text-xs font-bold text-gray-600 uppercase tracking-wider">Email</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-4 w-4 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                  <div className="auth-field">
+                    <label htmlFor="signup-email">Email address</label>
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon">
+                        <Mail aria-hidden="true" />
                       </div>
                       <input
                         id="signup-email"
@@ -447,78 +433,98 @@ const Login = () => {
                     type="button"
                     onClick={handleSendEmailOtp}
                     disabled={sendingEmailOtp}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-md shadow-green-500/25 transition-all disabled:opacity-60"
+                    className="auth-modal__primary"
                   >
                     {sendingEmailOtp
-                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending code…</>
-                      : <>Send verification code <ArrowRight className="w-4 h-4" /></>}
+                      ? <><Loader2 className="auth-spinner" /> Sending code…</>
+                      : <>Send verification code <ArrowRight aria-hidden="true" /></>}
                   </button>
+
+                  <div className="auth-modal__divider">
+                    <span>or continue with</span>
+                  </div>
+
+                  {googleReady ? (
+                    <div className="auth-modal__google-wrap">
+                      <div ref={signupGoogleBtnRef} className="auth-modal__google-button" />
+                      {googleBusy && (
+                        <div className="auth-google-loading">
+                          <Loader2 className="auth-spinner" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="auth-google-unavailable">
+                      Google sign-up isn&apos;t configured.
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    Enter the 6-digit code we sent to <strong className="text-gray-700">{signupEmail.trim()}</strong>.
+                  <p className="auth-modal__intro">
+                    Enter the six-digit code sent to <strong>{signupEmail.trim()}</strong>.
                   </p>
                   <OtpInput onConfirm={handleEmailOtpConfirm} onResend={handleEmailOtpResend} />
                   <button
                     type="button"
                     onClick={() => { setShowEmailOtp(false); setEmailOtpId(null); }}
-                    className="w-full text-center text-[11px] font-semibold text-gray-400 hover:text-green-700 hover:underline"
+                    className="auth-modal__text-button"
                   >
                     Use a different email
                   </button>
                 </>
               )}
 
-              <p className="text-center text-[11px] text-gray-400">
+              <p className="auth-modal__switch">
                 Already have an account?{' '}
-                <button type="button" onClick={closeSignup} className="text-green-700 font-bold hover:underline">
-                  Sign In
+                <button type="button" onClick={closeSignup}>
+                  Sign in
                 </button>
               </p>
             </div>
-          </div>
+          </section>
         </div>
       )}
 
       {/* ── FORGOT PASSWORD MODAL ── */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-green-100 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-green-100 flex items-center justify-between bg-green-50/50">
+        <div className="auth-modal-backdrop" role="presentation">
+          <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+            <header className="auth-modal__header">
               <div>
-                <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
-                  <KeyRound size={18} className="text-green-600" /> Reset Password
+                <span className="auth-modal__step">Account recovery · {forgotStep === 'username' ? 'Identify' : forgotStep === 'otp' ? 'Verify' : 'Reset'}</span>
+                <h3 id="reset-title">
+                  <KeyRound aria-hidden="true" /> Reset your password.
                 </h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">
+                <p className="auth-modal__subtitle">
                   {forgotStep === 'username' && 'Enter your User ID or email to receive a code'}
                   {forgotStep === 'otp' && 'Enter the code sent to your email on file'}
                   {forgotStep === 'reset' && 'Choose a new password'}
                 </p>
               </div>
               <button type="button" onClick={() => { setShowForgotModal(false); resetForgotState(); }}
-                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-green-100 rounded-lg transition-colors">
-                <X size={18} />
+                className="auth-modal__close" aria-label="Close password reset">
+                <X aria-hidden="true" />
               </button>
-            </div>
+            </header>
 
-            <div className="p-5 flex flex-col gap-3">
+            <div className="auth-modal__body">
               {forgotStep === 'username' && (
-                <form onSubmit={handleSendForgotOtp} className="flex flex-col gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">User ID or Email</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <User className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                <form onSubmit={handleSendForgotOtp} className="auth-modal__form">
+                  <div className="auth-field">
+                    <label htmlFor="forgot-id">User ID or email</label>
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon">
+                        <User aria-hidden="true" />
                       </div>
-                      <input type="text" required value={forgotUsername}
+                      <input id="forgot-id" type="text" required value={forgotUsername}
                         onChange={(e) => setForgotUsername(e.target.value)}
                         className={inputCls} placeholder="Enter your user ID or email" />
                     </div>
                   </div>
                   <button type="submit" disabled={sendingForgotOtp}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-md shadow-green-500/25 transition-all disabled:opacity-75">
-                    {sendingForgotOtp ? <Loader2 size={16} className="animate-spin" /> : null}
+                    className="auth-modal__primary">
+                    {sendingForgotOtp ? <Loader2 className="auth-spinner" /> : null}
                     {sendingForgotOtp ? 'Sending…' : 'Send Code'}
                   </button>
                 </form>
@@ -529,42 +535,42 @@ const Login = () => {
               )}
 
               {forgotStep === 'reset' && (
-                <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">New Password</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                <form onSubmit={handleResetPassword} className="auth-modal__form">
+                  <div className="auth-field">
+                    <label htmlFor="new-password">New password</label>
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon">
+                        <Lock aria-hidden="true" />
                       </div>
-                      <input type="password" required value={newPassword}
+                      <input id="new-password" type="password" required value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className={inputCls} placeholder="Min 6 chars" />
+                        className={inputCls} placeholder="At least 6 characters" />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-550 uppercase tracking-wider">Confirm Password</label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-3.5 w-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                  <div className="auth-field">
+                    <label htmlFor="confirm-password">Confirm password</label>
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon">
+                        <Lock aria-hidden="true" />
                       </div>
-                      <input type="password" required value={confirmNewPassword}
+                      <input id="confirm-password" type="password" required value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         className={`${inputCls} ${confirmNewPassword && newPassword !== confirmNewPassword ? 'border-rose-300 focus:border-rose-400' : ''}`}
                         placeholder="Repeat password" />
                     </div>
                     {confirmNewPassword && newPassword !== confirmNewPassword && (
-                      <p className="text-[10px] text-rose-500 font-semibold">Passwords don't match</p>
+                      <p className="auth-modal__error">Passwords don&apos;t match</p>
                     )}
                   </div>
                   <button type="submit" disabled={resettingPassword}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 shadow-md shadow-green-500/25 transition-all disabled:opacity-75">
-                    {resettingPassword ? <Loader2 size={16} className="animate-spin" /> : null}
+                    className="auth-modal__primary">
+                    {resettingPassword ? <Loader2 className="auth-spinner" /> : null}
                     {resettingPassword ? 'Resetting…' : 'Reset Password'}
                   </button>
                 </form>
               )}
             </div>
-          </div>
+          </section>
         </div>
       )}
 
@@ -573,7 +579,7 @@ const Login = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-4xl max-h-[92vh] sm:max-h-[85vh] rounded-xl sm:rounded-2xl shadow-xl flex flex-col overflow-hidden border border-green-100 animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-green-100 flex items-center justify-between bg-green-50/40">
-              <span className="text-sm font-bold text-green-800 flex items-center gap-1.5"><img src={frogLogo} alt="" className="w-4 h-4 object-contain" /> About Frog Planner</span>
+              <span className="text-sm font-bold text-green-800 flex items-center gap-1.5"><FrogLogo backgroundless className="w-4 h-4 object-contain" /> About Frog Planner</span>
               <button type="button" onClick={() => setShowAbout(false)}
                 className="p-1 text-gray-400 hover:text-gray-700 hover:bg-green-50 rounded-lg transition-colors">
                 <X size={18} />

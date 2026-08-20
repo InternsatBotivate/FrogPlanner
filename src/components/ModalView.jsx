@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 const ModalView = ({
   isOpen,
@@ -11,14 +12,18 @@ const ModalView = ({
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center ${zIndex} p-3 animate-in fade-in duration-200 overflow-hidden`}>
+    <div className={`fixed inset-0 bg-slate-950/45 backdrop-blur-[3px] flex items-center justify-center ${zIndex} p-3 animate-in fade-in duration-200 overflow-hidden`} onMouseDown={onClose}>
       <div
-        className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} h-[450px] max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200`}
-        onClick={(e) => e.stopPropagation()}
+        className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} min-h-[300px] max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200`}
+        onMouseDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-view-title"
       >
         {/* Compact Header */}
-        <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-center flex-shrink-0">
-          <h2 className="text-[11px] font-black text-gray-800 uppercase tracking-widest">{title}</h2>
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <h2 id="modal-view-title" className="text-sm font-bold text-slate-900">{title}</h2>
+          <button type="button" onClick={onClose} className="app-icon-button !w-8 !h-8" aria-label="Close dialog"><X size={16} /></button>
         </div>
 
         {/* Scrollable Body - Hidden scrollbar */}
@@ -32,10 +37,10 @@ const ModalView = ({
         </div>
 
         {/* Footer Action */}
-        <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/60 flex-shrink-0">
           <button
             onClick={onClose}
-            className="w-full py-2 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition font-black uppercase tracking-widest"
+            className="w-full py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-white transition font-semibold"
           >
             Close
           </button>

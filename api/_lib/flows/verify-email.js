@@ -71,7 +71,7 @@ function page(res, status, kind, message) {
           <div style="margin-top:8px;font-size:19px;font-weight:800;color:#15803d;letter-spacing:-0.3px;">Frog Planner</div>
         </div>
         <div style="padding:14px 24px 28px;">
-          <div style="font-size:44px;margin-bottom:10px;">${ok ? '✅' : '⚠️'}</div>
+          <div style="width:48px;height:48px;border-radius:14px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;background:${ok ? '#edf7f1' : '#fff7e6'};color:${ok ? '#28724f' : '#a66712'};font-size:13px;font-weight:800;">${ok ? 'DONE' : 'NOTE'}</div>
           <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">${message}</p>
           <a href="https://www.frogplanner.in" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:10px;">Open Frog Planner</a>
         </div>

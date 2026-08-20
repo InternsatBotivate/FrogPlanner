@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import DragScrollTable from './DragScrollTable';
 
 /**
@@ -19,18 +19,30 @@ const DataTable = ({
   itemsPerPage,
   onPageChange,
   onItemsPerPageChange,
-  totalResults
+  totalResults,
+  emptyTitle = 'Nothing here yet',
+  emptyDescription = 'New items will appear here when they are added.',
+  emptyAction = null,
 }) => {
+  const emptyState = (
+    <div className="flex min-h-[210px] flex-col items-center justify-center px-5 py-8 text-center">
+      <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm">
+        <Inbox size={20} strokeWidth={1.8} />
+      </span>
+      <p className="text-sm font-semibold text-slate-800">{emptyTitle}</p>
+      <p className="mt-1 max-w-sm text-[11px] leading-relaxed text-slate-500">{emptyDescription}</p>
+      {emptyAction && <div className="mt-4">{emptyAction}</div>}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white">
+    <div className="flex flex-col h-full min-h-0 bg-white border border-slate-200 rounded-xl overflow-hidden">
       {/* Mobile Card View (Hidden on Desktop) */}
-      <div className="md:hidden flex flex-col gap-3 p-3 overflow-y-auto flex-1 bg-slate-50/50 scrollbar-hide">
+      <div className="md:hidden flex flex-col gap-2 p-3 overflow-y-auto flex-1 bg-slate-50/70 scrollbar-hide">
         {data.length > 0 ? (
           data.map((item, index) => renderCard(item, index))
         ) : (
-          <div className="p-8 text-center text-gray-500 bg-white rounded-lg border border-gray-100 shadow-sm text-xs font-medium">
-            No records found.
-          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/40">{emptyState}</div>
         )}
       </div>
 
@@ -38,25 +50,25 @@ const DataTable = ({
       <div className="hidden md:flex flex-col flex-1 min-h-0 overflow-hidden">
         <DragScrollTable className="w-full flex-1 min-h-0">
           <table className="w-full relative border-collapse" style={{ minWidth }}>
-            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
                 {headers.map((header, index) => (
                   <th 
                     key={index} 
-                    className="px-4 py-3 text-center text-xs font-semibold text-gray-900 whitespace-nowrap"
+                    className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 whitespace-nowrap"
                   >
                     {header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {data.length > 0 ? (
                 data.map((item, index) => renderRow(item, index))
               ) : (
                 <tr>
-                  <td colSpan={headers.length} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-gray-50/50">
-                    No records found.
+                  <td colSpan={headers.length} className="bg-slate-50/35">
+                    {emptyState}
                   </td>
                 </tr>
               )}
@@ -66,7 +78,7 @@ const DataTable = ({
       </div>
 
       {/* Footer - Unified for both views */}
-      <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between gap-4 rounded-b-lg">
+      {data.length > 0 && <div className="px-4 py-2.5 border-t border-slate-200 bg-slate-50/80 flex items-center justify-between gap-4">
         {/* Left Side: Row Dropdown */}
         <div className="flex items-center gap-2">
           <select
@@ -103,7 +115,7 @@ const DataTable = ({
             <ChevronRight size={16} strokeWidth={2.5} />
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

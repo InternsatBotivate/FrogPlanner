@@ -123,7 +123,7 @@ export default function useGoogleCalendar(userId) {
             await onTokenReceived(resp.access_token, email);
             if (promptMode !== '') {
               // Only toast on explicit connect (not silent)
-              toast.success('Google Calendar connected! 🗓️');
+              toast.success('Google Calendar connected.');
             }
           },
         });
@@ -292,7 +292,7 @@ export default function useGoogleCalendar(userId) {
 
     setGcLoading(false);
     if (successCount > 0) {
-      toast.success(`Synced ${successCount} task(s) to Google Calendar! 🗓️`);
+      toast.success(`Synced ${successCount} task(s) to Google Calendar.`);
       fetchEvents(token);
     }
   }, [userId, fetchEvents]);
@@ -329,7 +329,7 @@ export default function useGoogleCalendar(userId) {
     if (userId) {
       await removeGoogleConnection(userId);
     }
-    toast('Google Calendar disconnected.', { icon: '🔌' });
+    toast('Google Calendar disconnected.');
   }, [gcToken, userId]);
 
   return {

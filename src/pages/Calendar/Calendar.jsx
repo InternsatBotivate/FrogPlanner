@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import FrogLogo from '../../components/FrogLogo';
-import { ChevronLeft, ChevronRight, LogIn, LogOut, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogIn, LogOut, RefreshCw, AlertCircle, CheckCircle2, CalendarDays, Settings2, X } from 'lucide-react';
 import Daily from './Daily';
 import Weekly from './Weekly';
 import Monthly from './Monthly';
@@ -65,7 +65,7 @@ export default function Calendar() {
     const isCompleted = !currentCompleted.includes(taskId);
     const success = await toggleCompletion(user.id, taskId, dateStr, isCompleted);
     if (success) {
-      toast.success(isCompleted ? 'Task completed! 🎉' : 'Task marked pending. ⏳');
+      toast.success(isCompleted ? 'Task completed.' : 'Task marked pending.');
     } else {
       toast.error('Failed to update task completion status.');
     }
@@ -163,8 +163,8 @@ export default function Calendar() {
           : 'bg-white border-gray-200 shadow-sm'
       }`}>
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-base ${isConnected ? 'bg-green-100' : 'bg-gray-100'}`}>
-            🗓️
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            <CalendarDays size={16} />
           </div>
           <div>
             <p className="text-xs font-extrabold text-gray-800">
@@ -214,7 +214,7 @@ export default function Calendar() {
       {/* ── Setup Instructions (shown when no Client ID is configured) ── */}
       {showGcSetup && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs space-y-2 flex-shrink-0">
-          <p className="font-extrabold text-amber-800 flex items-center gap-2">⚙️ Google Calendar Setup Required</p>
+          <p className="font-extrabold text-amber-800 flex items-center gap-2"><Settings2 size={14} /> Google Calendar setup required</p>
           <ol className="space-y-1 text-amber-700 font-medium list-decimal list-inside leading-relaxed">
             <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="underline font-bold">console.cloud.google.com</a> → Create a new project</li>
             <li>Enable <strong>Google Calendar API</strong> under APIs &amp; Services</li>
@@ -226,7 +226,7 @@ export default function Calendar() {
             </li>
             <li>Restart the dev server: <code className="bg-amber-100 px-1 rounded">npm run dev</code></li>
           </ol>
-          <button onClick={() => setShowGcSetup(false)} className="text-amber-600 font-bold hover:underline text-[11px]">✕ Close</button>
+          <button onClick={() => setShowGcSetup(false)} className="inline-flex items-center gap-1 text-amber-700 font-bold hover:underline text-[11px]"><X size={12} /> Close</button>
         </div>
       )}
 

@@ -4,19 +4,17 @@ import {
   Settings,
   LogOut as LogOutIcon,
   X,
-  Users,
   Code2,
   LayoutGrid,
   Calendar,
   CalendarDays,
   CalendarRange,
-  Sparkles,
   BarChart2,
   ListTodo,
   FolderClosed,
   ChevronLeft,
   ChevronRight,
-  HelpCircle
+  CircleHelp,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { usePlannerStore } from '../store/plannerStore';
@@ -33,17 +31,17 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
   };
 
   const menuItems = [
-    { path: '/dashboard', icon: BarChart2, label: 'Dashboard' },
-    { path: '/planner', icon: Calendar, label: 'Today' },
-    { path: '/all-tasks', icon: ListTodo, label: 'All Tasks' },
-    { path: '/next-day-planner', icon: CalendarRange, label: 'Next Day Planner' },
-    { path: '/my-projects', icon: FolderClosed, label: 'My Projects' },
-    { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-    { path: '/recurring-tasks', icon: LayoutGrid, label: 'Recurring Tasks' },
-    { path: '/ai-assistant', icon: Sparkles, label: 'AI Assistant' },
-    { path: '/about-frog-planner', icon: 'frog-logo', label: 'About Frog Planner' },
-    { path: '/developers', icon: Code2, label: 'Developers' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
+    { path: '/dashboard', icon: BarChart2, label: 'Dashboard', group: 'Plan' },
+    { path: '/planner', icon: Calendar, label: 'Today', group: 'Plan' },
+    { path: '/next-day-planner', icon: CalendarRange, label: 'Next day', group: 'Plan' },
+    { path: '/all-tasks', icon: ListTodo, label: 'All tasks', group: 'Workspace' },
+    { path: '/my-projects', icon: FolderClosed, label: 'Projects', group: 'Workspace' },
+    { path: '/calendar', icon: CalendarDays, label: 'Calendar', group: 'Workspace' },
+    { path: '/recurring-tasks', icon: LayoutGrid, label: 'Recurring tasks', group: 'Workspace' },
+    { path: '/ai-assistant', icon: 'frog-logo', label: 'AI assistant', group: 'Tools' },
+    { path: '/about-frog-planner', icon: CircleHelp, label: 'About', group: 'Tools' },
+    { path: '/developers', icon: Code2, label: 'Developers', group: 'Tools' },
+    { path: '/settings', icon: Settings, label: 'Settings', group: 'Account' },
   ];
 
   return (
@@ -51,24 +49,24 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-950/35 backdrop-blur-sm z-40 lg:hidden"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full bg-white border-r border-green-100 z-50 transform transition-all duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${isCollapsed ? 'w-64 sm:w-72 lg:w-16' : 'w-64 sm:w-72 lg:w-56 2xl:w-60'
+      <aside className={`app-sidebar ${isOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${isCollapsed ? 'w-64 sm:w-72 lg:w-[72px]' : 'w-64 sm:w-72 lg:w-60'
         }`}>
         <div className="flex flex-col h-full">
           {/* Logo Section */}
-          <div className={`p-4 border-b border-green-100 flex ${isCollapsed ? 'lg:flex-col lg:items-center' : 'items-center justify-between'} gap-3`}>
+          <div className={`app-sidebar__brand ${isCollapsed ? 'lg:flex-col lg:items-center' : 'items-center justify-between'} gap-3`}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <div className="app-brand-mark">
                 <FrogLogo className="w-full h-full object-cover" />
               </div>
               {!isCollapsed && (
-                <span className="text-xl font-bold text-green-700 tracking-tight animate-in fade-in duration-200">
+                <span className="text-[17px] font-bold text-slate-900 tracking-[-0.02em] animate-in fade-in duration-200 whitespace-nowrap">
                   Frog Planner
                 </span>
               )}
@@ -79,59 +77,63 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
               <button
                 type="button"
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className="hidden lg:flex p-1.5 hover:bg-green-50 text-green-700 rounded-lg transition active:scale-95 border border-green-200 bg-white"
+                className="app-icon-button hidden lg:flex"
                 title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
               >
                 {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
               </button>
 
               {/* Mobile close button */}
-              <button onClick={onClose} className="lg:hidden p-2 hover:bg-green-100/50 rounded-lg">
-                <X size={20} className="text-green-700" />
+              <button onClick={onClose} className="app-icon-button lg:hidden" aria-label="Close navigation">
+                <X size={18} />
               </button>
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className={`flex-1 overflow-y-auto py-4 ${isCollapsed ? 'lg:px-1.5' : 'px-3'} space-y-1 scrollbar-hide`}>
+          <nav className={`flex-1 overflow-y-auto py-4 ${isCollapsed ? 'lg:px-2' : 'px-3'} scrollbar-hide`}>
             {menuItems.map((item, idx) => (
+              <React.Fragment key={item.path}>
+              {(idx === 0 || menuItems[idx - 1].group !== item.group) && !isCollapsed && (
+                <p className="app-nav-group">{item.group}</p>
+              )}
               <NavLink
-                key={item.path}
                 to={item.path}
                 onClick={onClose}
                 className={({ isActive }) => `
-                  flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'} px-4 py-3 rounded-lg transition-all duration-200 group
+                  app-nav-item ${isCollapsed ? 'lg:justify-center lg:px-0' : ''}
                   ${isActive
-                    ? 'bg-green-50 text-emerald-700 border-l-4 border-emerald-600'
-                    : 'text-gray-700 hover:bg-green-50/60 hover:text-emerald-700 border-l-4 border-transparent'}
+                    ? 'app-nav-item--active'
+                    : ''}
                 `}
                 title={isCollapsed ? item.label : undefined}
               >
                 <div className="flex items-center gap-3">
                   {item.icon === 'frog-logo' ? (
-                    <FrogLogo className="w-5 h-5 object-contain group-hover:scale-110 transition-transform flex-shrink-0 animate-in fade-in duration-200 select-none" />
+                    <FrogLogo className="w-[18px] h-[18px] object-contain flex-shrink-0 select-none" />
                   ) : typeof item.icon === 'string' ? (
                     <span className="text-[17px] w-5 h-5 flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0 animate-in fade-in duration-200 select-none">
                       {item.icon}
                     </span>
                   ) : (
-                    <item.icon size={20} className="group-hover:scale-110 transition-transform flex-shrink-0 animate-in fade-in duration-200" />
+                    <item.icon size={18} strokeWidth={1.9} className="flex-shrink-0" />
                   )}
                   {!isCollapsed && (
-                    <span className="text-sm font-semibold leading-tight whitespace-nowrap animate-in fade-in duration-250">
+                    <span className="text-[13px] font-semibold leading-tight whitespace-nowrap animate-in fade-in duration-250">
                       {item.label}
                     </span>
                   )}
                 </div>
               </NavLink>
+              </React.Fragment>
             ))}
           </nav>
 
           {/* User Profile Section */}
-          <div className={`p-4 border-t border-green-100 bg-green-50/30 space-y-3.5 flex flex-col ${isCollapsed ? 'lg:items-center' : ''}`}>
+          <div className={`app-sidebar__footer flex flex-col ${isCollapsed ? 'lg:items-center' : ''}`}>
             <button
               onClick={handleLogout}
-              className={`flex items-center justify-center gap-2 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white transition-all font-semibold shadow-sm ${isCollapsed ? 'lg:w-10 lg:h-10 lg:p-0' : 'w-full px-4 py-2.5'
+              className={`app-signout ${isCollapsed ? 'lg:w-9 lg:h-9 lg:p-0' : 'w-full px-3 py-2'
                 }`}
               title={isCollapsed ? "Sign Out" : undefined}
             >
@@ -141,12 +143,12 @@ const Sidebar = ({ isOpen, onClose, isCollapsed, setIsCollapsed }) => {
 
             {!isCollapsed && (
               <div className="text-center w-full animate-in fade-in duration-200">
-                <p className="text-[10px] md:text-[11px] font-bold text-green-700">
-                  Powered By <a
+                <p className="text-[10px] font-semibold text-slate-400">
+                  Powered by <a
                     href="https://www.botivate.in"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-green-700 hover:text-green-900 font-extrabold hover:underline transition-all"
+                    className="text-slate-600 hover:text-emerald-800 font-bold transition-colors"
                   >
                     Botivate
                   </a>

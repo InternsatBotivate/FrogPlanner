@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Bot, RefreshCw } from 'lucide-react';
+import { Send, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { runAssistant } from '../../lib/aiService';
 import MarkdownMessage from '../../components/MarkdownMessage';
+import FrogLogo from '../../components/FrogLogo';
 
 export default function AIAssistant() {
   const { user } = useAuthStore();
@@ -36,7 +37,7 @@ export default function AIAssistant() {
         {
           id: 'welcome',
           sender: 'bot',
-          text: `Hi ${firstName}! 👋 I'm your Frog Assistant. I can tell you about Frog Planner, read your planner, create and update tasks, manage your projects, and summarize your day. What would you like to do?`,
+          text: `Hi ${firstName}. I'm your Frog Assistant. I can tell you about Frog Planner, read your planner, create and update tasks, manage your projects, and summarize your day. What would you like to do?`,
           timestamp: new Date(),
         },
       ]);
@@ -102,8 +103,8 @@ export default function AIAssistant() {
         {/* Chat Header */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm">
-              <Sparkles size={18} />
+            <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center overflow-hidden">
+              <FrogLogo backgroundless className="w-9 h-9 object-contain" />
             </div>
             <div>
               <h2 className="text-xs font-bold text-gray-800 uppercase tracking-tight">AI Planner Assistant</h2>
@@ -151,7 +152,7 @@ export default function AIAssistant() {
                     user?.full_name?.charAt(0).toUpperCase() || 'U'
                   )
                 ) : (
-                  <Bot size={16} className="text-indigo-600" />
+                  <FrogLogo backgroundless className="w-7 h-7 object-contain" />
                 )}
               </div>
 
@@ -179,7 +180,7 @@ export default function AIAssistant() {
           {sending && (
             <div className="flex gap-3 max-w-[85%]">
               <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border shadow-sm bg-white border-gray-200 text-gray-600">
-                <Bot size={16} className="text-indigo-600" />
+                <FrogLogo backgroundless className="w-7 h-7 object-contain" />
               </div>
               <div className="rounded-xl rounded-tl-none p-3 border shadow-sm bg-white border-gray-200 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />

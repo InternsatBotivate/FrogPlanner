@@ -1,14 +1,9 @@
 import React from 'react';
+import { X } from 'lucide-react';
 import { FormActionButtons } from './StandardButtons';
 
 /**
- * ModalForm Component - Ultra Compact Edition
- * 
- * Final Refinements:
- * - Removed Cross (X) icon as requested.
- * - Reduced vertical gaps (space-y-2) for maximum density.
- * - Compacted padding in Header and Body.
- * - Maintains fixed dimensions and invisible scrollbar.
+ * Compact, accessible form dialog shared across the planner.
  */
 const ModalForm = ({
   isOpen,
@@ -26,14 +21,20 @@ const ModalForm = ({
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center ${zIndex} p-3 md:p-4 animate-in fade-in duration-200`}>
+    <div className={`fixed inset-0 bg-slate-950/45 backdrop-blur-[3px] flex items-center justify-center ${zIndex} p-3 md:p-4 animate-in fade-in duration-200`} role="presentation" onMouseDown={onClose}>
       <div
-        className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200`}
-        style={{ maxHeight: '60vh' }}
+        className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200`}
+        style={{ maxHeight: '78vh' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-form-title"
+        onMouseDown={(event) => event.stopPropagation()}
       >
-        {/* Ultra-Compact Header - No Cross Icon */}
-        <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-center bg-white flex-shrink-0 z-20">
-          <h2 className="text-[10px] md:text-sm font-black text-gray-800 uppercase tracking-widest text-center">{title}</h2>
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-white flex-shrink-0 z-20">
+          <h2 id="modal-form-title" className="text-sm font-bold text-slate-900">{title}</h2>
+          <button type="button" onClick={onClose} className="app-icon-button !w-8 !h-8" aria-label="Close dialog">
+            <X size={16} />
+          </button>
         </div>
 
         {/* Minimal Scrollable Body */}
@@ -52,15 +53,15 @@ const ModalForm = ({
             }
           `}} />
 
-          <div className="px-3 py-2 md:px-4 md:py-3 no-scrollbar">
-            <form id="ultra-compact-form" onSubmit={onSubmit} className="space-y-1.5 md:space-y-2 text-left">
+          <div className="px-4 py-3 md:px-5 md:py-4 no-scrollbar">
+            <form id="ultra-compact-form" onSubmit={onSubmit} className="space-y-2.5 text-left">
               {children}
             </form>
           </div>
         </div>
 
         {/* Standardized Footer Buttons */}
-        <div className="px-4 py-2 border-t border-gray-100 bg-white flex-shrink-0 z-20">
+        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/60 flex-shrink-0 z-20">
           <FormActionButtons
             onCancel={onClose}
             cancelText={cancelText}

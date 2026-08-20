@@ -24,7 +24,7 @@ const Layout = () => {
   const { user } = useAuthStore();
 
   return (
-    <div className="flex h-[100dvh] bg-white overflow-hidden">
+    <div className="app-shell">
 
       {/* Sidebar - Fixed on desktop, sliding on mobile */}
       <Sidebar
@@ -35,8 +35,8 @@ const Layout = () => {
       />
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 h-[100dvh] ${
-        isCollapsed ? 'lg:ml-16' : 'lg:ml-56 2xl:ml-60'
+      <div className={`app-main-column ${
+        isCollapsed ? 'lg:ml-[72px]' : 'lg:ml-60'
       }`}>
 
         {/* Header - Sticky */}
@@ -45,8 +45,8 @@ const Layout = () => {
           user={user}
         />
 
-        <main className="flex-1 flex flex-col p-1 sm:p-2 lg:p-3 overflow-hidden relative z-0 min-h-0">
-          <div className="w-full max-w-[1800px] mx-auto flex-1 flex flex-col animate-in fade-in duration-500 min-h-0">
+        <main className="app-content">
+          <div className="app-content__inner">
             <Outlet />
           </div>
         </main>
