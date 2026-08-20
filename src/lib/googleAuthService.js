@@ -35,6 +35,8 @@ export const isGoogleAuthConfigured = () => !!GOOGLE_CLIENT_ID;
 // Same singleton idea as useGoogleCalendar.js's loadGIS, but tracked with its
 // own promise so a failure in one path can't leave the other waiting forever.
 let gisPromise = null;
+let gisInitialized = false;
+let activeCredentialHandler = null;
 const loadGIS = () => {
   if (window.google?.accounts?.id) return Promise.resolve();
   if (gisPromise) return gisPromise;
@@ -76,16 +78,22 @@ export const renderGoogleButton = async (container, onCredential, options = {}) 
 
   await loadGIS();
 
-  window.google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: (response) => {
-      if (response?.credential) onCredential(response.credential);
-    },
-    // Account chooser every time. auto_select would silently reuse the last
-    // account, which is wrong on a shared machine and makes switching hard.
-    auto_select: false,
-    cancel_on_tap_outside: true,
-  });
+  // GIS configuration is global to the page. Initialize it once even when the
+  // login screen renders multiple official buttons (main form + sign-up modal).
+  activeCredentialHandler = onCredential;
+  if (!gisInitialized) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (response) => {
+        if (response?.credential) activeCredentialHandler?.(response.credential);
+      },
+      // Account chooser every time. auto_select would silently reuse the last
+      // account, which is wrong on a shared machine and makes switching hard.
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    });
+    gisInitialized = true;
+  }
 
   container.innerHTML = '';
   window.google.accounts.id.renderButton(container, {
