@@ -1,9 +1,10 @@
 /**
  * aiService.js — FrogPlanner AI Assistant (web)
  * ──────────────────────────────────────────────────────────────────────────
- * Talks to the shared serverless proxy (api/ai-chat.js) which holds the
- * Cerebras key server-side and runs the gpt-oss-120b model. The browser never
- * sees the key — it authenticates each call with the user's session token.
+ * Talks to the shared serverless proxy (api/ai-chat.js) which holds each AI
+ * provider's key server-side and tries them in order — Groq, then OpenAI,
+ * then Cerebras as a last resort. The browser never sees any key — it
+ * authenticates each call with the user's session token.
  *
  * The tool-calling loop runs here in the browser: the model decides which tool
  * to call, we execute it against the user's own planner/projects, feed the
