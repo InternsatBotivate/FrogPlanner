@@ -246,6 +246,10 @@ export default function PrivacyPolicy() {
           <Link to="/login" className="font-semibold text-green-700 hover:underline">
             ← Back to {APP_NAME}
           </Link>
+          <span className="mx-3">·</span>
+          <Link to="/terms-of-service" className="font-semibold text-green-700 hover:underline">
+            Terms of Service
+          </Link>
           <span className="ml-3">© {new Date().getFullYear()} {COMPANY}. All rights reserved.</span>
         </div>
       </div>
