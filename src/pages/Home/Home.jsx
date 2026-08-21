@@ -164,6 +164,63 @@ export default function Home() {
           <p>A day you can finish</p>
         </section>
 
+        <section className="home-pareto" id="why-frog-planner" aria-labelledby="home-pareto-title">
+          <div className="home-pareto__intro">
+            <div>
+              <p className="home-eyebrow"><span /> Why Frog Planner</p>
+              <h2 id="home-pareto-title">Not every task creates the same impact.</h2>
+            </div>
+            <p>
+              The Pareto Principle suggests that a small share of your effort often creates most of your results. Frog Planner turns that observation into a practical daily habit.
+            </p>
+          </div>
+
+          <div className="home-pareto__ratio" aria-label="Twenty percent of focused effort can create eighty percent of meaningful results">
+            <div className="home-pareto__ratio-part home-pareto__ratio-part--effort">
+              <strong>20%</strong>
+              <span>Vital effort</span>
+              <p>The few high-impact tasks that move work forward.</p>
+            </div>
+            <div className="home-pareto__ratio-arrow" aria-hidden="true">
+              <ArrowRight />
+            </div>
+            <div className="home-pareto__ratio-part home-pareto__ratio-part--results">
+              <strong>80%</strong>
+              <span>Meaningful results</span>
+              <p>The progress created by protecting your most valuable work.</p>
+            </div>
+          </div>
+
+          <div className="home-pareto__context">
+            <article className="home-pareto__origin">
+              <p className="home-pareto__label">Where the idea came from</p>
+              <h3>The Pareto Principle</h3>
+              <p>
+                It is named after Italian economist Vilfredo Pareto, who observed that a small part of the population owned most of Italy&apos;s land. Similar uneven patterns were later noticed in business, work, and technology.
+              </p>
+              <p className="home-pareto__note">
+                It is a useful mindset, not an exact mathematical law: ask which few efforts are creating most of the value.
+              </p>
+            </article>
+
+            <div className="home-pareto__examples" aria-label="Examples of the Pareto Principle">
+              <article><span>Business</span><p>A small group of customers may create most revenue.</p></article>
+              <article><span>Time</span><p>A few important tasks may create most daily progress.</p></article>
+              <article><span>Sales</span><p>A small product range may generate most profit.</p></article>
+              <article><span>Software</span><p>A few defects may cause most crashes.</p></article>
+            </div>
+          </div>
+
+          <div className="home-pareto__method">
+            <ol>
+              <li><span>Identify</span> the work with the highest impact.</li>
+              <li><span>Mark</span> the most important task as your Frog.</li>
+              <li><span>Tackle it first</span> while your attention is strongest.</li>
+            </ol>
+            <p>Your most important task. Your biggest result. Do it first.</p>
+          </div>
+        </section>
+
         <section className="home-features" id="how-it-works">
           <div className="home-section-heading">
             <p className="home-eyebrow"><span /> Built for real working days</p>
