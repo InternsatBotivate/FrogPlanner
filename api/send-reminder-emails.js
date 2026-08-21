@@ -125,7 +125,10 @@ export default async function handler(req, res) {
 
         const firstName = (user.full_name || 'there').split(' ')[0];
         const html = digestHtml(firstName, pending);
-        const text = `Hi ${firstName},\n\n${pending.map((p) => '• ' + p.message).join('\n')}\n\n— Frog Planner`;
+        const text =
+          `Hi ${firstName},\n\n${pending.map((p) => '• ' + p.message).join('\n')}\n\n` +
+          `— Frog Planner\n\n` +
+          `\u00A9 ${new Date().getUTCFullYear()} Botivate. All rights reserved.`;
 
         for (const to of verified) {
           await sendMail({

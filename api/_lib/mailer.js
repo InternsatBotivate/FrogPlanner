@@ -45,7 +45,12 @@ export async function sendMail({ to, subject, text, html, from }) {
 }
 
 const LOGO_URL = 'https://www.frogplanner.in/frog-logo-email.png';
-const CURRENT_YEAR = new Date().getUTCFullYear();
+/**
+ * Computed per call, not at module load: a warm serverless instance can live
+ * across a new year, and a cached constant would then stamp last year onto
+ * every email it sent.
+ */
+const currentYear = () => new Date().getUTCFullYear();
 
 // Shared header/footer chrome for every transactional email. `bodyHtml` is
 // the template-specific content (OTP code, verify button, reminder list…).
@@ -61,7 +66,8 @@ export function emailShell(bodyHtml) {
       </div>
       <div style="padding:18px 28px;background:#f9fafb;border-top:1px solid #f0f0f0;text-align:center;">
         <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;">Tackle your frog first, every day.</p>
-        <p style="margin:0;font-size:11px;color:#c1c7cf;">&copy; ${CURRENT_YEAR} Frog Planner &middot; <a href="https://www.frogplanner.in" style="color:#9ca3af;text-decoration:underline;">frogplanner.in</a></p>
+        <p style="margin:0 0 4px;font-size:11px;color:#c1c7cf;"><a href="https://www.frogplanner.in" style="color:#9ca3af;text-decoration:underline;">frogplanner.in</a></p>
+        <p style="margin:0;font-size:11px;color:#c1c7cf;">&copy; ${currentYear()} Botivate. All rights reserved.</p>
       </div>
     </div>
   </body></html>`;

@@ -75,6 +75,9 @@ function page(res, status, kind, message) {
           <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">${message}</p>
           <a href="https://www.frogplanner.in" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:10px;">Open Frog Planner</a>
         </div>
+        <div style="padding:16px 24px;background:#f9fafb;border-top:1px solid #f0f0f0;">
+          <p style="margin:0;font-size:11px;color:#c1c7cf;">&copy; ${new Date().getUTCFullYear()} Botivate. All rights reserved.</p>
+        </div>
       </div>
     </body></html>`;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');

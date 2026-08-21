@@ -103,7 +103,10 @@ export async function handler(req, res) {
     await sendMail({
       to: email,
       subject: 'Verify your email for Frog Planner',
-      text: `Verify your email to enable Frog Planner reminders:\n${verifyUrl}\n\nThis link expires in 24 hours. If you didn't request this, you can ignore it.`,
+      text:
+        `Verify your email to enable Frog Planner reminders:\n${verifyUrl}\n\n` +
+        `This link expires in 24 hours. If you didn't request this, you can ignore it.\n\n` +
+        `\u00A9 ${new Date().getUTCFullYear()} Botivate. All rights reserved.`,
       html: verificationEmailHtml(verifyUrl),
     });
 

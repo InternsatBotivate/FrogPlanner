@@ -198,7 +198,10 @@ export async function handler(req, res) {
     await sendMail({
       to: email,
       subject: 'Your Frog Planner verification code',
-      text: `Your Frog Planner verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore it.`,
+      text:
+        `Your Frog Planner verification code is ${code}. It expires in 10 minutes. ` +
+        `If you didn't request this, you can ignore it.\n\n` +
+        `\u00A9 ${new Date().getUTCFullYear()} Botivate. All rights reserved.`,
       html: otpEmailHtml(code),
     });
 
