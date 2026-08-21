@@ -81,12 +81,29 @@ const passwordStrength = (pw) => {
 };
 
 /**
- * Digits only — the phone input deliberately allows "+", spaces and dashes for
- * readability, so a raw length check counted those as if they were digits.
- * "- - - - " passed a >= 7 length test with ZERO digits, enabling Continue on
- * a number containing no numbers.
+ * Phone numbers are India-only, so the field stores exactly 10 digits and the
+ * +91 country code is rendered as a fixed, non-editable prefix rather than
+ * something the user types.
+ *
+ * Keeping the stored value bare (no "+91", no spaces or dashes) means the
+ * length check IS the format check — an earlier version allowed "+", spaces
+ * and dashes through and validated on string length, so "- - - - " counted as
+ * 7 "digits" and enabled Continue on a number containing no numbers at all.
  */
-const digitCount = (value) => (String(value).match(/\d/g) || []).length;
+const PHONE_DIGITS = 10;
+/**
+ * Digits only, capped at 10. A leading 91 is dropped first: pasting
+ * "+91 98765 43210" would otherwise strip to 919876543210 and the cap would
+ * keep the WRONG ten ("9198765432"). Indian mobile numbers never start with 9
+ * followed by 1 at position two in a way that collides here, because they are
+ * exactly 10 digits and the check only fires on 12-digit input.
+ */
+const normalizePhone = (value) => {
+  let digits = String(value).replace(/\D/g, '');
+  if (digits.length > PHONE_DIGITS && digits.startsWith('91')) digits = digits.slice(2);
+  return digits.slice(0, PHONE_DIGITS);
+};
+const isPhoneComplete = (value) => normalizePhone(value).length === PHONE_DIGITS;
 
 const todayStr = () => {
   const d = new Date();
@@ -153,7 +170,7 @@ const Onboarding = () => {
       setFullName(user.full_name || '');
       setUsername(user.username || '');
       setEmail(user.email || '');
-      setPhone(user.phone || '');
+      setPhone(normalizePhone(user.phone || ''));
       seeded.current = true;
     } else if (mode === 'email' && pending?.email) {
       setEmail(pending.email);
@@ -210,7 +227,7 @@ const Onboarding = () => {
           fullName.trim().length > 1 &&
           username.trim().length >= 3 &&
           !usernameError &&
-          digitCount(phone) >= 7 &&
+          isPhoneComplete(phone) &&
           !!dob
         );
       case 2:
@@ -461,16 +478,28 @@ const Onboarding = () => {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1.5">Contact Number *</label>
-              <Field icon={Phone}>
+              {/* +91 is a fixed prefix, not typed: the stored value is the bare
+                  10 digits, so validation can simply require a length of 10. */}
+              <div className="relative group flex items-center">
+                <span className="absolute left-3 flex items-center gap-1.5 text-sm text-gray-500 pointer-events-none">
+                  <Phone className="w-4 h-4 text-gray-400 group-focus-within:text-green-500 transition-colors" />
+                  +91
+                </span>
                 <input
-                  className={inputCls}
+                  className={`${inputCls} pl-[4.5rem] tracking-wide`}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/[^\d+\s-]/g, ''))}
-                  placeholder="Your phone number"
-                  inputMode="tel"
-                  autoComplete="tel"
+                  onChange={(e) => setPhone(normalizePhone(e.target.value))}
+                  placeholder="98765 43210"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  maxLength={PHONE_DIGITS}
                 />
-              </Field>
+              </div>
+              {phone.length > 0 && phone.length < PHONE_DIGITS && (
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {PHONE_DIGITS - phone.length} more digit{PHONE_DIGITS - phone.length === 1 ? '' : 's'}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1.5">Date of Birth *</label>

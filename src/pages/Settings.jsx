@@ -7,6 +7,26 @@ import AvatarUploadModal from '../components/AvatarUploadModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 
+/**
+ * India-only phone handling, mirroring src/pages/Onboarding/Onboarding.jsx:
+ * store the bare 10 digits and render +91 as a fixed prefix. Duplicated
+ * rather than shared because these are the only two call sites and a
+ * one-line util module for it would be more indirection than it saves.
+ */
+const PHONE_DIGITS = 10;
+/**
+ * Digits only, capped at 10. A leading 91 is dropped first: pasting
+ * "+91 98765 43210" would otherwise strip to 919876543210 and the cap would
+ * keep the WRONG ten ("9198765432"). Indian mobile numbers never start with 9
+ * followed by 1 at position two in a way that collides here, because they are
+ * exactly 10 digits and the check only fires on 12-digit input.
+ */
+const normalizePhone = (value) => {
+  let digits = String(value).replace(/\D/g, '');
+  if (digits.length > PHONE_DIGITS && digits.startsWith('91')) digits = digits.slice(2);
+  return digits.slice(0, PHONE_DIGITS);
+};
+
 export default function Settings() {
   const { user, updateProfile } = useAuthStore();
   // Defaults to TRUE when the column is absent (pre-migration row) so an
@@ -28,7 +48,7 @@ export default function Settings() {
     if (user) {
       setName(user.full_name || '');
       setEmail(user.email || '');
-      setPhone(user.phone || '');
+      setPhone(normalizePhone(user.phone || ''));
       setDesignation(user.designation || '');
       setDepartment(user.department || '');
       setBio(user.bio || '');
@@ -194,13 +214,27 @@ export default function Settings() {
 
                 <div className="space-y-1">
                   <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tight">Contact Phone</label>
-                  <input 
-                    type="tel" 
-                    value={phone} 
-                    onChange={(e) => setPhone(e.target.value)} 
-                    placeholder="+91 XXXXX XXXXX"
-                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] font-medium text-gray-700 bg-white"
-                  />
+                  {/* India-only, same rule as onboarding: +91 is a fixed
+                      prefix and the stored value is the bare 10 digits. */}
+                  <div className="flex items-center">
+                    <span className="px-2 py-1.5 border border-r-0 border-gray-300 rounded-l bg-gray-50 text-[11px] font-medium text-gray-500">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={PHONE_DIGITS}
+                      value={phone}
+                      onChange={(e) => setPhone(normalizePhone(e.target.value))}
+                      placeholder="98765 43210"
+                      className="w-full border border-gray-300 rounded-r px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-[11px] font-medium text-gray-700 bg-white"
+                    />
+                  </div>
+                  {phone.length > 0 && phone.length < PHONE_DIGITS && (
+                    <p className="text-[10px] text-gray-400">
+                      {PHONE_DIGITS - phone.length} more digit{PHONE_DIGITS - phone.length === 1 ? '' : 's'}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
