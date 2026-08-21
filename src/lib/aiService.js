@@ -382,6 +382,14 @@ function buildSystemPrompt(user) {
     'When you present tabular data, use proper GitHub-flavored Markdown tables: a header row, then a ' +
       '|---|---| separator row, then one row per line, every row wrapped in pipes. Never use spaces or ' +
       'plain text to align columns.',
+    // Task ids are UUIDs. The tools need them (complete_task, update_task and
+    // delete_task all take a taskId), so they stay in the data handed to the
+    // model — but they are meaningless to a human and a 36-character column
+    // wrecks the table on a phone. Keep them internal.
+    'NEVER show task, project or recurring-task ids to the user. Do not add an "ID" column to a table, ' +
+      'and do not mention an id in prose. Ids exist only for you to pass back into tools. Refer to a task ' +
+      'by its description instead. When the user asks to act on a task, match it by description and use ' +
+      'the id silently.',
     // ── Scope & safety (repeated near the end — models weight recent text more) ──
     'SCOPE: You help with everything about Frog Planner — explaining what the app is, its features, and ' +
       'how to use it, AND managing THIS user’s data (tasks, recurring tasks, projects, planner, calendar, ' +
