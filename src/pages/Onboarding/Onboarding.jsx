@@ -80,6 +80,14 @@ const passwordStrength = (pw) => {
   return { score, label: 'Strong', cls: 'bg-green-500 text-green-600' };
 };
 
+/**
+ * Digits only — the phone input deliberately allows "+", spaces and dashes for
+ * readability, so a raw length check counted those as if they were digits.
+ * "- - - - " passed a >= 7 length test with ZERO digits, enabling Continue on
+ * a number containing no numbers.
+ */
+const digitCount = (value) => (String(value).match(/\d/g) || []).length;
+
 const todayStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -202,7 +210,7 @@ const Onboarding = () => {
           fullName.trim().length > 1 &&
           username.trim().length >= 3 &&
           !usernameError &&
-          phone.trim().length >= 7 &&
+          digitCount(phone) >= 7 &&
           !!dob
         );
       case 2:
