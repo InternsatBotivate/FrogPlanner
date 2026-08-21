@@ -7,7 +7,7 @@ import { isGoogleAuthConfigured, renderGoogleButton } from '../lib/googleAuthSer
 import { sendSignupOtp, verifyOtp, sendPasswordResetOtp, resetPassword } from '../lib/otpService';
 import OtpInput from '../components/OtpInput';
 import FrogLogo from '../components/FrogLogo';
-import botivateLogo from '../../../FrogPlanner_App/assets/Botivate_logo.png';
+import botivateLogo from '../Assets/Botivate_logo.png';
 import AboutFrogPlanner from './AboutFrogPlanner/AboutFrogPlanner';
 import './Login.css';
 

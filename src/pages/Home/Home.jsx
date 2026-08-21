@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import FrogLogo from '../../components/FrogLogo';
 import { useAuthStore } from '../../store/authStore';
-import botivateLogo from '../../../../FrogPlanner_App/assets/Botivate_logo.png';
+import botivateLogo from '../../Assets/Botivate_logo.png';
 import './Home.css';
 
 const features = [
