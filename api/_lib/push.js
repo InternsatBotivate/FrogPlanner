@@ -25,7 +25,20 @@ export async function sendPushToTokens(supabase, tokens, message) {
 
   const messages = valid.map((to) => ({
     to,
-    sound: 'default',
+    // The app's custom notification sound, bundled natively via the
+    // expo-notifications `sounds` array in FrogPlanner_App/app.json.
+    //
+    // Referenced by bare filename, and the two platforms disagree on the
+    // extension: iOS wants 'Notification.mp3', Android's res/raw lookup wants
+    // 'Notification'. One payload serves both, so send the iOS form here and
+    // let channelId carry Android — on Android the channel's own sound wins
+    // regardless of this field, which is why the client bumped the channel id
+    // to 'reminders-v2' (a channel's sound is immutable once created).
+    sound: 'Notification.mp3',
+    // Must match CHANNEL_ID in FrogPlanner_App/src/lib/notifications.ts.
+    // Without it Android delivers on the default channel and the custom sound
+    // never plays.
+    channelId: 'reminders-v2',
     title: message.title,
     body: message.body,
     data: message.data || {},
