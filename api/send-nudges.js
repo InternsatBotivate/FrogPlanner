@@ -34,6 +34,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendPushToUser } from './_lib/push.js';
 import { pickLine } from './_lib/nudgeCopy.js';
+import { userTimezone, localDateStr, localHourNum } from './_lib/tz.js';
 
 /** Minimum hours between ANY two nudges to the same user. */
 const COOLDOWN_HOURS = 20;
@@ -131,7 +132,7 @@ export default async function handler(req, res) {
  * pushes on the same day.
  */
 async function evaluate(supabase, user, onlyType) {
-  const tz = user.timezone || 'UTC';
+  const tz = userTimezone(user);
   const localDate = localDateStr(tz);
   const localHour = localHourNum(tz);
 
@@ -253,22 +254,6 @@ function currentStreak(tasks, doneKey, localDate, isDone) {
 
 // ── date helpers ──────────────────────────────────────────────────────
 
-function localDateStr(tz) {
-  try {
-    return new Date().toLocaleDateString('en-CA', { timeZone: tz });
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
-function localHourNum(tz) {
-  try {
-    return Number(
-      new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: tz }).format(new Date()),
-    );
-  } catch {
-    return new Date().getUTCHours();
-  }
-}
 function shiftDate(yyyyMmDd, days) {
   const d = new Date(`${yyyyMmDd}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);

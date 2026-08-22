@@ -20,6 +20,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { userTimezone, localDateStr } from './_lib/tz.js';
 
 const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL || 'gpt-oss-120b';
 const CEREBRAS_BASE_URL = (process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1').replace(/\/$/, '');
@@ -66,7 +67,10 @@ export default async function handler(req, res) {
 
     for (const user of users || []) {
       try {
-        const tz = user.timezone || 'UTC';
+        // Unreachable fallback in practice (this query requires lat/long, which
+        // is set in the same call that stamps timezone) — shared for
+        // consistency and so an invalid IANA string can't throw.
+        const tz = userTimezone(user);
         const today = localDateStr(tz);
 
         const { data: tasks } = await supabase
@@ -142,13 +146,6 @@ export default async function handler(req, res) {
 }
 
 // "Today" (YYYY-MM-DD) in the given IANA timezone.
-function localDateStr(tz) {
-  try {
-    return new Date().toLocaleDateString('en-CA', { timeZone: tz });
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
 
 async function fetchForecast(lat, lon, tz) {
   try {

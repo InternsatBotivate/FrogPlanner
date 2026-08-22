@@ -16,6 +16,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { sendMail, emailShell } from './_lib/mailer.js';
+import { userTimezone, localDateStr } from './_lib/tz.js';
 
 const OVERDUE_WINDOW_DAYS = 30;
 
@@ -44,7 +45,7 @@ export default async function handler(req, res) {
     // ── Step 1: deadline digest reminders ───────────────────────────────
     for (const user of users || []) {
       try {
-        const tz = user.timezone || 'UTC';
+        const tz = userTimezone(user);
         const today = localDateStr(tz);
 
         // Skip if a deadline reminder already exists for today.
@@ -107,7 +108,7 @@ export default async function handler(req, res) {
     let emailed = 0;
     for (const user of users || []) {
       try {
-        const tz = user.timezone || 'UTC';
+        const tz = userTimezone(user);
         const today = localDateStr(tz);
 
         const { data: pending } = await supabase
@@ -161,13 +162,6 @@ export default async function handler(req, res) {
 
 function plural(n) {
   return n === 1 ? '' : 's';
-}
-function localDateStr(tz) {
-  try {
-    return new Date().toLocaleDateString('en-CA', { timeZone: tz });
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
 }
 function shiftDate(yyyyMmDd, days) {
   const d = new Date(`${yyyyMmDd}T00:00:00Z`);

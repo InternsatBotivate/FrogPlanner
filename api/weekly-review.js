@@ -23,6 +23,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { sendMail, emailShell } from './_lib/mailer.js';
+import { userTimezone, localDateStr } from './_lib/tz.js';
 
 const SITE_URL = 'https://www.frogplanner.com';
 
@@ -56,7 +57,7 @@ export default async function handler(req, res) {
 
     for (const user of users || []) {
       try {
-        const tz = user.timezone || 'UTC';
+        const tz = userTimezone(user);
         const today = localDateStr(tz);
 
         // Only run on the user's local Monday (unless forced).
@@ -234,13 +235,6 @@ async function buildWeekStats(supabase, userId, start, end, today) {
 
 // ── date helpers (UTC-safe, no Date mutation surprises) ────────────────
 
-function localDateStr(tz) {
-  try {
-    return new Date().toLocaleDateString('en-CA', { timeZone: tz });
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
 function shiftDate(yyyyMmDd, days) {
   const d = new Date(`${yyyyMmDd}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
