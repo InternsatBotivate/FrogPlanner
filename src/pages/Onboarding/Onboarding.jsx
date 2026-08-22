@@ -110,6 +110,49 @@ const todayStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+/**
+ * Presentational helpers — defined at MODULE scope, not inside Onboarding().
+ *
+ * They previously lived inside the component body, which meant React saw a
+ * brand-new ChoiceCard/Field function identity on every single re-render
+ * (including the one triggered by each keystroke). For Field specifically,
+ * that meant the <input> it wraps was unmounted and remounted on every
+ * keystroke — the DOM node was destroyed and recreated, so the browser lost
+ * focus after the first character, which is exactly "can't type more than
+ * one character/word at a time." Hoisting them to module scope gives both a
+ * stable identity across renders, so the underlying DOM nodes (input included)
+ * persist and keep focus normally.
+ */
+const ChoiceCard = ({ selected, onClick, icon: Icon, label, hint }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
+      selected
+        ? 'border-green-500 bg-green-50 shadow-sm'
+        : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50/40'
+    }`}
+  >
+    {Icon && (
+      <span className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${selected ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+        <Icon className="w-5 h-5" />
+      </span>
+    )}
+    <span className="min-w-0 flex-1">
+      <span className="block text-sm font-bold text-gray-900">{label}</span>
+      {hint && <span className="block text-xs text-gray-500 mt-0.5">{hint}</span>}
+    </span>
+    {selected && <Check className="w-5 h-5 text-green-600 shrink-0" />}
+  </button>
+);
+
+const Field = ({ icon: Icon, children }) => (
+  <div className="relative group">
+    <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-green-500 transition-colors pointer-events-none" />
+    {children}
+  </div>
+);
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading, register, finishOnboarding } = useAuthStore();
@@ -353,37 +396,6 @@ const Onboarding = () => {
       setSubmitting(false);
     }
   };
-
-  // ── Presentational helpers ─────────────────────────────────────────────
-  const ChoiceCard = ({ selected, onClick, icon: Icon, label, hint }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
-        selected
-          ? 'border-green-500 bg-green-50 shadow-sm'
-          : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50/40'
-      }`}
-    >
-      {Icon && (
-        <span className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${selected ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
-          <Icon className="w-5 h-5" />
-        </span>
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-bold text-gray-900">{label}</span>
-        {hint && <span className="block text-xs text-gray-500 mt-0.5">{hint}</span>}
-      </span>
-      {selected && <Check className="w-5 h-5 text-green-600 shrink-0" />}
-    </button>
-  );
-
-  const Field = ({ icon: Icon, children }) => (
-    <div className="relative group">
-      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-green-500 transition-colors pointer-events-none" />
-      {children}
-    </div>
-  );
 
   const stepTitles = {
     1: { title: 'Basic details', sub: 'Confirm this looks right.' },
