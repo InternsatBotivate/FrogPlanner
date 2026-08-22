@@ -48,6 +48,14 @@ const COMEBACK_MAX_DAYS = 30;
 const OVERDUE_THRESHOLD = 5;
 /** How far back to count overdue tasks. */
 const OVERDUE_WINDOW_DAYS = 30;
+/**
+ * How far back the streak scan looks — and therefore the floor on the task
+ * query window. These must stay in step: the scan breaks on the first day with
+ * no task rows, so scanning further back than we fetched would silently cap a
+ * long streak at the query window and put a wrong number in the copy (the
+ * widget would then disagree with the notification).
+ */
+const STREAK_LOOKBACK_DAYS = 60;
 
 export default async function handler(req, res) {
   try {
@@ -150,7 +158,10 @@ async function evaluate(supabase, user, onlyType) {
     if (ageHours < COOLDOWN_HOURS) return null;
   }
 
-  const windowStart = shiftDate(localDate, -Math.max(OVERDUE_WINDOW_DAYS, COMEBACK_MAX_DAYS));
+  const windowStart = shiftDate(
+    localDate,
+    -Math.max(OVERDUE_WINDOW_DAYS, COMEBACK_MAX_DAYS, STREAK_LOOKBACK_DAYS),
+  );
 
   const { data: tasks } = await supabase
     .from('tasks')
@@ -242,7 +253,7 @@ function currentStreak(tasks, doneKey, localDate, isDone) {
     byDate.get(t.task_date).push(t);
   }
   let streak = 0;
-  for (let i = 1; i <= 60; i += 1) {
+  for (let i = 1; i <= STREAK_LOOKBACK_DAYS; i += 1) {
     const day = shiftDate(localDate, -i);
     const dayTasks = byDate.get(day);
     if (!dayTasks || dayTasks.length === 0) break;
