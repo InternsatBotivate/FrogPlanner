@@ -28,6 +28,26 @@ const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
 const MAX_SENDS_PER_HOUR = 5;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PURPOSES = ['signup', 'password_reset', 'change_password'];
+const OTP_CONTENT = {
+  signup: {
+    subject: 'Verify your email with Frog Planner',
+    heading: 'Confirm your email',
+    intro: 'Use this code to finish creating your Frog Planner account.',
+    eyebrow: 'New account',
+  },
+  password_reset: {
+    subject: 'Reset your Frog Planner password',
+    heading: 'Reset your password',
+    intro: 'Use this code to continue with your password reset.',
+    eyebrow: 'Account security',
+  },
+  change_password: {
+    subject: 'Confirm your Frog Planner password change',
+    heading: 'Confirm it’s you',
+    intro: 'Use this code to approve the password change for your account.',
+    eyebrow: 'Account security',
+  },
+};
 
 export async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -195,14 +215,15 @@ export async function handler(req, res) {
     if (insErr) throw insErr;
 
     // ── Send via Resend SMTP ─────────────────────────────────────────────
+    const emailContent = OTP_CONTENT[purpose];
     await sendMail({
       to: email,
-      subject: 'Your Frog Planner verification code',
+      subject: emailContent.subject,
       text:
-        `Your Frog Planner verification code is ${code}. It expires in 10 minutes. ` +
+        `${emailContent.heading}\n\n${emailContent.intro}\n\nYour code is ${code}. It expires in 10 minutes. ` +
         `If you didn't request this, you can ignore it.\n\n` +
         `\u00A9 ${new Date().getUTCFullYear()} Botivate. All rights reserved.`,
-      html: otpEmailHtml(code),
+      html: otpEmailHtml(code, emailContent),
     });
 
     // otpId is an opaque, unguessable UUID (not the code) — safe to return
@@ -225,12 +246,20 @@ function safeParse(v) {
   }
 }
 
-function otpEmailHtml(code) {
+function otpEmailHtml(code, content) {
   return emailShell(`
-    <p style="margin:0 0 14px;">Here's your verification code:</p>
-    <p style="text-align:center;margin:22px 0;">
-      <span style="display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;font-weight:800;font-size:28px;letter-spacing:6px;padding:14px 26px;border-radius:12px;">${code}</span>
+    <h1 class="email-heading" style="margin:0 0 10px;color:#102118;font-size:28px;line-height:34px;font-weight:800;letter-spacing:-0.7px;">${content.heading}</h1>
+    <p class="email-copy" style="margin:0 0 24px;color:#526158;font-size:15px;line-height:24px;">${content.intro}</p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 22px;background:#f3f7f4;border:1px solid #d6e3da;border-radius:14px;">
+      <tr>
+        <td class="code-cell" align="center" style="padding:22px 16px;">
+          <div style="margin:0 0 7px;font-size:10px;line-height:14px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#617268;">Your verification code</div>
+          <div class="code-value" style="color:#114b34;font-size:32px;line-height:40px;font-weight:800;letter-spacing:8px;font-variant-numeric:tabular-nums;">${code}</div>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0;padding:13px 15px;border-left:3px solid #f2c94c;background:#fffaf0;color:#65746b;font-size:12px;line-height:19px;">
+      This code expires in <strong style="color:#425249;">10 minutes</strong>. Frog Planner will never ask you to share it. If you didn’t request this, you can safely ignore this email.
     </p>
-    <p style="margin:0;color:#9ca3af;font-size:12px;">This code expires in 10 minutes. If you didn't request it, ignore this email.</p>
-  `);
+  `, { eyebrow: content.eyebrow, previewText: `${content.heading}. Your code expires in 10 minutes.` });
 }

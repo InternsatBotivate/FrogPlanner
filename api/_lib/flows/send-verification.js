@@ -16,7 +16,7 @@
 //   VITE_SUPABASE_URL (or SUPABASE_URL)
 // Optional:
 //   APP_BASE_URL          — public origin for the verify link
-//                           (defaults to the request origin, then frogplanner.in)
+//                           (defaults to the request origin, then frogplanner.com)
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
@@ -96,7 +96,7 @@ export async function handler(req, res) {
     const base =
       process.env.APP_BASE_URL ||
       originFromReq(req) ||
-      'https://www.frogplanner.in';
+      'https://www.frogplanner.com';
     const verifyUrl = `${base.replace(/\/$/, '')}/api/verify-email?token=${verifyToken}`;
 
     // ── Send via Resend SMTP ─────────────────────────────────────────────
@@ -133,12 +133,19 @@ function originFromReq(req) {
 
 function verificationEmailHtml(url) {
   return emailShell(`
-    <p style="margin:0 0 14px;">Confirm this email to turn on Frog Planner reminders — weather-aware nudges and task deadlines.</p>
-    <p style="text-align:center;margin:22px 0;">
-      <a href="${url}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px;">Verify email</a>
-    </p>
-    <p style="margin:0 0 8px;color:#6b7280;font-size:12px;">Or paste this link into your browser:</p>
-    <p style="margin:0 0 16px;word-break:break-all;font-size:12px;color:#16a34a;">${url}</p>
-    <p style="margin:0;color:#9ca3af;font-size:12px;">This link expires in 24 hours. If you didn't request it, ignore this email.</p>
-  `);
+    <h1 class="email-heading" style="margin:0 0 10px;color:#102118;font-size:28px;line-height:34px;font-weight:800;letter-spacing:-0.7px;">Verify your email</h1>
+    <p class="email-copy" style="margin:0 0 24px;color:#526158;font-size:15px;line-height:24px;">Confirm this address to receive task deadlines, weather-aware nudges, and the reminders you choose.</p>
+    <table role="presentation" class="cta-table" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px;">
+      <tr>
+        <td bgcolor="#1f6f4b" style="border-radius:10px;">
+          <a class="cta-link" href="${url}" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:14px;line-height:18px;font-weight:800;">Verify email address&nbsp;&nbsp;&rarr;</a>
+        </td>
+      </tr>
+    </table>
+    <div style="margin:0 0 18px;padding:14px 16px;background:#f3f7f4;border:1px solid #dce7e0;border-radius:12px;">
+      <p style="margin:0 0 5px;color:#617268;font-size:10px;line-height:14px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;">Button not working?</p>
+      <p style="margin:0;word-break:break-all;font-size:11px;line-height:18px;"><a href="${url}" style="color:#1f6f4b;text-decoration:underline;">${url}</a></p>
+    </div>
+    <p style="margin:0;padding:13px 15px;border-left:3px solid #f2c94c;background:#fffaf0;color:#65746b;font-size:12px;line-height:19px;">This link expires in <strong style="color:#425249;">24 hours</strong>. If you didn’t request it, you can safely ignore this email.</p>
+  `, { eyebrow: 'Email verification', previewText: 'Confirm your email address for Frog Planner reminders.' });
 }

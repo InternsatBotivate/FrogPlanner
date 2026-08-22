@@ -84,7 +84,7 @@ export default async function handler(req, res) {
         if (overdue.length) parts.push(`${overdue.length} overdue`);
         const frogs = pendingToday.filter((t) => t.priority === 'Frog').length;
         let msg = `You have ${parts.join(' and ')}.`;
-        if (frogs) msg += ` ${frogs} frog${plural(frogs)} to eat first!`;
+        if (frogs) msg += ` ${frogs} high-priority Frog task${plural(frogs)} to tackle first.`;
 
         await supabase.from('reminders').insert({
           user_id: user.id,
@@ -127,7 +127,7 @@ export default async function handler(req, res) {
         const html = digestHtml(firstName, pending);
         const text =
           `Hi ${firstName},\n\n${pending.map((p) => '• ' + p.message).join('\n')}\n\n` +
-          `— Frog Planner\n\n` +
+          `Open today's plan: https://www.frogplanner.com\n\n— Frog Planner\n\n` +
           `\u00A9 ${new Date().getUTCFullYear()} Botivate. All rights reserved.`;
 
         for (const to of verified) {
@@ -176,18 +176,36 @@ function digestHtml(firstName, reminders) {
   const items = reminders
     .map(
       (r) =>
-        `<li style="margin:0 0 10px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;color:#374151;font-size:14px;line-height:1.5;">${escapeHtml(
-          r.message,
-        )}</li>`,
+        `<tr>
+          <td style="padding:0 0 10px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f7f4;border:1px solid #dce7e0;border-radius:12px;">
+              <tr>
+                <td width="5" style="width:5px;background:${r.type === 'deadline' ? '#f2c94c' : '#1f7a52'};border-radius:12px 0 0 12px;font-size:0;line-height:0;">&nbsp;</td>
+                <td style="padding:14px 16px;">
+                  <div style="margin:0 0 4px;color:#617268;font-size:9px;line-height:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;">${escapeHtml(reminderLabel(r.type))}</div>
+                  <div style="color:#27362d;font-size:14px;line-height:21px;font-weight:600;">${escapeHtml(r.message)}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`,
     )
     .join('');
   return emailShell(`
-    <p style="margin:0 0 14px;">Hi ${escapeHtml(firstName)}, here's what needs your attention today:</p>
-    <ul style="list-style:none;padding:0;margin:0;">${items}</ul>
-    <p style="text-align:center;margin:20px 0 4px;">
-      <a href="https://www.frogplanner.in" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:10px;">Open Frog Planner</a>
-    </p>
-  `);
+    <h1 class="email-heading" style="margin:0 0 10px;color:#102118;font-size:28px;line-height:34px;font-weight:800;letter-spacing:-0.7px;">Your day, in focus</h1>
+    <p class="email-copy" style="margin:0 0 22px;color:#526158;font-size:15px;line-height:24px;">Hi ${escapeHtml(firstName)}, here’s what deserves your attention today.</p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 14px;">${items}</table>
+    <table role="presentation" class="cta-table" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 8px;">
+      <tr>
+        <td bgcolor="#1f6f4b" style="border-radius:10px;">
+          <a class="cta-link" href="https://www.frogplanner.com" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:14px;line-height:18px;font-weight:800;">Open today’s plan&nbsp;&nbsp;&rarr;</a>
+        </td>
+      </tr>
+    </table>
+  `, { eyebrow: 'Daily follow-up', previewText: `${reminders.length} Frog Planner reminder${reminders.length === 1 ? '' : 's'} for today.` });
+}
+function reminderLabel(type) {
+  return type === 'deadline' ? 'Task follow-up' : type === 'weather' ? 'Weather note' : 'Reminder';
 }
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
