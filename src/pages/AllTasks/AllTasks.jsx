@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import FrogLogo from '../../components/FrogLogo';
 import { compareTasksForDay } from '../../utils/taskSort';
+import { formatTimeRange } from '../../utils/taskTime';
 import {
   CheckCircle2, Clock, Calendar, CheckSquare, Search, AlertCircle,
   Trash2, Edit, ListTodo, ChevronLeft, ChevronRight, Zap, SlidersHorizontal
@@ -414,7 +415,7 @@ export default function AllTasks() {
         </div>
       </td>
       <td className="px-4 py-3.5 text-gray-650 whitespace-nowrap text-xs text-center font-bold">
-        {item.duration}
+        {formatTimeRange(item.startTime, item.durationMinutes) || item.duration}
       </td>
       <td className="px-4 py-3.5 text-gray-700 whitespace-nowrap text-xs text-center">
         <span className="font-extrabold uppercase text-[11px] text-gray-650 tracking-wider flex items-center justify-center gap-1.5 select-none">
@@ -530,7 +531,7 @@ export default function AllTasks() {
         </div>
       </td>
       <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs text-center font-bold">
-        {item.duration}
+        {formatTimeRange(item.startTime, item.durationMinutes) || item.duration}
       </td>
       <td className="px-4 py-3.5 text-gray-500 whitespace-nowrap text-xs text-center">
         <span className="font-bold uppercase text-[11px] text-gray-500 tracking-wider flex items-center justify-center gap-1.5 select-none">
@@ -1107,7 +1108,7 @@ export default function AllTasks() {
                       <div className="flex items-center gap-1.5 mb-2">
                         {t.duration && (
                           <span className="px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 rounded text-[9px] font-bold uppercase tracking-wide">
-                            {t.duration}
+                            {formatTimeRange(t.startTime, t.durationMinutes) || t.duration}
                           </span>
                         )}
                         {t.category && (

@@ -170,6 +170,12 @@ const usePlannerStore = create((set, get) => ({
               category: taskPayload.category,
               priority: taskPayload.priority || '',
               date: taskPayload.date !== undefined ? taskPayload.date : t.date,
+              // Listed explicitly like the rest: this optimistic patch enumerates
+              // fields, so anything omitted here reverts on screen until the next
+              // refetch — an edited time would look like it hadn't saved.
+              startTime: taskPayload.startTime !== undefined ? taskPayload.startTime : t.startTime,
+              durationMinutes:
+                taskPayload.durationMinutes !== undefined ? taskPayload.durationMinutes : t.durationMinutes,
               isRecurring: taskPayload.isRecurring !== undefined ? taskPayload.isRecurring : (taskPayload.date === null)
             }
           : t

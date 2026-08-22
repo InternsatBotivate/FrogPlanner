@@ -49,6 +49,8 @@ export default function Planner() {
     category: 'Work',
     priority: '',
     date: '',
+    startTime: null,
+    durationMinutes: null,
     isCreatingCategory: false,
     newCategoryText: ''
   });
@@ -119,7 +121,7 @@ export default function Planner() {
 
   // Dynamic row array of descriptions, duration, category, and priority selections
   const [tasksList, setTasksList] = useState([
-    { description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '' }
+    { description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '', startTime: null, durationMinutes: null }
   ]);
 
   // Keep date sync when active date selector changes
@@ -137,6 +139,8 @@ export default function Planner() {
       category: item.category || customCategories[0] || 'Work',
       priority: item.priority || '',
       date: item.date || selectedDate,
+      startTime: item.startTime || null,
+      durationMinutes: item.durationMinutes ?? null,
       isCreatingCategory: false,
       newCategoryText: ''
     });
@@ -178,7 +182,9 @@ export default function Planner() {
       duration: editTaskData.duration,
       category: editTaskData.category,
       priority: editTaskData.priority,
-      date: editTaskData.date
+      date: editTaskData.date,
+      startTime: editTaskData.startTime || null,
+      durationMinutes: editTaskData.durationMinutes ?? null
     };
 
     const updatedTask = await usePlannerStore.getState().updateTask(editTaskData.id, payload);
@@ -826,12 +832,12 @@ export default function Planner() {
     setFormData({
       date: selectedDate
     });
-    setTasksList([{ description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '' }]);
+    setTasksList([{ description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '', startTime: null, durationMinutes: null }]);
     setShowModal(true);
   };
 
   const handleAddRow = () => {
-    setTasksList([...tasksList, { description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '' }]);
+    setTasksList([...tasksList, { description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '', startTime: null, durationMinutes: null }]);
   };
 
   const handleFieldChange = (index, field, value) => {
@@ -840,11 +846,23 @@ export default function Planner() {
     setTasksList(newList);
   };
 
+  /**
+   * Patch several fields of one row at once.
+   *
+   * Two back-to-back handleFieldChange calls would each spread the SAME stale
+   * tasksList, so the second would discard the first's change — which is
+   * exactly what setting startTime and durationMinutes together needs to
+   * avoid. Uses the updater form so it's correct regardless of batching.
+   */
+  const handleRowPatch = (index, patch) => {
+    setTasksList((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+
   const handleRemoveRow = (index) => {
     if (tasksList.length > 1) {
       setTasksList(tasksList.filter((_, i) => i !== index));
     } else {
-      setTasksList([{ description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '' }]);
+      setTasksList([{ description: '', duration: 'Morning', category: customCategories[0] || 'Work', priority: '', startTime: null, durationMinutes: null }]);
     }
   };
 
@@ -895,7 +913,9 @@ export default function Planner() {
       priority: row.priority || '',
       date: formData.date,
       selectValue: 'Select',
-      remarks: ''
+      remarks: '',
+      startTime: row.startTime || null,
+      durationMinutes: row.durationMinutes ?? null
     }));
 
     const createdTasks = await usePlannerStore.getState().addPlannerTasks(user.id, tasksToCreate);
@@ -1626,7 +1646,7 @@ export default function Planner() {
                   <div className="grid grid-cols-3 gap-2.5">
                     {/* Time Select */}
                     <div className="space-y-1">
-                      <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Time *</label>
+                      <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Time slot *</label>
                       <select
                         required
                         value={row.duration}
@@ -1707,6 +1727,16 @@ export default function Planner() {
                     </div>
                   </div>
 
+                  {/* Optional clock time within the slot chosen above. */}
+                  <div className="mt-2">
+                    <TaskTimeFields
+                      idPrefix={`row-${idx}`}
+                      startTime={row.startTime}
+                      durationMinutes={row.durationMinutes}
+                      onChange={(patch) => handleRowPatch(idx, patch)}
+                    />
+                  </div>
+
                 </div>
               ))}
             </div>
@@ -1754,7 +1784,7 @@ export default function Planner() {
           <div className="grid grid-cols-3 gap-2.5">
             {/* Time Select */}
             <div className="space-y-1">
-              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Time *</label>
+              <label className="block text-[9px] font-bold text-gray-550 uppercase tracking-wide">Time slot *</label>
               <select
                 required
                 value={editTaskData.duration}
@@ -1834,6 +1864,14 @@ export default function Planner() {
               </button>
             </div>
           </div>
+
+          {/* Optional clock time within the slot chosen above. */}
+          <TaskTimeFields
+            idPrefix="edit-task"
+            startTime={editTaskData.startTime}
+            durationMinutes={editTaskData.durationMinutes}
+            onChange={(patch) => setEditTaskData((prev) => ({ ...prev, ...patch }))}
+          />
         </div>
       </ModalForm>
 

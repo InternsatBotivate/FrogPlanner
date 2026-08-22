@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import FrogLogo from '../../components/FrogLogo';
 import { compareTasksForDay } from '../../utils/taskSort';
+import { formatTimeRange } from '../../utils/taskTime';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Clock, AlertTriangle, TrendingUp, Droplets,
@@ -616,7 +617,7 @@ export default function Dashboard() {
                       <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />
                       <span>{task.description}</span>
                     </p>
-                    <p className="text-[9px] text-gray-400 mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={task.duration} size={10} />{task.duration} <span>•</span> <CategoryIcon category={task.category} size={10} />{task.category}</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={task.duration} size={10} />{formatTimeRange(task.startTime, task.durationMinutes) || task.duration} <span>•</span> <CategoryIcon category={task.category} size={10} />{task.category}</p>
                   </div>
                 </div>
                 <button 
@@ -689,7 +690,7 @@ export default function Dashboard() {
                         {isCompleted ? '✓ Completed' : <span className="flex items-center gap-1"><FrogLogo className="w-3 h-3" />Active Frog</span>}
                       </span>
                       <span className="text-[9px] text-gray-500 font-semibold uppercase">
-                        <span className="inline-flex items-center gap-1"><TimeBlockIcon block={t.duration} size={10} />{t.duration}</span>
+                        <span className="inline-flex items-center gap-1"><TimeBlockIcon block={t.duration} size={10} />{formatTimeRange(t.startTime, t.durationMinutes) || t.duration}</span>
                       </span>
                     </div>
                     <h4 className={`text-xs md:text-sm font-bold text-gray-800 leading-snug flex items-start gap-1.5 ${isCompleted ? 'line-through text-gray-400 font-medium' : ''}`}>
@@ -828,7 +829,7 @@ export default function Dashboard() {
                           {task.priority === 'Frog' && <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />}
                           <span>{task.description}</span>
                         </p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={task.duration} size={10} />{task.duration} <span>•</span> <CategoryIcon category={task.category} size={10} />{task.category}</p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={task.duration} size={10} />{formatTimeRange(task.startTime, task.durationMinutes) || task.duration} <span>•</span> <CategoryIcon category={task.category} size={10} />{task.category}</p>
                       </div>
                     </div>
                   </div>
@@ -985,7 +986,7 @@ export default function Dashboard() {
                         {t.priority === 'Frog' && <FrogLogo className="w-4 h-4 select-none flex-shrink-0" />}
                         <span>{t.description}</span>
                       </p>
-                      <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={t.duration} size={10} />{t.duration} <span>•</span> <CategoryIcon category={t.category} size={10} />{t.category}</p>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5 inline-flex items-center gap-1"><TimeBlockIcon block={t.duration} size={10} />{formatTimeRange(t.startTime, t.durationMinutes) || t.duration} <span>•</span> <CategoryIcon category={t.category} size={10} />{t.category}</p>
                     </div>
                   </div>
                 ))
@@ -1044,7 +1045,7 @@ export default function Dashboard() {
                         {dStr}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700 font-bold">
-                        {t.duration}
+                        {formatTimeRange(t.startTime, t.durationMinutes) || t.duration}
                       </td>
                       <td className="px-4 py-3 text-gray-900 font-bold text-left">
                         <div className="flex items-center gap-1.5">
