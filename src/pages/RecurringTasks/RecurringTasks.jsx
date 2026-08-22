@@ -50,35 +50,45 @@ export default function RecurringTasks() {
     monthOfYear: 1,
     intervalDays: 2,
     startDate: '',
-    endDate: ''
+    endDate: '',
+    skipDaysOfWeek: []
   });
 
   const headers = ['Action', 'Task Description', 'Time', 'Repeats', 'Category', 'Remarks', 'Status'];
 
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  /** "except Sun, Sat" suffix shared by every frequency's summary; empty when nothing is skipped. */
+  const describeSkips = (recurrence) => {
+    const skips = recurrence?.skipDaysOfWeek || [];
+    if (skips.length === 0) return '';
+    return ` except ${[...skips].sort((a, b) => a - b).map(d => DAY_NAMES[d]).join(', ')}`;
+  };
+
   /** One-line plain-English summary of a template's schedule. */
   const describeSchedule = (recurrence) => {
-    if (!recurrence || recurrence.frequency === 'Daily') return 'Every day';
+    const skipSuffix = describeSkips(recurrence);
+    if (!recurrence || recurrence.frequency === 'Daily') return `Every day${skipSuffix}`;
     if (recurrence.frequency === 'Weekly') {
       const days = recurrence.daysOfWeek || [];
-      if (days.length === 0) return 'Weekly';
-      if (days.length === 7) return 'Every day';
-      const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return [...days].sort((a, b) => a - b).map(d => names[d]).join(', ');
+      if (days.length === 0) return `Weekly${skipSuffix}`;
+      if (days.length === 7) return `Every day${skipSuffix}`;
+      return [...days].sort((a, b) => a - b).map(d => DAY_NAMES[d]).join(', ') + skipSuffix;
     }
     if (recurrence.frequency === 'Monthly') {
       const day = recurrence.dayOfMonth ?? 1;
       const suffix = day === 1 || day === 21 || day === 31 ? 'st'
         : day === 2 || day === 22 ? 'nd'
         : day === 3 || day === 23 ? 'rd' : 'th';
-      return `Monthly on the ${day}${suffix}`;
+      return `Monthly on the ${day}${suffix}${skipSuffix}`;
     }
     if (recurrence.frequency === 'Yearly') {
       const months = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
-      return `Every ${months[(recurrence.monthOfYear ?? 1) - 1] || ''} ${recurrence.dayOfMonth ?? 1}`;
+      return `Every ${months[(recurrence.monthOfYear ?? 1) - 1] || ''} ${recurrence.dayOfMonth ?? 1}${skipSuffix}`;
     }
     const n = recurrence.intervalDays ?? 1;
-    return n === 1 ? 'Every day' : `Every ${n} days`;
+    return (n === 1 ? 'Every day' : `Every ${n} days`) + skipSuffix;
   };
 
   /** Bounded range summary, e.g. "until 2026-09-01". Empty when unbounded. */
@@ -137,7 +147,8 @@ export default function RecurringTasks() {
       monthOfYear: 1,
       intervalDays: 2,
       startDate: '',
-      endDate: ''
+      endDate: '',
+      skipDaysOfWeek: []
     });
     setCustomCategoryText('');
     setShowModal(true);
@@ -159,7 +170,8 @@ export default function RecurringTasks() {
       monthOfYear: task.recurrence?.monthOfYear ?? 1,
       intervalDays: task.recurrence?.intervalDays ?? 2,
       startDate: task.recurrence?.startDate ?? '',
-      endDate: task.recurrence?.endDate ?? ''
+      endDate: task.recurrence?.endDate ?? '',
+      skipDaysOfWeek: task.recurrence?.skipDaysOfWeek ?? []
     });
     setCustomCategoryText(isCustomCat ? task.category : '');
     setShowModal(true);
@@ -241,7 +253,8 @@ export default function RecurringTasks() {
         monthOfYear: formData.monthOfYear,
         intervalDays: formData.intervalDays,
         startDate: formData.startDate || null,
-        endDate: formData.endDate || null
+        endDate: formData.endDate || null,
+        skipDaysOfWeek: formData.skipDaysOfWeek
       }
     };
 
@@ -618,6 +631,41 @@ export default function RecurringTasks() {
                 placeholder="e.g. 3"
               />
               <p className="text-[10px] text-gray-400">Counted from the start date below.</p>
+            </div>
+          )}
+
+          {/* Skip specific weekdays — applies to any frequency EXCEPT Weekly,
+              where the day picker above already says exactly which days fire;
+              a second, overlapping "skip" control there would just invite
+              contradictions (e.g. picked Sunday above, skipped it here). */}
+          {formData.frequency !== 'Weekly' && (
+            <div className="space-y-1">
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Skip these days (optional)</label>
+              <div className="flex gap-1.5">
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((label, day) => {
+                  const on = formData.skipDaysOfWeek.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        skipDaysOfWeek: on
+                          ? formData.skipDaysOfWeek.filter(d => d !== day)
+                          : [...formData.skipDaysOfWeek, day]
+                      })}
+                      className={`flex-1 h-[32px] rounded text-[11px] font-bold border transition ${
+                        on
+                          ? 'bg-rose-500 text-white border-rose-500'
+                          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400">e.g. a daily task that shouldn&rsquo;t generate on Sundays.</p>
             </div>
           )}
 

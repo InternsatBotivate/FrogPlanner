@@ -34,6 +34,7 @@ const mapRow = (r) => ({
     intervalDays: r.interval_days ?? null,
     startDate: r.start_date ?? null,
     endDate: r.end_date ?? null,
+    skipDaysOfWeek: r.skip_days_of_week || [],
   },
 });
 
@@ -52,9 +53,12 @@ const scheduleColumns = (recurrence) => {
     day_of_month: usesDayOfMonth ? recurrence?.dayOfMonth ?? null : null,
     month_of_year: frequency === 'Yearly' ? recurrence?.monthOfYear ?? null : null,
     interval_days: frequency === 'Custom' ? recurrence?.intervalDays ?? null : null,
-    // start/end bound any frequency, so they are never cleared by frequency.
+    // start/end and skip_days_of_week bound any frequency, so they are never
+    // cleared by frequency — a Daily task skipping Sundays should keep doing
+    // so if the user later switches it to Custom.
     start_date: recurrence?.startDate ?? null,
     end_date: recurrence?.endDate ?? null,
+    skip_days_of_week: recurrence?.skipDaysOfWeek || [],
   };
 };
 
