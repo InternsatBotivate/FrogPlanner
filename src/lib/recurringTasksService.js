@@ -16,6 +16,8 @@ const mapRow = (r) => ({
   id: r.id,
   description: r.description,
   duration: r.time_slot, // Map time_slot to duration
+  startTime: r.start_time || null,
+  durationMinutes: r.duration_minutes ?? null,
   category: r.category,
   priority: r.priority,
   date: null, // Baseline template task has no specific date
@@ -100,6 +102,8 @@ export const addRecurringTasks = async (userId, newTasksArray) => {
       priority: t.priority || '',
       remarks: t.remarks || '',
       time_slot: t.duration || 'Morning', // Map duration to time_slot
+      start_time: t.startTime || null,
+      duration_minutes: t.durationMinutes ?? null,
       is_active: t.isActive !== undefined ? t.isActive : true,
       ...scheduleColumns(t.recurrence)
     }));
@@ -132,6 +136,8 @@ export const updateRecurringTask = async (taskId, taskPayload) => {
         priority: taskPayload.priority || '',
         remarks: taskPayload.remarks || '',
         time_slot: taskPayload.duration || 'Morning',
+        start_time: taskPayload.startTime || null,
+        duration_minutes: taskPayload.durationMinutes ?? null,
         is_active: taskPayload.isActive !== undefined ? taskPayload.isActive : true,
         ...scheduleColumns(taskPayload.recurrence)
       })
@@ -154,7 +160,14 @@ export const updateRecurringTask = async (taskId, taskPayload) => {
  */
 export const updateRecurringTaskField = async (taskId, field, value) => {
   try {
-    const dbField = field === 'duration' ? 'time_slot' : field;
+    // Recurring templates store the slot in `time_slot`; the clock time and
+    // length use the same column names as `tasks`.
+    const FIELD_TO_COLUMN = {
+      duration: 'time_slot',
+      startTime: 'start_time',
+      durationMinutes: 'duration_minutes',
+    };
+    const dbField = FIELD_TO_COLUMN[field] || field;
     const { error } = await supabase
       .from('recurring_tasks')
       .update({ [dbField]: value })

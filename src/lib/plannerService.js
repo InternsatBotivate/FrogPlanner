@@ -87,6 +87,9 @@ export const fetchPlannerData = async (userId, { windowDays = DEFAULT_WINDOW_DAY
         date: t.task_date || null,
         selectValue: t.select_value || 'Select',
         remarks: t.remarks || '',
+        // Optional clock time. `time` comes back as 'HH:MM:SS'; null when unset.
+        startTime: t.start_time || null,
+        durationMinutes: t.duration_minutes ?? null,
         isRecurring: false, // Standard tasks are never template recurring tasks
         timestamp: t.created_at
       })),
@@ -140,7 +143,10 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
         priority: t.priority || '',
         task_date: t.date || null,
         select_value: t.selectValue || 'Select',
-        remarks: t.remarks || ''
+        remarks: t.remarks || '',
+        // Optional: null rather than '' so Postgres `time`/smallint accept it.
+        start_time: t.startTime || null,
+        duration_minutes: t.durationMinutes ?? null
       }));
 
       const { data, error } = await supabase
@@ -159,6 +165,9 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
         date: t.task_date || null,
         selectValue: t.select_value || 'Select',
         remarks: t.remarks || '',
+        // Optional clock time. `time` comes back as 'HH:MM:SS'; null when unset.
+        startTime: t.start_time || null,
+        durationMinutes: t.duration_minutes ?? null,
         isRecurring: false,
         timestamp: t.created_at
       }))];
@@ -177,7 +186,15 @@ export const addPlannerTasks = async (userId, newTasksArray) => {
  */
 export const updateTaskField = async (taskId, field, value) => {
   try {
-    const dbField = field === 'selectValue' ? 'select_value' : field;
+    // camelCase UI field -> snake_case column. startTime/durationMinutes are
+    // here so an inline edit of either actually persists instead of trying to
+    // update a column that doesn't exist.
+    const FIELD_TO_COLUMN = {
+      selectValue: 'select_value',
+      startTime: 'start_time',
+      durationMinutes: 'duration_minutes',
+    };
+    const dbField = FIELD_TO_COLUMN[field] || field;
 
     // First try updating in tasks table
     const { data: standardTasks, error: standardError } = await supabase
@@ -328,7 +345,10 @@ export const migrateLegacyData = async (userId) => {
         priority: t.priority || '',
         task_date: t.date || null,
         select_value: t.selectValue || 'Select',
-        remarks: t.remarks || ''
+        remarks: t.remarks || '',
+        // Optional: null rather than '' so Postgres `time`/smallint accept it.
+        start_time: t.startTime || null,
+        duration_minutes: t.durationMinutes ?? null
       }));
 
       const { data: dbRegularInserted, error: tasksError } = await supabase
@@ -465,6 +485,8 @@ export const updateTask = async (taskId, taskPayload) => {
       date: data.task_date || null,
       selectValue: data.select_value || 'Select',
       remarks: data.remarks || '',
+      startTime: data.start_time || null,
+      durationMinutes: data.duration_minutes ?? null,
       isRecurring: false,
       timestamp: data.created_at
     };

@@ -35,6 +35,8 @@ export const fetchUpcomingTasks = async (userId) => {
       date: t.task_date,
       status: t.select_value === 'Done' ? 'Completed' : 'Pending',
       selectValue: t.select_value || 'Select',
+      startTime: t.start_time || null,
+      durationMinutes: t.duration_minutes ?? null,
       remarks: t.remarks || '',
       isRecurring: false,
       timestamp: t.created_at
@@ -61,7 +63,9 @@ export const createUpcomingTasks = async (userId, newTasksArray) => {
       priority: t.priority || '',
       task_date: t.date || null,
       select_value: t.status === 'Completed' ? 'Done' : 'Pending',
-      remarks: t.remarks || ''
+      remarks: t.remarks || '',
+      start_time: t.startTime || null,
+      duration_minutes: t.durationMinutes ?? null
     }));
 
     const { data, error } = await supabase
@@ -80,6 +84,8 @@ export const createUpcomingTasks = async (userId, newTasksArray) => {
       date: t.task_date,
       status: t.select_value === 'Done' ? 'Completed' : 'Pending',
       selectValue: t.select_value || 'Select',
+      startTime: t.start_time || null,
+      durationMinutes: t.duration_minutes ?? null,
       remarks: t.remarks || '',
       isRecurring: false,
       timestamp: t.created_at
@@ -98,7 +104,13 @@ export const updateUpcomingTaskField = async (taskId, field, value) => {
   try {
     if (!taskId) return false;
 
-    const dbField = field === 'date' ? 'task_date' : (field === 'status' ? 'select_value' : field);
+    const FIELD_TO_COLUMN = {
+      date: 'task_date',
+      status: 'select_value',
+      startTime: 'start_time',
+      durationMinutes: 'duration_minutes',
+    };
+    const dbField = FIELD_TO_COLUMN[field] || field;
     const dbValue = field === 'status' ? (value === 'Completed' ? 'Done' : 'Pending') : value;
 
     const { error } = await supabase
@@ -147,6 +159,8 @@ export const updateUpcomingTask = async (taskId, taskPayload) => {
       status: data.select_value === 'Done' ? 'Completed' : 'Pending',
       selectValue: data.select_value || 'Select',
       remarks: data.remarks || '',
+      startTime: data.start_time || null,
+      durationMinutes: data.duration_minutes ?? null,
       isRecurring: false,
       timestamp: data.created_at
     };
@@ -209,6 +223,8 @@ export const migrateUpcomingTasksLegacyData = async (userId) => {
       task_date: t.date || null,
       select_value: t.status === 'Completed' ? 'Done' : 'Pending',
       remarks: t.remarks || '',
+      start_time: t.startTime || null,
+      duration_minutes: t.durationMinutes ?? null,
       created_at: t.timestamp || new Date().toISOString()
     }));
 
