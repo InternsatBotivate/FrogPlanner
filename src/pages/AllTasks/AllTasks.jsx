@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import FrogLogo from '../../components/FrogLogo';
+import { compareTasksForDay } from '../../utils/taskSort';
 import {
   CheckCircle2, Clock, Calendar, CheckSquare, Search, AlertCircle,
   Trash2, Edit, ListTodo, ChevronLeft, ChevronRight, Zap, SlidersHorizontal
@@ -316,12 +317,12 @@ export default function AllTasks() {
         return true;
       })
       .sort((a, b) => {
+        // Newest date first (this is a cross-date list, unlike the day views).
         if (a.dateInstance !== b.dateInstance) {
           return b.dateInstance.localeCompare(a.dateInstance);
         }
-        if (a.priority === 'Frog' && b.priority !== 'Frog') return -1;
-        if (a.priority !== 'Frog' && b.priority === 'Frog') return 1;
-        return 0;
+        // Within one date, use the same Frog-then-time-slot order as everywhere else.
+        return compareTasksForDay(a, b);
       });
   }, [taskInstances, activeTab, kpiFilter, searchQuery, filterDuration, filterCategory, filterFrog, todayStr, fromDate, toDate]);
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import FrogLogo from '../../components/FrogLogo';
+import { compareTasksForDay } from '../../utils/taskSort';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Clock, AlertTriangle, TrendingUp, Droplets,
@@ -343,11 +344,7 @@ export default function Dashboard() {
       ...t,
       status: (selectedDayDoneIds.includes(t.id) || t.selectValue === 'Done') ? 'Completed' : 'Pending'
     }))
-    .sort((a, b) => {
-      if (a.priority === 'Frog' && b.priority !== 'Frog') return -1;
-      if (a.priority !== 'Frog' && b.priority === 'Frog') return 1;
-      return 0;
-    });
+    .sort(compareTasksForDay);
 
   // Productivity score calculation
   const productivityScore = selectedDayTasks.length > 0
@@ -1035,11 +1032,7 @@ export default function Dashboard() {
                 const dateCompletedIds = completions[dStr] || [];
                 const dateTasks = tasks
                   .filter(t => !t.isRecurring && t.date === dStr)
-                  .sort((a, b) => {
-                    if (a.priority === 'Frog' && b.priority !== 'Frog') return -1;
-                    if (a.priority !== 'Frog' && b.priority === 'Frog') return 1;
-                    return 0;
-                  });
+                  .sort(compareTasksForDay);
                 
                 if (dateTasks.length === 0) return null;
                 
