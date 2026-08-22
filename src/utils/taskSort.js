@@ -7,6 +7,8 @@
  * a bug, so keep these in step if either changes.
  * ──────────────────────────────────────────────────────────────────────────
  */
+import { parseTimeToMinutes } from './taskTime';
+
 
 /**
  * Chronological rank of each time slot.
@@ -39,5 +41,17 @@ export const compareTasksForDay = (a, b) => {
   const aFrog = a.priority === 'Frog';
   const bFrog = b.priority === 'Frog';
   if (aFrog !== bFrog) return aFrog ? -1 : 1;
-  return slotRank(a.duration) - slotRank(b.duration);
+
+  const slotDiff = slotRank(a.duration) - slotRank(b.duration);
+  if (slotDiff !== 0) return slotDiff;
+
+  // Within the same slot, order by clock time when set. Un-timed tasks sort
+  // AFTER timed ones: a task with a specific time is a commitment at that
+  // time, while an un-timed one is "sometime this morning".
+  const aMin = parseTimeToMinutes(a.startTime);
+  const bMin = parseTimeToMinutes(b.startTime);
+  if (aMin === null && bMin === null) return 0;
+  if (aMin === null) return 1;
+  if (bMin === null) return -1;
+  return aMin - bMin;
 };
