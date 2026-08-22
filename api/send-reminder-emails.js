@@ -21,8 +21,11 @@ const OVERDUE_WINDOW_DAYS = 30;
 
 export default async function handler(req, res) {
   try {
+    // Required, not optional. While this was `if (cronSecret && ...)` and the
+    // env var was unset, the check short-circuited and the endpoint was
+    // callable by anyone on the internet — for a cron that sends real email.
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
+    if (!cronSecret || req.headers.authorization !== `Bearer ${cronSecret}`) {
       return res.status(401).json({ error: 'Unauthorized.' });
     }
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;

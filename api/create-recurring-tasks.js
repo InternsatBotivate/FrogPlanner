@@ -15,10 +15,12 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Optional: basic authentication checking if CRON_SECRET is configured
+  // Required, not optional. While this was `if (cronSecret && ...)` and the env
+  // var was unset, the check short-circuited and anyone could invoke the task
+  // generator.
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized invocation' });
   }
 
