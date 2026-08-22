@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import FrogLogo from '../../components/FrogLogo';
+import TaskTimeFields from '../../components/TaskTimeFields';
+import { formatTimeRange } from '../../utils/taskTime';
 import { Search, Plus, Filter, Edit, Trash2, CheckCircle2, PauseCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DataTable from '../../components/DataTable';
@@ -43,6 +45,8 @@ export default function RecurringTasks() {
     category: 'Work',
     priority: '',
     remarks: '',
+    startTime: null,
+    durationMinutes: null,
     isActive: true,
     frequency: 'Daily',
     daysOfWeek: [],
@@ -140,6 +144,8 @@ export default function RecurringTasks() {
       category: customCategories[0] || 'Work',
       priority: '',
       remarks: '',
+      startTime: null,
+      durationMinutes: null,
       isActive: true,
       frequency: 'Daily',
       daysOfWeek: [],
@@ -163,6 +169,8 @@ export default function RecurringTasks() {
       category: isCustomCat ? 'custom' : (task.category || 'Work'),
       priority: task.priority || '',
       remarks: task.remarks || '',
+      startTime: task.startTime || null,
+      durationMinutes: task.durationMinutes ?? null,
       isActive: task.isActive !== undefined ? task.isActive : true,
       frequency: task.recurrence?.frequency || 'Daily',
       daysOfWeek: task.recurrence?.daysOfWeek || [],
@@ -245,6 +253,8 @@ export default function RecurringTasks() {
       priority: formData.priority,
       isRecurring: true,
       remarks: formData.remarks || '',
+      startTime: formData.startTime || null,
+      durationMinutes: formData.durationMinutes ?? null,
       isActive: formData.isActive !== undefined ? formData.isActive : true,
       recurrence: {
         frequency: formData.frequency,
@@ -304,7 +314,7 @@ export default function RecurringTasks() {
         </div>
       </td>
       <td className="px-4 py-3.5 text-gray-755 whitespace-nowrap text-xs md:text-sm font-bold">
-        {item.duration}
+        {formatTimeRange(item.startTime, item.durationMinutes) || item.duration}
       </td>
       <td className="px-4 py-3.5 whitespace-nowrap text-center">
         <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[11px] font-bold">
@@ -343,7 +353,7 @@ export default function RecurringTasks() {
           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wider">
             <CategoryIcon category={item.category} size={11} /> {item.category}
           </span>
-          <span className="text-[10px] font-bold text-gray-550 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">{item.duration}</span>
+          <span className="text-[10px] font-bold text-gray-550 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wider">{formatTimeRange(item.startTime, item.durationMinutes) || item.duration}</span>
           <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{describeSchedule(item.recurrence)}</span>
           {describeBounds(item.recurrence) && (
             <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{describeBounds(item.recurrence)}</span>
@@ -495,10 +505,22 @@ export default function RecurringTasks() {
             />
           </div>
 
+          {/*
+            Optional clock time carried by the template: the RPC copies
+            start_time/duration_minutes onto every generated instance, so a
+            daily 7:00 AM standup keeps its time instead of only its slot.
+          */}
+          <TaskTimeFields
+            idPrefix="recurring"
+            startTime={formData.startTime}
+            durationMinutes={formData.durationMinutes}
+            onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Time select */}
+            {/* Time slot select */}
             <div className="space-y-1">
-              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Time *</label>
+              <label className="block text-[10px] md:text-[12px] text-gray-700 uppercase tracking-tight font-bold">Time slot *</label>
               <select
                 required
                 value={formData.duration}
